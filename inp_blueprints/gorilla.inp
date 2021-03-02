@@ -1,0 +1,121 @@
+! INPUT FILE FOR GORILLA
+!
+! GORILLA CONFIGURATION NAMELIST 
+&GORILLANML
+!
+ !Electrostatic potential
+ !Change in the electrostatic potential within the plasma volume in Gaussian units
+ eps_Phi =  0.d0 , !1.d-6
+!
+ !Coordinate system
+ !1 ... (R,phi,Z) cylindrical coordinate system
+ !2 ... (s,theta,phi) symmetry flux coordinate system 
+ coord_system = 2 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !particle species
+ !1 ... electron, 2 ... deuterium ion, 3 ... alpha particle
+ ispecies = 1 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Switch for initial periodic coordinate particle re-location (modulo operation)
+ !.true. ... Particles are re-located at initialization in the case of a periodic coordinate, if they are outside the computation domain.
+ !.false. .. Particles are not re-located at initialization (This might lead to error if particles are outside the computation domain)
+ boole_periodic_relocation = .true. ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Gorilla pusher options
+ !1 ... numerical RK pusher, 2 ... polynomial pusher
+ ipusher = 2 ,
+!
+ !Numerical pusher options
+!
+ !accuracy for integration step:
+ !false ... RK4, true ... adaptive ODE45
+ boole_pusher_ode45 = .false. ,
+! 
+ !ODE45 relative accuracy (pusher_orbit)
+ rel_err_ode45 = 1.E-8 ,
+!
+ !Physical time - orbit parameter relation
+ !false ... dt_dtau is a linear function of position in each tetrahedron
+ !true ... dt_dtau is a constant averaged quantity in each tetrahedron
+ boole_dt_dtau = .true. ,
+!
+ !Precomputation for Newton iterations
+ !false ... Compute coefficients for 2nd order polynomial solution (Newton velocity and acceleration) in each tetrahedron (dzdtau) without precomputation
+ !true ... Use precomputation of coefficients for 2nd order polynomial solution (Newton velocity and acceleration)
+ boole_newton_precalc = .false. ,
+!
+ !Polynomial pusher options
+!
+ !Polynomial order for orbit pusher
+ poly_order = 2 ,
+!
+ !Settings for precomputation of coefficients
+ !0 ... No precomputation: All coefficients are computed on the fly (power of matrices)
+ !1 ... Precomputation of coefficients and factorization of powers of perpinv
+ !2 ... Same as 1 but with further precomputation of operatorb in b
+ !3 ... Extended precomputation of coefficients for constant perpinv
+ !      (Precomputation is done for each tetrahedron for constant perpinv) NOT IMPLEMENTED YET
+ i_precomp = 0 , 
+!
+ !Face prediction with 2nd order polynomial
+ !true ... Face guessing algorithm is used, false ... NOT used
+ boole_guess = .true. ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Processing of particle handover to tetrahedron neighbour
+ ! 1 ... Processing with special treatment of periodic boundaries and manipulation of periodic position values
+ ! 2 ... Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included
+ handover_processing_kind = 1 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Multiple options to manipulate the axisymmetric electromagnetic field (Tokamak) with noise
+!
+ !Add axisymmetric random noise (\xi = 0 ... 1) to the co-variant component of the vector potential $A_k$
+ !$A_k = A_k (1+\epsilon_A \xi)$
+ boole_axi_noise_vector_pot = .false. ,
+!
+ !Relative Magnitude of axisymmetric random noise $\epsilon_A$ of vector potential
+ axi_noise_eps_A = 1.d-1 ,
+!
+ !Add axisymmetric random noise to the electrostatic potential $\Phi$
+ !$\Phi = \Phi (1+\epsilon_\Phi \xi)$,
+ boole_axi_noise_elec_pot = .false. ,
+!
+ !Relative Magnitude of axisymmetric random noise $\epsilon_\Phi$ of electrostatic potential
+ axi_noise_eps_Phi = 3.d-1 ,
+!
+ !Add non-axisymmetric random noise to the co-variant component of the vector potential $A_k$
+ boole_non_axi_noise_vector_pot = .false. ,
+!
+ !Relative Magnitude of non-axisymmetric random noise $\epsilon_A$ of vector potential
+ non_axi_noise_eps_A = 1.d-4 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Manipulation of the axisymmetric electromagnetic field (Tokamak) with helical harmonic perturbation
+!
+ !Switch for helical harmonic perturbation of A_phi
+ !false ... no perturbation
+ !true ... perturbation on: A_phi = A_phi + A_phi*helical_pert_eps_Aphi * cos(m_fourier*theta +n_fourier*phi)
+ boole_helical_pert = .false. ,
+!
+ !Amplitude for helical harmonic perturbation
+ helical_pert_eps_Aphi = 1.d-1 ,
+!
+ !Fourier modes of helical perturbation
+ helical_pert_m_fourier = 2 ,
+ helical_pert_n_fourier = 2 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+/
+
+

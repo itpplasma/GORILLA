@@ -1,0 +1,4 @@
+3600      nstep    - number of integration steps
+500       nlabel   - grid size over radial variable 
+500       ntheta   - grid size over poloidal angle
+10000     nsurfmax - number of starting points for separarix search
