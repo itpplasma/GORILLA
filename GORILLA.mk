@@ -32,6 +32,8 @@ OBJS = OBJS/SetWorkingPrecision.o \
 	OBJS/gorilla_diag_mod.o \
 	OBJS/canonical_coordinates_mod.o \
 	OBJS/nctools_module.o \
+	OBJS/rkf45.o \
+	OBJS/odeint_rkf45.o \
 	OBJS/runge_kutta_mod.o \
 	OBJS/magfie.o \
 	OBJS/chamb_m.o \
@@ -94,6 +96,12 @@ OBJS/canonical_coordinates_mod.o: SRC/canonical_coordinates_mod.f90 Gorilla.mk
 OBJS/nctools_module.o: SRC/nctools_module.f90 Gorilla.mk SRC/canonical_coordinates_mod.f90
 	$(FC) $(OPTS) $(NCINC) -c SRC/nctools_module.f90 
 	mv nctools_module.o OBJS/	
+OBJS/rkf45.o: SRC/contrib/rkf45.f90 Gorilla.mk
+	$(FC) $(OPTS) -c SRC/contrib/rkf45.f90
+	mv rkf45.o OBJS/	
+OBJS/odeint_rkf45.o: SRC/odeint_rkf45.f90 Gorilla.mk
+	$(FC) $(OPTS) -c SRC/odeint_rkf45.f90
+	mv odeint_rkf45.o OBJS/	
 OBJS/runge_kutta_mod.o: SRC/runge_kutta_mod.f90 Gorilla.mk
 	$(FC) $(OPTS) -c SRC/runge_kutta_mod.f90
 	mv runge_kutta_mod.o OBJS/	

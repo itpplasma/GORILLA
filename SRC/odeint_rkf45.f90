@@ -12,11 +12,16 @@ subroutine odeint_allroutines(y, nvar, x1, x2, eps, derivs)
     double precision, dimension(nvar) :: yp
 
     double precision :: epsrel, epsabs
+    double precision :: x1in, x2in
     integer :: flag
 
     flag = 1
     epsrel = eps
     epsabs = 1d-31
+
+    ! Required so that x1 and x2 are not overwritten by r8_rkf45
+    x1in = x1
+    x2in = x2
 
     call r8_rkf45 ( derivs, nvar, y, yp, x1, x2, epsrel, epsabs, flag )
 
