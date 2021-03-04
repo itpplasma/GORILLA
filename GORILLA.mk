@@ -25,16 +25,13 @@ NCLIB ?= -L/usr/lib -lnetcdff -lnetcdf -llapack
 
 OBJS = OBJS/SetWorkingPrecision.o \
 	OBJS/Polynomial234RootSolvers.o \
-	OBJS/llsq.o \
 	OBJS/constants_mod.o \
 	OBJS/tetra_grid_settings_mod.o \
 	OBJS/gorilla_settings_mod.o \
-	OBJS/mono_energetic_transp_settings_mod.o \
 	OBJS/various_functions_mod.o \
 	OBJS/gorilla_diag_mod.o \
 	OBJS/canonical_coordinates_mod.o \
 	OBJS/nctools_module.o \
-	OBJS/odeint_allroutines.o \
 	OBJS/runge_kutta_mod.o \
 	OBJS/magfie.o \
 	OBJS/chamb_m.o \
@@ -56,7 +53,6 @@ OBJS = OBJS/SetWorkingPrecision.o \
 	OBJS/bdivfree.o \
 	OBJS/tetra_physics_mod.o \
 	OBJS/tetra_physics_poly_precomp_mod.o \
-	OBJS/sub_alpha_lifetime_can.o \
 	OBJS/differentiate.o \
 	OBJS/spline5_RZ.o \
 	OBJS/supporting_functions_mod.o \
@@ -66,9 +62,6 @@ OBJS = OBJS/SetWorkingPrecision.o \
 	OBJS/get_canonical_coordinates.o \
 	OBJS/orbit_timestep_gorilla.o \
 	OBJS/gorilla_plot_mod.o \
-	OBJS/fluxtv_pusher_mod.o \
-	OBJS/fluxtv_mod.o \
-	OBJS/flux_deviation_mod.o \
 	OBJS/test_gorilla_main.o
 
 
@@ -80,9 +73,6 @@ OBJS/SetWorkingPrecision.o: SRC/SetWorkingPrecision.f90 Gorilla.mk
 OBJS/Polynomial234RootSolvers.o: SRC/Polynomial234RootSolvers.f90 Gorilla.mk
 	$(FC) $(OPTS) -c SRC/Polynomial234RootSolvers.f90
 	mv Polynomial234RootSolvers.o OBJS/
-OBJS/llsq.o: SRC/llsq.f90 Gorilla.mk
-	$(FC) $(OPTS) -c SRC/llsq.f90
-	mv llsq.o OBJS/
 OBJS/constants_mod.o: SRC/constants_mod.f90 Gorilla.mk
 	$(FC) $(OPTS) -c SRC/constants_mod.f90
 	mv constants_mod.o OBJS/
@@ -92,9 +82,6 @@ OBJS/tetra_grid_settings_mod.o: SRC/tetra_grid_settings_mod.f90 Gorilla.mk
 OBJS/gorilla_settings_mod.o: SRC/gorilla_settings_mod.f90 Gorilla.mk
 	$(FC) $(OPTS) -c SRC/gorilla_settings_mod.f90
 	mv gorilla_settings_mod.o OBJS/
-OBJS/mono_energetic_transp_settings_mod.o: SRC/mono_energetic_transp_settings_mod.f90 Gorilla.mk
-	$(FC) $(OPTS) -c SRC/mono_energetic_transp_settings_mod.f90
-	mv mono_energetic_transp_settings_mod.o OBJS/
 OBJS/various_functions_mod.o: SRC/various_functions_mod.f90 Gorilla.mk
 	$(FC) $(OPTS) -c SRC/various_functions_mod.f90
 	mv various_functions_mod.o OBJS/
@@ -107,9 +94,6 @@ OBJS/canonical_coordinates_mod.o: SRC/canonical_coordinates_mod.f90 Gorilla.mk
 OBJS/nctools_module.o: SRC/nctools_module.f90 Gorilla.mk SRC/canonical_coordinates_mod.f90
 	$(FC) $(OPTS) $(NCINC) -c SRC/nctools_module.f90 
 	mv nctools_module.o OBJS/	
-OBJS/odeint_allroutines.o: SRC/odeint_allroutines.f90 Gorilla.mk
-	$(FC) $(OPTS) -c SRC/odeint_allroutines.f90
-	mv odeint_allroutines.o OBJS/	
 OBJS/runge_kutta_mod.o: SRC/runge_kutta_mod.f90 Gorilla.mk
 	$(FC) $(OPTS) -c SRC/runge_kutta_mod.f90
 	mv runge_kutta_mod.o OBJS/	
@@ -122,9 +106,6 @@ OBJS/magfie.o: SRC/magfie.f90 Gorilla.mk SRC/magfie.f90
 OBJS/chamb_m.o: SRC/chamb_m.f90 Gorilla.mk SRC/chamb_m.f90
 	$(FC) $(OPTS) -c SRC/chamb_m.f90
 	mv chamb_m.o OBJS/
-OBJS/sub_alpha_lifetime_can.o: SRC/sub_alpha_lifetime_can.f90 Gorilla.mk SRC/sub_alpha_lifetime_can.f90
-	$(FC) $(OPTS) -c SRC/sub_alpha_lifetime_can.f90
-	mv sub_alpha_lifetime_can.o OBJS/
 OBJS/spline_vmec_data.o: SRC/spline_vmec_data.f90 Gorilla.mk SRC/canonical_coordinates_mod.f90
 	$(FC) $(OPTS) -c SRC/spline_vmec_data.f90
 	mv spline_vmec_data.o OBJS/	
@@ -158,12 +139,6 @@ OBJS/gorilla_plot_mod.o: SRC/gorilla_plot_mod.f90 Gorilla.mk
 OBJS/pusher_tetra_rk.o: SRC/pusher_tetra_rk.f90 Gorilla.mk
 	$(FC) $(OPTS) -c SRC/pusher_tetra_rk.f90
 	mv pusher_tetra_rk.o OBJS/
-OBJS/fluxtv_pusher_mod.o: SRC/fluxtv_pusher_mod.f90 Gorilla.mk
-	$(FC) $(OPTS) -c SRC/fluxtv_pusher_mod.f90
-	mv fluxtv_pusher_mod.o OBJS/
-OBJS/flux_deviation_mod.o: SRC/flux_deviation_mod.f90 Gorilla.mk
-	$(FC) $(OPTS) -c SRC/flux_deviation_mod.f90
-	mv flux_deviation_mod.o OBJS/
 OBJS/binsrc.o: SRC/binsrc.f90 Gorilla.mk
 	$(FC) $(OPTS) -c SRC/binsrc.f90
 	mv binsrc.o OBJS/
@@ -182,9 +157,6 @@ OBJS/supporting_functions_mod.o: SRC/supporting_functions_mod.f90 Gorilla.mk
 OBJS/differentiate.o: SRC/differentiate.f90 Gorilla.mk
 	$(FC) $(OPTS) -c SRC/differentiate.f90
 	mv differentiate.o OBJS/
-OBJS/fluxtv_mod.o: SRC/fluxtv_mod.f90 Gorilla.mk
-	$(FC) $(OPTS) -c SRC/fluxtv_mod.f90
-	mv fluxtv_mod.o OBJS/
 OBJS/test_gorilla_main.o: SRC/test_gorilla_main.f90 Gorilla.mk SRC/various_functions_mod.f90
 	$(FC) $(OPTS) -c SRC/test_gorilla_main.f90
 	mv test_gorilla_main.o OBJS/
