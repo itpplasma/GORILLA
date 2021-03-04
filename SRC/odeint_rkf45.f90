@@ -23,16 +23,16 @@ subroutine odeint_allroutines(y, nvar, x1, x2, eps, derivs)
     x1in = x1
     x2in = x2
 
-    call r8_rkf45 ( derivs, nvar, y, yp, x1, x2, epsrel, epsabs, flag )
+    call r8_rkf45 ( derivs, nvar, y, yp, x1in, x2in, epsrel, epsabs, flag )
 
     if (flag == 6) then
         epsrel = 10*epsrel
         epsabs = 10*epsabs
         flag = 2
-        call r8_rkf45 ( derivs, nvar, y, yp, x1, x2, epsrel, epsabs, flag )
+        call r8_rkf45 ( derivs, nvar, y, yp, x1in, x2in, epsrel, epsabs, flag )
     elseif (flag == 7) then
         flag = 2
-        call r8_rkf45 ( derivs, nvar, y, yp, x1, x2, epsrel, epsabs, flag )
+        call r8_rkf45 ( derivs, nvar, y, yp, x1in, x2in, epsrel, epsabs, flag )
     endif
 
 end subroutine odeint_allroutines
