@@ -17,10 +17,12 @@ OPTS= -J OBJS  -g -fbacktrace -ffpe-trap=zero,overflow,invalid  -fbounds-check -
 # The option below shows in which line the error occurs
 #OPTS= -J OBJS  -ffpe-trap=invalid,zero,overflow -g -fopenmp
 
-NCINC ?= -I/usr/include
+#NCINC ?= -I/usr/include
+NCINC ?= -I/opt/local/include
 #NCINC = -I/proj/plasma/Libs/gcc-9/NetCDF/include
 
-NCLIB ?= -L/usr/lib -lnetcdff -lnetcdf -llapack
+#NCLIB ?= -L/usr/lib -lnetcdff -lnetcdf -llapack
+NCLIB ?= -L/opt/local/lib -lnetcdff -lnetcdf -llapack
 #NCLIB = -L/proj/plasma/Libs/gcc-9/NetCDF/lib -lnetcdff -lnetcdf
 
 OBJS = OBJS/SetWorkingPrecision.o \
