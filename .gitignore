@@ -30,6 +30,16 @@
 *.exe
 *.out
 *.app
+*.x
+
+# Data files
+*.dat
+*.txt
+*.mat
+*.fig
+fort.*
+out.*
 
 # macOS
-.DS_Store
+.DS*
+._*
