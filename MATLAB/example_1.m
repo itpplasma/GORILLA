@@ -6,15 +6,15 @@
 % Create a figure with the Poincare section and parallel adiabatic invariant
 %
 %#######################################################################################################################
-% programed functions:
+% used functions:
 %-----------------------------------------------------------------------------------------------------------------------
 % InputFile
 % NameList
 % read_in
 % load_copy
 %#######################################################################################################################
-%author: Michael Scheidt
-%created: 19.02.2021
+% author: Michael Scheidt
+% created: 19.02.2021
 
 
 %Initialize used paths and files
@@ -52,44 +52,44 @@ addpath(path_inp_files);
 addpath(path_functions);
 
 %initialize class for inputfiles
-GORILLA = InputFile([path_inp_files,'/gorilla.inp']);
-GORILLA_plot = InputFile([path_inp_files,'/gorilla_plot.inp']);
+gorilla = InputFile([path_inp_files,'/gorilla.inp']);
+gorilla_plot = InputFile([path_inp_files,'/gorilla_plot.inp']);
 tetra_grid = InputFile([path_inp_files,'/tetra_grid.inp']);
 
 %read default inputfiles
-GORILLA.read();
-GORILLA_plot.read();
+gorilla.read();
+gorilla_plot.read();
 tetra_grid.read();
 
 
-%Set input variables for GORILLA
+%Set input variables for gorilla
 %-----------------------------------------------------------------------------------------------------------------------
 
 %Input file GORILLA
 %All necessary variables for current calculation
 
     %Change in the electrostatic potential within the plasma volume in Gaussian units
-        GORILLA.GORILLANML.eps_Phi=0;
+        gorilla.GORILLANML.eps_Phi=0;
 
     %Coordinate system
         %1 ... (R,phi,Z) cylindrical coordinate system
         %2 ... (s,theta,phi) symmetry flux coordinate system
-        GORILLA.GORILLANML.coord_system = 2;
+        gorilla.GORILLANML.coord_system = 2;
 
     %particle species
         %1 ... electron, 2 ... deuterium ion, 3 ... alpha particle
-        GORILLA.GORILLANML.ispecies = 2;
+        gorilla.GORILLANML.ispecies = 2;
 
     %Switch for initial periodic coordinate particle re-location (modulo operation)
         % true ... Particles are re-located at initialization in the case of a periodic coordinate, if they are outside the computation domain.
         % false ... Particles are not re-located at initialization (This might lead to error if particles are outside the computation domain)
-        GORILLA.GORILLANML.boole_periodic_relocation = false;
+        gorilla.GORILLANML.boole_periodic_relocation = false;
 
     %1 ... numerical RK pusher, 2 ... polynomial pusher
-        GORILLA.GORILLANML.ipusher = 2;
+        gorilla.GORILLANML.ipusher = 2;
 
     %Polynomial order for orbit pusher (from 2 to 4)
-        GORILLA.GORILLANML.poly_order = 2;
+        gorilla.GORILLANML.poly_order = 2;
 
 
 %Input file tetra_grid
@@ -115,7 +115,7 @@ tetra_grid.read();
         tetra_grid.TETRA_GRID_NML.boole_n_field_periods = true;
 
 
-%Input file GORILLA_plot
+%Input file gorilla_plot
 %All necessary variables for current calculation
 
     %Switch for options
@@ -123,106 +123,106 @@ tetra_grid.read();
         % 2 ... Single orbit - Starting positions and pitch for the orbit are taken from starting drift surfaces (see below)
         % 3 ... Multiple orbits - Starting positions and pitch for orbits are taken from file (see below) [Every Line New Starting position]
         % 4 ... Multiple orbits - Starting positions and pitch for orbits are taken from drift surfaces with regular spacing (see below)
-        GORILLA_plot.GORILLA_PLOT_NML.i_orbit_options = 2;
+        gorilla_plot.GORILLA_PLOT_NML.i_orbit_options = 2;
 
     %Total individual orbit flight time for plotting
-        GORILLA_plot.GORILLA_PLOT_NML.total_orbit_time = 2;
+        gorilla_plot.GORILLA_PLOT_NML.total_orbit_time = 2;
 
     %Total Energy of particle in eV
-        GORILLA_plot.GORILLA_PLOT_NML.energy_eV_start = 3000;
+        gorilla_plot.GORILLA_PLOT_NML.energy_eV_start = 3000;
 
     %Switch for plotting Poincar� cuts at toroidal variable $\varphi$ = 0
-        GORILLA_plot.GORILLA_PLOT_NML.boole_poincare_phi_0 = false;
+        gorilla_plot.GORILLA_PLOT_NML.boole_poincare_phi_0 = false;
 
     %Switch for plotting Poincar� cuts at parallel velocity $v_\parallel$ = 0
-        GORILLA_plot.GORILLA_PLOT_NML.boole_poincare_vpar_0 = true;
+        gorilla_plot.GORILLA_PLOT_NML.boole_poincare_vpar_0 = true;
 
         %Number of skipped (non-printed) Poincar� cuts at parallel velocity $v_\parallel$ = 0
-            GORILLA_plot.GORILLA_PLOT_NML.n_skip_vpar_0 = 1;
+            gorilla_plot.GORILLA_PLOT_NML.n_skip_vpar_0 = 1;
 
         %Filename for Poincar� cuts at parallel velocity $v_\parallel$ = 0 in cylindrical coordinates (R,$\varphi$,Z)
-            GORILLA_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_rphiz = 'poincare_plot_vpar_0_rphiz_order2.dat';
+            gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_rphiz = 'poincare_plot_vpar_0_rphiz_order2.dat';
 
         %Filename for Poincar� cuts at parallel velocity $v_\parallel$ = 0 in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
-            GORILLA_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi = 'poincare_plot_vpar_0_sthetaphi_order2.dat';
+            gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi = 'poincare_plot_vpar_0_sthetaphi_order2.dat';
 
     %Switch for plotting full orbit
-        GORILLA_plot.GORILLA_PLOT_NML.boole_full_orbit = false;
+        gorilla_plot.GORILLA_PLOT_NML.boole_full_orbit = false;
 
     %Plot invariances of motion (ONLY for single orbits)
 
         %Switch for plotting total particle energy
-            GORILLA_plot.GORILLA_PLOT_NML.boole_e_tot = false;
+            gorilla_plot.GORILLA_PLOT_NML.boole_e_tot = false;
 
         %Switch for plotting canoncial (toroidal) angular momentum $p_\varphi$
-            GORILLA_plot.GORILLA_PLOT_NML.boole_p_phi = false;
+            gorilla_plot.GORILLA_PLOT_NML.boole_p_phi = false;
 
         %Switch for parallel adiabatic invariant $J_\parallel$
-            GORILLA_plot.GORILLA_PLOT_NML.boole_J_par = true;
+            gorilla_plot.GORILLA_PLOT_NML.boole_J_par = true;
 
         %Filename for parallel adiabatic invariant $J_\parallel$
-            GORILLA_plot.GORILLA_PLOT_NML.filename_J_par = 'J_par_order2.dat';
+            gorilla_plot.GORILLA_PLOT_NML.filename_J_par = 'J_par_order2.dat';
 
     %Single orbit from starting drift surface (i_orbit_options = 2)
 
         %Starting drift surface
             % = s for (s,$\vartheta$,$\varphi$)
             % = R for (R,$\varphi$,Z)
-            GORILLA_plot.GORILLA_PLOT_NML.start_pos_x1_beg = 0.5;
+            gorilla_plot.GORILLA_PLOT_NML.start_pos_x1_beg = 0.5;
 
         %Starting value for toroidal variable
             % = $\vartheta$ for (s,$\vartheta$,$\varphi$)
             % = $\varphi$ for (R,$\varphi$,Z)
-            GORILLA_plot.GORILLA_PLOT_NML.start_pos_x2  = 0;
+            gorilla_plot.GORILLA_PLOT_NML.start_pos_x2  = 0;
 
         %Starting value for poloidal variable $\vartheta$
             % = $\varphi$ for (s,$\vartheta$,$\varphi$)
             % = Z for (R,$\varphi$,Z)
-            GORILLA_plot.GORILLA_PLOT_NML.start_pos_x3  = 0.63;
+            gorilla_plot.GORILLA_PLOT_NML.start_pos_x3  = 0.63;
 
         %Pitch parameter $\lambda$ = $v_\parallel$ / vmod
-            GORILLA_plot.GORILLA_PLOT_NML.start_pitch_parameter = 0.3;
+            gorilla_plot.GORILLA_PLOT_NML.start_pitch_parameter = 0.3;
 
 
-%Run GORILLA
+%Run gorilla
 %-----------------------------------------------------------------------------------------------------------------------
 
-%write Input files for GORILLA
-GORILLA.write([path_RUN,'/GORILLA.inp']);
-GORILLA_plot.write([path_RUN,'/GORILLA_plot.inp']);
+%write Input files for gorilla
+gorilla.write([path_RUN,'/gorilla.inp']);
+gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 tetra_grid.write([path_RUN,'/tetra_grid.inp']);
 
 %Create softlinks for used files
-! ln -s ../../test_GORILLA_main.x .
+! ln -s ../../test_gorilla_main.x .
 ! ln -s ../../MHD_MHD_EQUILIBRIA .
 
-%Run GORILLA Code
+%Run gorilla Code
 ! ./test_gorilla_main.x
 
 %Load Data-files and copy them into data_plots folder
 data=struct();
-data=load_copy(data,path_RUN,path_data_plots,GORILLA_plot);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 %Repeat orbit calculation for different polynominal order
 %polynominal order = 3
-GORILLA.GORILLANML.poly_order = 3;
-GORILLA_plot.GORILLA_PLOT_NML.filename_J_par = 'J_par_order3.dat';
-GORILLA_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_rphiz = 'poincare_plot_vpar_0_rphiz_order3.dat';
-GORILLA_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi = 'poincare_plot_vpar_0_sthetaphi_order3.dat';
-GORILLA.write([path_RUN,'/GORILLA.inp']);
-GORILLA_plot.write([path_RUN,'/GORILLA_plot.inp']);
-! ./test_GORILLA_main.x
-data=load_copy(data,path_RUN,path_data_plots,GORILLA_plot);
+gorilla.GORILLANML.poly_order = 3;
+gorilla_plot.GORILLA_PLOT_NML.filename_J_par = 'J_par_order3.dat';
+gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_rphiz = 'poincare_plot_vpar_0_rphiz_order3.dat';
+gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi = 'poincare_plot_vpar_0_sthetaphi_order3.dat';
+gorilla.write([path_RUN,'/gorilla.inp']);
+gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
+! ./test_gorilla_main.x
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 %polynominal order = 4
-GORILLA.GORILLANML.poly_order = 4;
-GORILLA_plot.GORILLA_PLOT_NML.filename_J_par = 'J_par_order4.dat';
-GORILLA_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_rphiz = 'poincare_plot_vpar_0_rphiz_order4.dat';
-GORILLA_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi = 'poincare_plot_vpar_0_sthetaphi_order4.dat';
-GORILLA.write([path_RUN,'/GORILLA.inp']);
-GORILLA_plot.write([path_RUN,'/GORILLA_plot.inp']);
-! ./test_GORILLA_main.x
-data=load_copy(data,path_RUN,path_data_plots,GORILLA_plot);
+gorilla.GORILLANML.poly_order = 4;
+gorilla_plot.GORILLA_PLOT_NML.filename_J_par = 'J_par_order4.dat';
+gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_rphiz = 'poincare_plot_vpar_0_rphiz_order4.dat';
+gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi = 'poincare_plot_vpar_0_sthetaphi_order4.dat';
+gorilla.write([path_RUN,'/gorilla.inp']);
+gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
+! ./test_gorilla_main.x
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 
 %Create Plots of created data
@@ -240,7 +240,7 @@ plot(data.poincare_plot_vpar_0_rphiz_order2(:,1),data.poincare_plot_vpar_0_rphiz
 hold on
 plot(data.poincare_plot_vpar_0_rphiz_order3(:,1),data.poincare_plot_vpar_0_rphiz_order3(:,3),'d','MarkerSize',2)
 plot(data.poincare_plot_vpar_0_rphiz_order4(:,1),data.poincare_plot_vpar_0_rphiz_order4(:,3),'v','MarkerSize',2)
-legend('GORILLA Poly2','GORILLA Poly3','GORILLA Poly4')
+legend('gorilla Poly2','gorilla Poly3','gorilla Poly4')
 xlabel('R [cm]')
 ylabel('z [cm]')
 title('Poincar\.{e} section ($v_{par}=0$) Stellerator','Interpreter','latex');
@@ -251,7 +251,7 @@ plot(data.poincare_plot_vpar_0_sthetaphi_order2(:,2),data.poincare_plot_vpar_0_s
 hold on
 plot(data.poincare_plot_vpar_0_sthetaphi_order3(:,2),data.poincare_plot_vpar_0_sthetaphi_order3(:,1),'d','MarkerSize',2)
 plot(data.poincare_plot_vpar_0_sthetaphi_order4(:,2),data.poincare_plot_vpar_0_sthetaphi_order4(:,1),'v','MarkerSize',2)
-legend('GORILLA Poly2','GORILLA Poly3','GORILLA Poly4')
+legend('gorilla Poly2','gorilla Poly3','gorilla Poly4')
 xlabel('\vartheta')
 ylabel('s')
 title('Poincar\.{e} section ($v_{par}=0$) Stellerator','Interpreter','latex');
@@ -262,7 +262,7 @@ plot(data.J_par_order2(:,1),data.J_par_order2(:,2),'s','MarkerSize',2)
 hold on
 plot(data.J_par_order3(:,1),data.J_par_order3(:,2),'d','MarkerSize',2)
 plot(data.J_par_order4(:,1),data.J_par_order4(:,2),'v','MarkerSize',2)
-legend('GORILLA Poly2','GORILLA Poly3','GORILLA Poly4')
+legend('gorilla Poly2','gorilla Poly3','gorilla Poly4')
 xlabel('N_{mappings}')
 ylabel('J_{par}/J_{par}(t=0)')
 title('parallel adiabatic invariant','Interpreter','latex');
