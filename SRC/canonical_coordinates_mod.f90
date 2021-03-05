@@ -8,7 +8,8 @@
   end module parmot_mod
 !
   module new_vmec_stuff_mod
-    character*32     :: netcdffile = 'netcdf_file_for_test.nc'
+    use tetra_grid_settings_mod, only: netcdf_filename
+    character*32     :: netcdffile = netcdf_filename !'netcdf_file_for_test.nc'
     integer          :: nsurfm,nstrm,nper,kpar
     integer          :: multharm = 3,n_theta,n_phi
     integer          :: ns_A=5  !<- spline order for vector potential
