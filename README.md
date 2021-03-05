@@ -33,7 +33,8 @@ N. Flocke, “Algorithm 954: An Accurate and Efficient Cubic and Quartic Equatio
 <https://doi.org/10.1145/2699468>
 
 * Download supplemental material `954.zip` from above webpage.
-* Copy `954/F90/Src/Polynomial234RootSolvers.f90` and `954/F90/Src/SetWorkingPrecision.f90` to `GORILLA/SRC/`. (Placeholder files should be re-placed with these two files from external source.)
+* Copy `954/F90/Src/Polynomial234RootSolvers.f90` to `GORILLA/SRC/` and replace existing file with indentical name.
+  (Existing file with identical name is a placeholder which is necessary for compilation.)
 
 
 Building: 
