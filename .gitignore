@@ -43,3 +43,6 @@ out.*
 # macOS
 .DS*
 ._*
+
+# MATLAB
+*.asv
