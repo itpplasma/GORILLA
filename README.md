@@ -59,8 +59,8 @@ As an input it takes ....
 * `preload_for_SYNCH.inp`
 
 ... and the MHD equilibrium files which can be found in the folder `MHD_EQUILIBRIA/`
-    * VMEC NetCDF equlibrium (`netcdf_file_for_test.nc`). File name can be specified in `simple.in`
-    * g-file equilibrium with name specified in 
+    * VMEC NetCDF equlibrium (File name can be specified in `tetra_grid.inp`.)
+    * g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
 
 Five example input files with explanation of each parameter can be found in `RUN/example_1` - `RUN/example_5`.
 After appropriate compilation, the code can be executed in all of these 5 example folders.
