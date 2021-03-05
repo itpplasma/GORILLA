@@ -19,7 +19,7 @@
 !
  !MHD equilibrium filename
  g_file_filename = 'g_file_for_test.nc' ,
- netcdf_filename = 'netcdf_file_for_test.nc' ,
+ netcdf_filename = 'MHD_EQUILIBRIA/netcdf_file_for_test.nc' ,
 !
  !Switch for selecting number of field periods automatically or manually
  ! .true. ... number of field periods is selected automatically (Tokamak = 1, Stellarator depending on VMEC equilibrium)

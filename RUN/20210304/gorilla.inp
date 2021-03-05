@@ -16,7 +16,7 @@
 !
  !particle species
  !1 ... electron, 2 ... deuterium ion, 3 ... alpha particle
- ispecies = 1 ,
+ ispecies = 2 ,
 !
 !------------------------------------------------------------------------------------------------------------!
 !
@@ -29,7 +29,7 @@
 !
  !Gorilla pusher options
  !1 ... numerical RK pusher, 2 ... polynomial pusher
- ipusher = 2 ,
+ ipusher = 1 ,
 !
  !Numerical pusher options
 !
@@ -53,7 +53,7 @@
  !Polynomial pusher options
 !
  !Polynomial order for orbit pusher
- poly_order = 2 ,
+ poly_order = 4 ,
 !
  !Settings for precomputation of coefficients
  !0 ... No precomputation: All coefficients are computed on the fly (power of matrices)

@@ -24,7 +24,7 @@
 !
     !MHD equilibrium filename
     character*32,public,protected :: g_file_filename
-    character*32,public,protected :: netcdf_filename
+    character*64,public,protected :: netcdf_filename
 !
     !Symmetry Flux Coordinates Annulus
     double precision,public,protected :: sfc_s_min

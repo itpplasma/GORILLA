@@ -5,17 +5,21 @@
 !    
  !Grid Size
  !Rectangular: nR, Field-aligned: ns
- n1 = 100 ,
+ n1 = 60 ,
  !Rectangular: nphi, Field-aligned: nphi                  			
- n2 = 40 ,
+ n2 = 60 ,
  !Rectangular: nZ, Field-aligned: ntheta                          		
- n3 = 40 ,
+ n3 = 60 ,
 !
  !Grid kind
- !1 ... rectangular grid for axisymmetric EFIT data
- !2 ... field-aligned grid for axisymmetric EFIT data
- !3 ... field-aligned grid for non-axisymmetric VMEC
+ !1 ... rectangular grid for axisymmetric EFIT data (g-file)
+ !2 ... field-aligned grid for axisymmetric EFIT data (g-file)
+ !3 ... field-aligned grid for non-axisymmetric VMEC (netcdf)
  grid_kind = 3 ,
+!
+ !MHD equilibrium filename
+ g_file_filename = 'g_file_for_test.nc' ,
+ netcdf_filename = 'MHD_EQUILIBRIA/netcdf_file_for_test.nc' ,
 !
  !Switch for selecting number of field periods automatically or manually
  ! .true. ... number of field periods is selected automatically (Tokamak = 1, Stellarator depending on VMEC equilibrium)
