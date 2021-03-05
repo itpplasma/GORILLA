@@ -11,7 +11,7 @@ However, the integration process itself can be of high interest as well, thus, a
 Both applications are realized for demonstration in the program (“test_gorilla_main”).
 
 The magnetic field can be provided by magnetohydrodynamics (MHD) equilibria with nested magnetic flux surfaces either in 2D (e.g. EFIT) or in 3D (e.g. VMEC). Supported equilibria are in the g-file or NetCDF format, respectively.
-
+VMEC NetCDF equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [3], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m. 
 
 The code is free to use and modify under the MIT License and links to Runge-Kutta-Fehlberg routines in
 `SRC/contrib/rkf45.f90` from https://people.sc.fsu.edu/~jburkardt/f_src/rkf45/rkf45.html under the GNU LGPL License.
@@ -53,7 +53,7 @@ The main executable is `test_gorilla_main.x`. As an input it takes
 * `gorilla.inp`
 * `gorilla_plot.inp`
 * MHD equilibrium file
-    * VMEC NetCDF equlibrium (wout.nc) file with name specified in `simple.in`
+    * VMEC NetCDF equlibrium (`netcdf_file_for_test.nc`). File name can be specified in `simple.in`
     * g-file equilibrium with name specified in 
 
 Five example input files with explanation of each parameter can be found in `RUN/example_1` - `RUN/example_5`.
@@ -63,9 +63,20 @@ Moreover, a detailed explanation of all examples including the generation of the
 
 
 ## References
-When using this code for scientific publications, please cite the according references:
+When using this code for scientific publications, please cite the references [1] and [2]:
 
 [1] M. Eder, C.G. Albert, L.M.P. Bauer, S.V. Kasilov and W. Kernbichler
 “Quasi-geometric integration of guiding-center orbits in piecewise linear toroidal fields”
 Physics of Plasmas 27, 122508 (2020)
 <https://doi.org/10.1063/5.0022117>
+Preprint: <https://arxiv.org/abs/2007.08151>
+
+[2] M. Eder
+“Placeholder for JOSS - GORILLA: Guiding-center ORbit Integration with Local Linearization Approach”
+
+
+## References for MHD equilibria
+[3] M. Drevlak, C. D. Beidler, J. Geiger, P. Helander, and Y. Turkin
+“Quasi-Isodynamic Configuration with Improved Confinement”
+41st EPS Conference on Plasma Physics ECA (2014), Vol. 38F, p. P1.070.
+<http://ocs.ciemat.es/EPS2014PAP/pdf/P1.070.pdf>
