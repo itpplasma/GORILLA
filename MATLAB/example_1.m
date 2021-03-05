@@ -194,7 +194,7 @@ tetra_grid.write([path_RUN,'/tetra_grid.inp']);
 
 %Create softlinks for used files
 ! ln -s ../../test_gorilla_main.x .
-! ln -s ../../MHD_MHD_EQUILIBRIA .
+! ln -s ../../MHD_EQUILIBRIA .
 
 %Run gorilla Code
 ! ./test_gorilla_main.x
