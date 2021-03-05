@@ -48,11 +48,17 @@ This will produce `test_gorilla_main.x` required to run the code.
 
 GORILLA currently runs on a single node with OpenMP shared memory parallelization with one particle per thread and background fields residing in main memory. 
 
-The main executable is `test_gorilla_main.x`. As an input it takes
+The main executable is `test_gorilla_main.x`. 
+As an input it takes .... 
+
+... the following input files which can be found in the folder `INPUT/`
 * `tetra_grid.inp`
 * `gorilla.inp`
 * `gorilla_plot.inp`
-* MHD equilibrium file
+* `field_divB0.inp`
+* `preload_for_SYNCH.inp`
+
+... and the MHD equilibrium files which can be found in the folder `MHD_EQUILIBRIA/`
     * VMEC NetCDF equlibrium (`netcdf_file_for_test.nc`). File name can be specified in `simple.in`
     * g-file equilibrium with name specified in 
 
