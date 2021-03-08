@@ -10,15 +10,21 @@ For various simulations in magnetic confinement fusion, direct modeling of guidi
 However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincaré plots is at disposal as well (“gorilla_plot”).
 Both applications are realized for demonstration in the program (“test_gorilla_main”).
 
-A detailed description of the working principle of GORILLA can be found in `DOCUMENTATION/`.
+The code is free to use and modify under the MIT License and links to Runge-Kutta-Fehlberg routines in
+`SRC/contrib/rkf45.f90` from https://people.sc.fsu.edu/~jburkardt/f_src/rkf45/rkf45.html under the GNU LGPL License.
 
+### Magnetic field input
 The magnetic field can be provided by magnetohydrodynamics (MHD) equilibria with nested magnetic flux surfaces either in 2D (e.g. EFIT) or in 3D (e.g. VMEC). Supported equilibria are in the g-file or NetCDF format, respectively.
 For both equilibria formats, test files for the limited purpose of computing guiding-center orbits are provided. 
 The g-file test equilibrium (`g_file_for_test`) corresponds to an axi-symmetric tokamak field described in Ref. [3].
 The VMEC NetCDF text equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [4], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m. 
 
-The code is free to use and modify under the MIT License and links to Runge-Kutta-Fehlberg routines in
-`SRC/contrib/rkf45.f90` from https://people.sc.fsu.edu/~jburkardt/f_src/rkf45/rkf45.html under the GNU LGPL License.
+## Documentation
+A detailed description of the working principle of GORILLA can be found in `DOCUMENTATION/GORILLA_DOC.pdf`.
+The following supplemental material is available in `DOCUMENTATION/SUPPLEMENTAL_MATERIAL`:
+* arXiv preprint of Ref. [1]
+* Master's thesis of M. Eder (preliminary work with some detailed explanations referenced in `GORILLA_DOC.pdf`)
+* Master's thesis of L. Bauer (preliminary work with some detailed explanations referenced in `GORILLA_DOC.pdf`)
 
 ## Building
 
@@ -39,6 +45,7 @@ N. Flocke, “Algorithm 954: An Accurate and Efficient Cubic and Quartic Equatio
 * Download supplemental material `954.zip` from above webpage.
 * Copy `954/F90/Src/Polynomial234RootSolvers.f90` to `GORILLA/SRC/` and replace existing file with indentical name.
   (Existing file with identical name is a placeholder which is necessary for compilation.)
+* GORILLA can be run without this external library. The computation of guiding-center orbits is then limited to the numerical Runge-Kutta option of GORILLA.
 
 
 Building: 
@@ -68,9 +75,10 @@ As an input it takes ....
 
 ## Examples
 
-Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given as an example.
+Expamles are realized in MATLAB and Python. For plotting with MATLAB, see below.
+Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given as an example. Detailed descriptions of the respective input files can be found in `INPUT`.
 After appropriate compilation of GORILLA, the code can be executed in all of these 5 example folders, respectively.
-For the visualization of the output of these five examples, appropriate plotting methods are at disposal at. `PYTHON/example_1_plot.py` - `PYTHON/example_5_plot.py`. For plotting with MATLAB, see below.
+For the visualization of the output of these five examples, appropriate plotting methods are at disposal at. `PYTHON/example_1_plot.py` - `PYTHON/example_5_plot.py`.
 
 ### Example 1
 * Compute a collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle.
@@ -104,7 +112,7 @@ For the visualization of the output of these five examples, appropriate plotting
 * Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot ($\varphi = 0$) for both orbits.
 
 ### Generation of input files, plotting and tutorial with MATLAB
-Moreover, a detailed explanation of all examples including the generation of the appropriate input files (including the example folders in `EXAMPLES/`) and plotting of the results with MATLAB can be found in the folder `MATLAB`.
+A detailed explanation of all examples including the generation of the appropriate input files (including the example folders in `EXAMPLES/`) and plotting of the results with MATLAB can be found in the folder `MATLAB`.
 Here, the results of GORILLA with different polynominal orders and Runge-Kutta 4 are compared.
 In addition, a step-by-step tutorial in form of a MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal as well.
 
