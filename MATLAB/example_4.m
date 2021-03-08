@@ -1,11 +1,9 @@
 %#######################################################################################################################
 % description:
 %-----------------------------------------------------------------------------------------------------------------------
-% * Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle.
-% * Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
-% * Compare the results of GORILLA with different polynominal orders and Runge-Kutta 4.
+% * Compute collisionless guiding-center orbits with GORILLA for two passing and one trapped Deuterium particle.
+% * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
 % * Create a figure with the Poincaré plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
-% * Compute the normalized total energy as a function of toroidal mappings. 
 %
 %#######################################################################################################################
 % used functions:
@@ -23,7 +21,7 @@
 %-----------------------------------------------------------------------------------------------------------------------
 
 %Name of the current calculation to create folder
-name_test_case='example_2';
+name_test_case='example_4';
 
 %path of Matlab script
 path_script=pwd;
@@ -33,7 +31,7 @@ c=strsplit(path_script,'/');
 path_main=strjoin(c(1:end-1),'/');
 
 %path to run GORILLA code
-mkdir(path_main,['EXAMPLES//',name_test_case]);
+mkdir(path_main,['EXAMPLES/',name_test_case]);
 path_RUN=[path_main,'/EXAMPLES/',name_test_case];
 
 %path of input files (blueprints)
@@ -59,6 +57,7 @@ gorilla_plot = InputFile([path_inp_files,'/gorilla_plot.inp']);
 tetra_grid = InputFile([path_inp_files,'/tetra_grid.inp']);
 
 %read default inputfiles
+%All variables get a default value from the blueprints
 gorilla.read();
 gorilla_plot.read();
 tetra_grid.read();
@@ -91,7 +90,7 @@ tetra_grid.read();
         gorilla.GORILLANML.ipusher = 2;
 
     %Polynomial order for orbit pusher (from 2 to 4)
-        gorilla.GORILLANML.poly_order = 2;
+        gorilla.GORILLANML.poly_order = 4;
 
 
 %Input file tetra_grid.inp
@@ -109,7 +108,7 @@ tetra_grid.read();
         %1 ... rectangular grid for axisymmetric EFIT data
         %2 ... field-aligned grid for axisymmetric EFIT data
         %3 ... field-aligned grid for non-axisymmetric VMEC
-        tetra_grid.TETRA_GRID_NML.grid_kind = 3;
+        tetra_grid.TETRA_GRID_NML.grid_kind = 2;
 
     %Switch for selecting number of field periods automatically or manually
         %.true. ... number of field periods is selected automatically (Tokamak = 1, Stellarator depending on VMEC equilibrium)
@@ -125,7 +124,7 @@ tetra_grid.read();
         % 2 ... Single orbit - Starting positions and pitch for the orbit are taken from starting drift surfaces (see below)
         % 3 ... Multiple orbits - Starting positions and pitch for orbits are taken from file (see below) [Every Line New Starting position]
         % 4 ... Multiple orbits - Starting positions and pitch for orbits are taken from drift surfaces with regular spacing (see below)
-        gorilla_plot.GORILLA_PLOT_NML.i_orbit_options = 2;
+        gorilla_plot.GORILLA_PLOT_NML.i_orbit_options = 3;
 
     %Total individual orbit flight time for plotting
         gorilla_plot.GORILLA_PLOT_NML.total_orbit_time = 2;
@@ -137,13 +136,13 @@ tetra_grid.read();
         gorilla_plot.GORILLA_PLOT_NML.boole_poincare_phi_0 = true;
 
         %Number of skipped (non-printed) Poincaré cuts at toroidal variable $\varphi$ = 0
-            gorilla_plot.GORILLA_PLOT_NML.n_skip_phi_0 = 10;
+            gorilla_plot.GORILLA_PLOT_NML.n_skip_phi_0 = 100;
 
         %Filename for Poincaré cuts at toroidal variable $\varphi$ = 0 in cylindrical coordinates (R,$\varphi$,Z)
-            gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_rphiz = 'poincare_plot_phi_0_rphiz_order2.dat';
+            gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_rphiz = 'poincare_plot_phi_0_rphiz.dat';
 
         %Filename for Poincaré cuts at toroidal variable $\varphi$ = 0 in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
-            gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi = 'poincare_plot_phi_0_sthetaphi_order2.dat';
+            gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi = 'poincare_plot_phi_0_sthetaphi.dat';
 
     %Switch for plotting Poincaré cuts at parallel velocity $v_\parallel$ = 0
         gorilla_plot.GORILLA_PLOT_NML.boole_poincare_vpar_0 = false;
@@ -154,10 +153,7 @@ tetra_grid.read();
     %Plot invariances of motion (ONLY for single orbits)
 
         %Switch for plotting total particle energy
-            gorilla_plot.GORILLA_PLOT_NML.boole_e_tot = true;
-
-        %Filename for total energy
-            gorilla_plot.GORILLA_PLOT_NML.filename_e_tot = 'e_tot_order2.dat';
+            gorilla_plot.GORILLA_PLOT_NML.boole_e_tot = false;
 
         %Switch for plotting canoncial (toroidal) angular momentum $p_\varphi$
             gorilla_plot.GORILLA_PLOT_NML.boole_p_phi = false;
@@ -165,26 +161,25 @@ tetra_grid.read();
         %Switch for parallel adiabatic invariant $J_\parallel$
             gorilla_plot.GORILLA_PLOT_NML.boole_J_par = false;
 
-    %Single orbit from starting drift surface (i_orbit_options = 2)
+    %Starting positions of particles (BOTH single and multiple orbits) and starting pitch parameter
+        %File (either rphiz or sthetaphi) is automatically chosen dependent on coord_system in 'gorilla.inp')
 
-        %Starting drift surface
-            % = s for (s,$\vartheta$,$\varphi$)
-            % = R for (R,$\varphi$,Z)
-            gorilla_plot.GORILLA_PLOT_NML.start_pos_x1_beg = 0.5;
+        %Filename for list of starting position(s) of particle(s) in cylindrical coordinates (R,$\varphi$,Z) and pitch ($\lambda$)
+            gorilla_plot.GORILLA_PLOT_NML.filename_orbit_start_pos_rphiz = 'orbit_start_rphizlambda.dat';
 
-        %Starting value for toroidal variable
-            % = $\vartheta$ for (s,$\vartheta$,$\varphi$)
-            % = $\varphi$ for (R,$\varphi$,Z)
-            gorilla_plot.GORILLA_PLOT_NML.start_pos_x2  = 0;
+        %Filename for list of starting position(s) of particle(s) in symmetry flux coordinates (s,$\vartheta$,$\varphi$) and pitch ($\lambda$)
+            gorilla_plot.GORILLA_PLOT_NML.filename_orbit_start_pos_sthetaphi = 'orbit_start_sthetaphilambda.dat';
 
-        %Starting value for poloidal variable $\vartheta$
-            % = $\varphi$ for (s,$\vartheta$,$\varphi$)
-            % = Z for (R,$\varphi$,Z)
-            gorilla_plot.GORILLA_PLOT_NML.start_pos_x3  = 0.63;
 
-        %Pitch parameter $\lambda$ = $v_\parallel$ / vmod
-            gorilla_plot.GORILLA_PLOT_NML.start_pitch_parameter = 0.7;
-
+%Create inputfile for starting positions
+%s,theta,phi,lambda
+start_pos_1=[0.8,0.0,0.63,0.7];
+start_pos_2=[0.6,0.0,0.63,0.7];
+start_pos_3=[0.4,0.0,0.63,0.2];
+start_pos=[start_pos_1,start_pos_2,start_pos_3];
+fileID = fopen([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_orbit_start_pos_sthetaphi],'w');
+fprintf(fileID,'%.8f %.8f %.8f %.8f\n',start_pos);
+fclose(fileID);
 
 %Run GORILLA
 %-----------------------------------------------------------------------------------------------------------------------
@@ -197,92 +192,36 @@ tetra_grid.write([path_RUN,'/tetra_grid.inp']);
 %Create softlinks for used files
 ! ln -s ../../test_gorilla_main.x .
 ! ln -s ../../MHD_EQUILIBRIA .
+! ln -s ../../INPUT/field_divB0.inp .
+! ln -s ../../INPUT/preload_for_SYNCH.inp .
 
-%Run GORILLA code
+%Run GORILLA Code
 ! ./test_gorilla_main.x
 
 %Load Data-files and copy them into data_plots folder
 data=struct();
 data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
-%Repeat orbit calculation for different polynominal orders and Runge-Kutta 4
-%polynominal order = 3
-gorilla.GORILLANML.poly_order = 3;
-gorilla_plot.GORILLA_PLOT_NML.filename_e_tot = 'e_tot_order3.dat';
-gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_rphiz = 'poincare_plot_phi_0_rphiz_order3.dat';
-gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi = 'poincare_plot_phi_0_sthetaphi_order3.dat';
-gorilla.write([path_RUN,'/gorilla.inp']);
-gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
-! ./test_gorilla_main.x
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
-
-%polynominal order = 4
-gorilla.GORILLANML.poly_order = 4;
-gorilla_plot.GORILLA_PLOT_NML.filename_e_tot = 'e_tot_order4.dat';
-gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_rphiz = 'poincare_plot_phi_0_rphiz_order4.dat';
-gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi = 'poincare_plot_phi_0_sthetaphi_order4.dat';
-gorilla.write([path_RUN,'/gorilla.inp']);
-gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
-! ./test_gorilla_main.x
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
-
-%numerical RK4
-gorilla.GORILLANML.ipusher = 1;
-gorilla.GORILLANML.boole_pusher_ode45 = false;
-gorilla_plot.GORILLA_PLOT_NML.filename_e_tot = 'e_tot_rk4.dat';
-gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_rphiz = 'poincare_plot_phi_0_rphiz_rk4.dat';
-gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi = 'poincare_plot_phi_0_sthetaphi_rk4.dat';
-gorilla.write([path_RUN,'/gorilla.inp']);
-gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
-! ./test_gorilla_main.x
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
-
 %Create plots of generated data
 %-----------------------------------------------------------------------------------------------------------------------
-
-%Normalize total energy
-data.e_tot_order2(:,2)=data.e_tot_order2(:,2)./data.e_tot_order2(1,2);
-data.e_tot_order3(:,2)=data.e_tot_order3(:,2)./data.e_tot_order3(1,2);
-data.e_tot_order4(:,2)=data.e_tot_order4(:,2)./data.e_tot_order4(1,2);
-data.e_tot_rk4(:,2)=data.e_tot_rk4(:,2)./data.e_tot_rk4(1,2);
-
-%Poincare plot of a passing particle in VMEC equilbirum field of a stellarator
+%Poincare Plot of tow passing and one trapped particles in an axisymmetric tokamak equilibrium field
 figure
-subplot(1,3,1)
-plot(data.poincare_plot_phi_0_rphiz_order2(:,1),data.poincare_plot_phi_0_rphiz_order2(:,3),'s','MarkerSize',4)
+subplot(1,2,1)
+plot(data.poincare_plot_phi_0_rphiz(:,1),data.poincare_plot_phi_0_rphiz(:,3),'x')
 hold on
-plot(data.poincare_plot_phi_0_rphiz_order3(:,1),data.poincare_plot_phi_0_rphiz_order3(:,3),'d','MarkerSize',4)
-plot(data.poincare_plot_phi_0_rphiz_order4(:,1),data.poincare_plot_phi_0_rphiz_order4(:,3),'v','MarkerSize',4)
-plot(data.poincare_plot_phi_0_rphiz_rk4(:,1),data.poincare_plot_phi_0_rphiz_rk4(:,3),'^','MarkerSize',4)
-legend('GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4')
 xlabel('R [cm]')
 ylabel('Z [cm]')
-title('Stellarator: Poincar\.{e} plot ($\varphi=0$)','Interpreter','latex');
+title('Tokamak: Poincar\.{e} plots ($\varphi=0$) for different starting positions and pitch parameters','Interpreter','latex');
 hold off
 
-subplot(1,3,2)
-plot(data.poincare_plot_phi_0_sthetaphi_order2(:,2),data.poincare_plot_phi_0_sthetaphi_order2(:,1),'s','MarkerSize',4)
+subplot(1,2,2)
+plot(data.poincare_plot_phi_0_sthetaphi(:,2),data.poincare_plot_phi_0_sthetaphi(:,1),'x')
 hold on
-plot(data.poincare_plot_phi_0_sthetaphi_order3(:,2),data.poincare_plot_phi_0_sthetaphi_order3(:,1),'d','MarkerSize',4)
-plot(data.poincare_plot_phi_0_sthetaphi_order4(:,2),data.poincare_plot_phi_0_sthetaphi_order4(:,1),'v','MarkerSize',4)
-plot(data.poincare_plot_phi_0_sthetaphi_rk4(:,2),data.poincare_plot_phi_0_sthetaphi_rk4(:,1),'^','MarkerSize',4)
-legend('GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4')
 xlabel('\vartheta')
 ylabel('s')
-title('Stellarator: Poincar\.{e} plot ($\varphi=0$)','Interpreter','latex');
+title('Tokamak: Poincar\.{e} plots ($\varphi=0$) for different starting positions and pitch parameters','Interpreter','latex');
 hold off
-
-subplot(1,3,3)
-plot(data.e_tot_order2(:,1),data.e_tot_order2(:,2),'s','MarkerSize',4)
-hold on
-plot(data.e_tot_order3(:,1),data.e_tot_order3(:,2),'d','MarkerSize',4)
-plot(data.e_tot_order4(:,1),data.e_tot_order4(:,2),'v','MarkerSize',4)
-plot(data.e_tot_rk4(:,1),data.e_tot_rk4(:,2),'^','MarkerSize',4)
-legend('GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4')
-xlabel('N_{mappings}')
-ylabel('E_{tot}/E_{tot}(t=0)')
-title('Stellarator: Normalized total energy','Interpreter','latex')
-hold off
+xlim([0,2*pi])
 
 %Save figure as Matlab-file and as png
 % savefig([path_data_plots,'/poincare_plot.fig']);
@@ -290,3 +229,4 @@ hold off
 
 %Go back to path of Matlab script
 cd(path_script);
+
