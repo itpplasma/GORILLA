@@ -18,7 +18,8 @@
  grid_kind = 3 ,
 !
  !MHD equilibrium filename
- g_file_filename = 'g_file_for_test.nc' ,
+ g_file_filename = 'MHD_EQUILIBRIA/g_file_for_test' ,
+ convex_wall_filename = 'MHD_EQUILIBRIA/convex_wall_for_test.dat' ,
  netcdf_filename = 'MHD_EQUILIBRIA/netcdf_file_for_test.nc' ,
 !
  !Switch for selecting number of field periods automatically or manually

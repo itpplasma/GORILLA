@@ -4,9 +4,9 @@
 4 72                                ntor         ! number of toroidal harmonics
 0.99                              cutoff       ! inner cutoff in psi/psi_a units
 4                                 icftype      ! type of coil file
-'DATA/ASDEX/g26884.4300' ! _COCOS3' !g30835.3200'          gfile        ! equilibrium file
+'see_tetra_grid_inp'              gfile          ! equilibrium file
 'DATA/MESH3D_31135odd/field.dat' !’/itp/MooseFS/kasilov/MESH3D_31135odd/field.dat'  !'DATA/ASDEX/MESH3D_30835/field.dat'    pfile        ! coil        file
-'DATA/ASDEX/convexwall.dat'            convexfile   ! convex file for stretchcoords
+'see_tetra_grid_inp'            convexfile   ! convex file for stretchcoords
 'DATA/ASDEX/FLUXDATA'                  fluxdatapath ! directory with data in flux coord.
 0                                 window size for filtering of psi array over R
 0                                 window size for filtering of psi array over Z
