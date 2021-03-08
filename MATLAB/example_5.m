@@ -1,10 +1,12 @@
 %#######################################################################################################################
 % description:
 %-----------------------------------------------------------------------------------------------------------------------
-% Calculate the orbit of a passing and a trapped particle with a field-aligned grid for axisymmetric EFIT
-% Plot the whole plasma device with a Poincare plot inside for both orbits
+% * Compute collisionless guiding-center orbits with GORILLA for a passing and a trapped Deuterium particle.
+% * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file).
+% * Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot (\varphi = 0) for both orbits.
+%
 %#######################################################################################################################
-% programed functions:
+% used functions:
 %-----------------------------------------------------------------------------------------------------------------------
 % InputFile
 % NameList
@@ -12,8 +14,8 @@
 % load_copy
 % efit
 %#######################################################################################################################
-%author: Michael Scheidt
-%created: 19.02.2021
+% authors: Michael Scheidt, Michael Eder
+% created: 19.02.2021
 
 
 %Initialize used paths and files
@@ -25,19 +27,19 @@ name_test_case='example_5';
 %path of Matlab script
 path_script=pwd;
 
-%main path of Gorilla
+%main path of GORILLA
 c=strsplit(path_script,'/');
 path_main=strjoin(c(1:end-1),'/');
 
-%path to Run Gorilla code in
-mkdir(path_main,['RUN/',name_test_case]);
-path_RUN=[path_main,'/RUN/',name_test_case];
+%path to run GORILLA
+mkdir(path_main,['EXAMPLES/',name_test_case]);
+path_RUN=[path_main,'/EXAMPLES/',name_test_case];
 
-%path of blueprints of input files
-path_inp_blueprints=[path_main,'/inp_blueprints'];
+%path of input files (blueprints)
+path_inp_files=[path_main,'/INPUT'];
 
 %path of the used functions
-path_functions=[path_main,'/matlab_test_cases/functions'];
+path_functions=[path_main,'/MATLAB/functions'];
 
 %define path for data and plots and create a new folder their
 mkdir([path_script,'/data_plots'],name_test_case);
@@ -47,13 +49,13 @@ path_data_plots=[path_script,'/data_plots/',name_test_case];
 cd(path_RUN);
 
 %add path
-addpath(path_inp_blueprints);
+addpath(path_inp_files);
 addpath(path_functions);
 
 %initialize class for inputfiles
-gorilla = InputFile([path_inp_blueprints,'/gorilla.inp']);
-gorilla_plot = InputFile([path_inp_blueprints,'/gorilla_plot.inp']);
-tetra_grid = InputFile([path_inp_blueprints,'/tetra_grid.inp']);
+gorilla = InputFile([path_inp_files,'/gorilla.inp']);
+gorilla_plot = InputFile([path_inp_files,'/gorilla_plot.inp']);
+tetra_grid = InputFile([path_inp_files,'/tetra_grid.inp']);
 
 %read default inputfiles
 %All variables get a default value from the blueprints
@@ -62,10 +64,10 @@ gorilla_plot.read();
 tetra_grid.read();
 
 
-%Set input variables for Gorilla
+%Set input variables for GORILLA
 %-----------------------------------------------------------------------------------------------------------------------
 
-%Input file gorilla
+%Input file gorilla.inp
 %All necessary variables for current calculation
 
     %Change in the electrostatic potential within the plasma volume in Gaussian units
@@ -92,7 +94,7 @@ tetra_grid.read();
         gorilla.GORILLANML.poly_order = 2;
 
 
-%Input file tetra_grid
+%Input file tetra_grid.inp
 %All necessary variables for current calculation
 
     %Grid Size
@@ -115,7 +117,7 @@ tetra_grid.read();
         tetra_grid.TETRA_GRID_NML.boole_n_field_periods = true;
 
 
-%Input file gorilla_plot
+%Input file gorilla_plot.inp
 %All necessary variables for current calculation
 
     %Switch for options
@@ -198,7 +200,7 @@ tetra_grid.read();
             gorilla_plot.GORILLA_PLOT_NML.start_pitch_parameter = 0.9;
 
 
-%Run Gorilla
+%Run GORILLA
 %-----------------------------------------------------------------------------------------------------------------------
 
 %write Input files for Gorilla
@@ -208,16 +210,11 @@ tetra_grid.write([path_RUN,'/tetra_grid.inp']);
 
 %Create softlinks for used files
 ! ln -s ../../test_gorilla_main.x .
-! ln -s ../../netcdf_file_for_test.nc .
-! ln -s ../../netcdf_file_for_test_6.nc .
+! ln -s ../../MHD_EQUILIBRIA .
+! ln -s ../../INPUT/field_divB0.inp .
+! ln -s ../../INPUT/preload_for_SYNCH.inp .
 
-%Necessary files for Tokamak
-! ln -s ../../field_divB0.inp .
-! ln -s ../../DATA .
-! ln -s ../../preload_for_SYNCH.inp .
-! ln -s ../../seed.inp .
-
-%Run Gorilla Code
+%Run GORILLA Code
 ! ./test_gorilla_main.x
 
 %Load Data-files and copy them into data_plots folder
@@ -225,7 +222,7 @@ data=struct();
 data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 
-%Second Run for trapped particle
+%Second run for trapped particle
 %-----------------------------------------------------------------------------------------------------------------------
 
 %Changes in Input files
@@ -237,16 +234,16 @@ gorilla_plot.GORILLA_PLOT_NML.start_pitch_parameter = 0.4;
 
 gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 
-%Run Gorilla Code
+%Run GORILLA code
 ! ./test_gorilla_main.x
 data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 
-%Create Plots of created data
+%Create plots of generated data
 %-----------------------------------------------------------------------------------------------------------------------
 
 %Names for particle calculation in plot
-particle_type = {'passing','trapped'};
+particle_type = {'Passing','Trapped'};
 
 %Number of points shown from full_orbit_files [passing, trapped]
 n_show_points = [290,300];
@@ -300,7 +297,7 @@ for i=1:2
 
 
     %Plasma boundaries
-    e = efit([path_RUN,'/DATA/ASDEX/g26884.4300'], [], []);
+    e = efit([path_RUN,'/MHD_EQUILIBRIA/g_file_for_test'], [], []);
     e.read();
 
     [R, PHI] = meshgrid(e.rbbbs .* 100, linspace(0,1.5*pi,100));
@@ -313,7 +310,7 @@ for i=1:2
     sb.FaceLighting = 'gouraud';
     light
 
-    %Plan of Poincare plot
+    %Plane of Poincare plot
     xp = [min(poincare_rphiz(:,1))-30,max(poincare_rphiz(:,1))+30];
     zp = [min(full_orbit_rphiz(:,3))-48,max(full_orbit_rphiz(:,3))+30];
     x1 = [ xp(1) xp(2) xp(2) xp(1)];
@@ -338,8 +335,8 @@ for i=1:2
     hold off
 
     %Save figure as Matlab-file and as png
-    savefig([path_data_plots,'/poincare_plot_',particle_type{i},'.fig']);
-    saveas(gcf,[path_data_plots,'/poincare_plot_',particle_type{i},'.png']);
+%     savefig([path_data_plots,'/poincare_plot_',particle_type{i},'.fig']);
+%     saveas(gcf,[path_data_plots,'/poincare_plot_',particle_type{i},'.png']);
 end
 
 %Go back to path of Matlab script

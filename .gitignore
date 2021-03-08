@@ -39,6 +39,7 @@
 *.fig
 fort.*
 out.*
+*.png
 
 # macOS
 .DS*
