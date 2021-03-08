@@ -64,6 +64,7 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
   use field_mod
   use inthecore_mod, only : incore,cutoff
   use field_eq_mod, only : nwindow_r,nwindow_z
+  use tetra_grid_settings_mod, only: g_file_filename, convex_wall_filename !=> Michael Eder, 08 March 2021
 !
   implicit none
 !
@@ -71,6 +72,7 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
                      ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
   double precision :: rm,zm,Brc,Bpc,Bzc,dBrdRc,dBrdpc,dBrdZc   &
                      ,dBpdRc,dBpdpc,dBpdZc,dBzdRc,dBzdpc,dBzdZc
+  character*1024 :: dummy
 !
   if(icall .eq. 0) then
      icall = 1
@@ -82,15 +84,19 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
      read(iunit,*) ntor         ! number of toroidal harmonics
      read(iunit,*) cutoff       ! inner cutoff in psi/psi_a units
      read(iunit,*) icftype      ! type of coil file
-     read(iunit,*) gfile        ! equilibrium file
+     read(iunit,*) dummy !gfile        ! equilibrium file => Michael Eder, 08 March 2021
      read(iunit,*) pfile        ! coil        file
-     read(iunit,*) convexfile   ! convex file for stretchcoords
+     read(iunit,*) dummy !convexfile   ! convex file for stretchcoords => Michael Eder, 08 March 2021
      read(iunit,*) fluxdatapath ! directory with data in flux coord.
      read(iunit,*) nwindow_r    ! widow size for filtering of psi array over R
      read(iunit,*) nwindow_z    ! widow size for filtering of psi array over Z
      close(iunit)
      print *, 'Perturbation field',ipert,'Ampl',ampl
      if(icall_c.eq.-1) ipert=1
+
+     !Use input data from tetra_grid_settings_mod => Michael Eder, 08 March 2021
+     gfile = g_file_filename
+     convexfile = convex_wall_filename
   endif
 
   call stretch_coords(r,z,rm,zm)
