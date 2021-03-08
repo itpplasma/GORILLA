@@ -10,8 +10,12 @@ For various simulations in magnetic confinement fusion, direct modeling of guidi
 However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincaré plots is at disposal as well (“gorilla_plot”).
 Both applications are realized for demonstration in the program (“test_gorilla_main”).
 
+A detailed description of the working principle of GORILLA can be found in `DOCUMENTATION/`.
+
 The magnetic field can be provided by magnetohydrodynamics (MHD) equilibria with nested magnetic flux surfaces either in 2D (e.g. EFIT) or in 3D (e.g. VMEC). Supported equilibria are in the g-file or NetCDF format, respectively.
-VMEC NetCDF equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [3], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m. 
+For both equilibria formats, test files for the limited purpose of computing guiding-center orbits are provided. 
+The g-file test equilibrium (`g_file_for_test`) corresponds to an axi-symmetric tokamak field described in Ref. [3].
+The VMEC NetCDF text equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [4], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m. 
 
 The code is free to use and modify under the MIT License and links to Runge-Kutta-Fehlberg routines in
 `SRC/contrib/rkf45.f90` from https://people.sc.fsu.edu/~jburkardt/f_src/rkf45/rkf45.html under the GNU LGPL License.
@@ -52,24 +56,61 @@ The main executable is `test_gorilla_main.x`.
 As an input it takes .... 
 
 ... the following input files which can be found in the folder `INPUT/`
-* `tetra_grid.inp`
-* `gorilla.inp`
-* `gorilla_plot.inp`
-* `field_divB0.inp`
-* `preload_for_SYNCH.inp`
+* `tetra_grid.inp`                       (Input file for settings of the tetrahedronal grid used in GORLLA)
+* `gorilla.inp`                             (Input file for settings of GORILLA)
+* `gorilla_plot.inp`                   (Input file for the program for the analysis of guiding-center orbits)
+* `field_divB0.inp`                     (Input file for loading g-file equilibria - Do not change this file.)
+* `preload_for_SYNCH.inp`         (Input file for splining magnetic field data of g-file equilibria - Do not change this file.)
 
 ... and the MHD equilibrium files which can be found in the folder `MHD_EQUILIBRIA/`
     * VMEC NetCDF equlibrium (File name can be specified in `tetra_grid.inp`.)
     * g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
 
-Five example input files with explanation of each parameter can be found in `RUN/example_1` - `RUN/example_5`.
-After appropriate compilation, the code can be executed in all of these 5 example folders.
+## Examples
 
-Moreover, a detailed explanation of all examples including the generation of the appropriate input files and plotting of the results with MATLAB can be found in the folder `matlab_test_cases`. There, a step-by-step tutorial in form of a MATLAB Live Script with the name `plot_poincare.mlx` is at disposal as well.
+Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given as an example.
+After appropriate compilation of GORILLA, the code can be executed in all of these 5 example folders, respectively.
+For the visualization of the output of these five examples, appropriate plotting methods are at disposal at. `PYTHON/example_1_plot.py` - `PYTHON/example_5_plot.py`. For plotting with MATLAB, see below.
+
+### Example 1
+* Compute a collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle.
+* Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
+* Use the GORILLA option Runge-Kutta 4.
+* Create a figure with the Poincaré sections ($v_\parallel = 0$) in cylindrical and symmetry flux coordinates.
+* Compute the normalized parallel adiabatic invariant as a function of banana bounces.
+
+### Example 2
+* Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle.
+* Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
+* Use the GORILLA option Runge-Kutta 4.
+* Create a figure with the Poincaré plots ($\varphi = 0$) in cylindrical and symmetry flux coordinates.
+* Compute the normalized total energy as a function of toroidal mappings. 
+
+### Example 3
+* Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle.
+* Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
+* Use the GORILLA option Runge-Kutta 4.
+* Create a figure with the Poincaré plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
+* Compute the normalized toroidal angular momentum as a function of toroidal mappings.
+
+### Example 4
+* Compute collisionless guiding-center orbits with GORILLA for two passing and one trapped Deuterium particle.
+* Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
+* Create a figure with the Poincaré plots ($\varphi = 0$) in cylindrical and symmetry flux coordinates.
+
+### Example 5
+* Compute collisionless guiding-center orbits with GORILLA for a passing and a trapped Deuterium particle.
+* Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file).
+* Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot ($\varphi = 0$) for both orbits.
+
+### Generation of input files, plotting and tutorial with MATLAB
+Moreover, a detailed explanation of all examples including the generation of the appropriate input files (including the example folders in `EXAMPLES/`) and plotting of the results with MATLAB can be found in the folder `MATLAB`.
+Here, the results of GORILLA with different polynominal orders and Runge-Kutta 4 are compared.
+In addition, a step-by-step tutorial in form of a MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal as well.
 
 
-## References
-When using this code for scientific publications, please cite the references [1] and [2]:
+## References for GORILLA
+When using this code for scientific publications, please cite both references [1] and [2]:
 
 [1] M. Eder, C.G. Albert, L.M.P. Bauer, S.V. Kasilov and W. Kernbichler
 “Quasi-geometric integration of guiding-center orbits in piecewise linear toroidal fields”
@@ -81,8 +122,13 @@ Preprint: <https://arxiv.org/abs/2007.08151>
 “Placeholder for JOSS - GORILLA: Guiding-center ORbit Integration with Local Linearization Approach”
 
 
-## References for MHD equilibria
-[3] M. Drevlak, C. D. Beidler, J. Geiger, P. Helander, and Y. Turkin
+## References for provided MHD equilibria
+[3] M. F. Heyn, I. B. Ivanov, S. V. Kasilov, W. Kernbichler, P. Leitner, and V. Nemov,
+“Quasilinear modelling of RMP interaction with a tokamak plasma: application to ASDEX Upgrade ELM mitigation experiments”
+Nucl. Fusion 54, 064005 (2014).
+<https://doi.org/10.1088/0029-5515/54/6/064005>
+
+[4] M. Drevlak, C. D. Beidler, J. Geiger, P. Helander, and Y. Turkin
 “Quasi-Isodynamic Configuration with Improved Confinement”
 41st EPS Conference on Plasma Physics ECA (2014), Vol. 38F, p. P1.070.
 <http://ocs.ciemat.es/EPS2014PAP/pdf/P1.070.pdf>
