@@ -63,8 +63,8 @@ As an input it takes ....
 * `preload_for_SYNCH.inp`         (Input file for splining magnetic field data of g-file equilibria - Do not change this file.)
 
 ... and the MHD equilibrium files which can be found in the folder `MHD_EQUILIBRIA/`
-* VMEC NetCDF equlibrium (File name can be specified in `tetra_grid.inp`.)
-* g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
+* `netcdf_file_for_test.nc`: VMEC NetCDF equlibrium (File name can be specified in `tetra_grid.inp`.)
+* `g_file_for_test`: g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
 
 ## Examples
 
