@@ -112,7 +112,7 @@ For the visualization of the output of these five examples, appropriate plotting
 * Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot ($\varphi = 0$) for both orbits.
 
 ### MATLAB: Generation of input files and plotting
-A detailed explanation of all examples including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN`) and plotting of the results with MATLAB can be found in the folder `MATLAB`.
+A detailed explanation of all examples (1-5) including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN`) and plotting of the results with MATLAB can be found in the folder `MATLAB`.
 Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge-Kutta 4 are compared.
 
 ### MATLAB:  Step-by-step plotting tutorial
