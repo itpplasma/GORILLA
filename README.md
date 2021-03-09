@@ -16,8 +16,8 @@ The code is free to use and modify under the MIT License and links to Runge-Kutt
 ### Magnetic field input
 The magnetic field can be provided by magnetohydrodynamics (MHD) equilibria with nested magnetic flux surfaces either in 2D (e.g. EFIT) or in 3D (e.g. VMEC). Supported equilibria are in the g-file or NetCDF format, respectively.
 For both equilibria formats, test files for the limited purpose of computing guiding-center orbits are provided. 
-The g-file test equilibrium (`g_file_for_test`) corresponds to an axi-symmetric tokamak field described in Ref. [3].
-The VMEC NetCDF text equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [4], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m. 
+The g-file test equilibrium (`g_file_for_test`) was provided by the ASDEX Upgrade Team for testing purposes and corresponds to the axisymmetric tokamak field configuration of ASDEX Upgrade (shot 26884 at 4300 ms) described in Ref. [3]. 
+The VMEC NetCDF test equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [4], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m. 
 
 ## Documentation
 A detailed description of the working principle of GORILLA can be found in `DOCUMENTATION/GORILLA_DOC.pdf`.
@@ -76,28 +76,28 @@ As an input it takes ....
 ## Examples
 
 Expamles are realized in MATLAB and Python. For plotting with MATLAB, see below.
-Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given as an example. Detailed descriptions of the respective input files can be found in `INPUT`.
+Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given. Detailed descriptions of the respective input files can be found in `INPUT`.
 After appropriate compilation of GORILLA, the code can be executed in all of these 5 example folders, respectively.
-For the visualization of the output of these five examples, appropriate plotting methods are at disposal at. `PYTHON/example_1_plot.py` - `PYTHON/example_5_plot.py`.
+For the visualization of the output of these five examples, appropriate plotting methods are at disposal at. `PYTHON/plot_example_1.py` - `PYTHON/plot_example_5.py`.
 
 ### Example 1
 * Compute a collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle.
 * Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
-* Use the GORILLA option Runge-Kutta 4.
+* Use the GORILLA polynomial option with order K = 4.
 * Create a figure with the Poincaré sections ($v_\parallel = 0$) in cylindrical and symmetry flux coordinates.
 * Compute the normalized parallel adiabatic invariant as a function of banana bounces.
 
 ### Example 2
 * Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle.
 * Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
-* Use the GORILLA option Runge-Kutta 4.
+* Use the GORILLA Runge-Kutta 4 option.
 * Create a figure with the Poincaré plots ($\varphi = 0$) in cylindrical and symmetry flux coordinates.
 * Compute the normalized total energy as a function of toroidal mappings. 
 
 ### Example 3
 * Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle.
 * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
-* Use the GORILLA option Runge-Kutta 4.
+* Use the GORILLA polynomial option with order K = 3.
 * Create a figure with the Poincaré plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
 * Compute the normalized toroidal angular momentum as a function of toroidal mappings.
 
@@ -106,15 +106,24 @@ For the visualization of the output of these five examples, appropriate plotting
 * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
 * Create a figure with the Poincaré plots ($\varphi = 0$) in cylindrical and symmetry flux coordinates.
 
-### Example 5
+### Example 5 (only MATLAB)
 * Compute collisionless guiding-center orbits with GORILLA for a passing and a trapped Deuterium particle.
 * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file).
 * Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot ($\varphi = 0$) for both orbits.
 
-### Generation of input files, plotting and tutorial with MATLAB
-A detailed explanation of all examples including the generation of the appropriate input files (including the example folders in `EXAMPLES/`) and plotting of the results with MATLAB can be found in the folder `MATLAB`.
-Here, the results of GORILLA with different polynominal orders and Runge-Kutta 4 are compared.
-In addition, a step-by-step tutorial in form of a MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal as well.
+### MATLAB: Generation of input files and plotting
+A detailed explanation of all examples including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN`) and plotting of the results with MATLAB can be found in the folder `MATLAB`.
+Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge-Kutta 4 are compared.
+
+### MATLAB:  Step-by-step plotting tutorial
+* MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal as a step-by-step tutorial for all plotting features of GORILL.
+
+
+## Acknowledgments
+The authors would like to thank Michael Drevlak and the ASDEX Upgrade Team for providing the stellarator field configuration and the ASDEX Upgrade MHD equilibrium for shot 26884 at 4300 ms.
+Further thanks to Martin Heyn, Philipp Ulbl, Rico Buchholz, Patrick Lainer, and Markus Richter for useful discussions.
+This work has been carried out within the framework of the EUROfusion Consortium and has received funding from the Euratom research and training programmes 2014–2018 and 2019–2020 under Grant Agreement No. 633053.
+The views and opinions expressed herein do not necessarily reflect those of the European Commission. The study was supported by the Reduced Complexity Models Grant No. ZT-I-0010 funded by the Helmholtz Association of German Research Centers. Support from NAWI Graz, and from the OeAD under the WTZ Grant Agreement with Ukraine No. UA 04/2017 is gratefully acknowledged.
 
 
 ## References for GORILLA
