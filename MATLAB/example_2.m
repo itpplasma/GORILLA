@@ -33,8 +33,8 @@ c=strsplit(path_script,'/');
 path_main=strjoin(c(1:end-1),'/');
 
 %path to run GORILLA code
-mkdir(path_main,['EXAMPLES//',name_test_case]);
-path_RUN=[path_main,'/EXAMPLES/',name_test_case];
+mkdir(path_main,['EXAMPLES/MATLAB_RUN/',name_test_case]);
+path_RUN=[path_main,'/EXAMPLES/MATLAB_RUN/',name_test_case];
 
 %path of input files (blueprints)
 path_inp_files=[path_main,'/INPUT'];
@@ -195,8 +195,8 @@ gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 tetra_grid.write([path_RUN,'/tetra_grid.inp']);
 
 %Create softlinks for used files
-! ln -s ../../test_gorilla_main.x .
-! ln -s ../../MHD_EQUILIBRIA .
+! ln -s ../../../test_gorilla_main.x .
+! ln -s ../../../MHD_EQUILIBRIA .
 
 %Run GORILLA code
 ! ./test_gorilla_main.x
