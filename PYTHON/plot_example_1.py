@@ -3,6 +3,7 @@
 """
 Created on Tue Mar  9 09:18:31 2021
 
+Example 1:
  * Compute a collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle. (Manually execute ''test_gorilla_main.x'')
  * Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
  * Load the results of GORILLA with polynominal order 4.
@@ -32,7 +33,7 @@ J_par[:,1] = J_par[:,1] / J_par[0,1]
 
 # Plot Poincaré sections and evolution of the normalized parallel adiabatic invariant as a function of banana bounces
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-fig.suptitle('Stellarator: Poincaré sections and Parallel adiabatic invariant')
+fig.suptitle('Stellarator: Poincaré sections and parallel adiabatic invariant of trapped particle')
 
 
 ax1.plot(poincare_rphiz[:,0],poincare_rphiz[:,2],'.')
