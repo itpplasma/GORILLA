@@ -28,8 +28,8 @@ jobs:
       # Runs a single command using the runners shell
       - name: Dependencies
         run: |
-          sudo apt update
-          sudo apt install wget unzip gfortran liblapack-dev libnetcdff-dev
+          sudo apt-get update
+          sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
 
       # Runs a set of commands using the runners shell
       - name: Build
