@@ -48,8 +48,15 @@ N. Flocke, “Algorithm 954: An Accurate and Efficient Cubic and Quartic Equatio
 <https://doi.org/10.1145/2699468>
 
 * Download supplemental material `954.zip` from above webpage.
-* Copy `954/F90/Src/Polynomial234RootSolvers.f90` to `GORILLA/SRC/` and replace existing file with indentical name.
+```
+wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+```
+* Copy `954/F90/Src/Polynomial234RootSolvers.f90` to `GORILLA/SRC/contrib/` and overwrite existing file.
   (Existing file with identical name is a placeholder which is necessary for compilation.)
+```
+unzip 954.zip
+cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
+```
 * GORILLA can be run without this external library. The computation of guiding-center orbits is then limited to the numerical Runge-Kutta option of GORILLA.
 
 
