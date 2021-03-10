@@ -145,11 +145,11 @@ We welcome help in improving and extending GORILLA. This is managed through Gith
 ### Authors
 
 * Michael Eder<sup>1</sup>
-* Christopher G. Albert^(1,2)
-* Lukas M. P. Bauer^(1)
-* Sergei V. Kasilov^(1,3)
-* Winfried Kernbichler^(1)
-* Markus Meisterhofer^(1)
+* Christopher G. Albert<sup>1,2</sup>
+* Lukas M. P. Bauer^<sup>1</sup>
+* Sergei V. Kasilov^<sup>1,3</sup>
+* Winfried Kernbichler^<sup>1</sup>
+* Markus Meisterhofer^<sup>1</sup>
 
 ### Affilliations
 1. Fusion@OEAW, Institut für Theoretische Physik - Computational Physics,
