@@ -14,22 +14,13 @@ tags:
   - Tokamaks
   - Stellarators
 authors:
-  - name: Michael Eder^[corresponding author]
-    orcid: 0000-0002-1392-1664
-    affiliation: 1
-  - name: Christopher G. Albert
-    orcid: 0000-0003-4773-416X
-    affiliation: "1, 2"
-  - name: Lukas M. P. Bauer
-    orcid: 0000-0003-3341-4085
-    affiliation: 1
-  - name:  Sergei V. Kasilov
-    affiliation: "1, 3"
-  - name:  Winfried Kernbichler
-    affiliation: 1
-  - name:  Markus Meisterhofer
-    affiliation: 1
-
+- name: Adrian M. Price-Whelan^[Custom footnotes for e.g. denoting who the corresponding author is can be included like this.]
+  orcid: 0000-0003-0872-7098
+  affiliation: "1, 2" # (Multiple affiliations must be quoted)
+- name: Author Without ORCID
+  affiliation: 2
+- name: Author with no affiliation
+  affiliation: 3
 affiliations:
  - name: institute 1 Fusion@ÖAW, Institut für Theoretische Physik—Computational Physics, Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
    index: 1
