@@ -31,7 +31,7 @@ authors:
     affiliation: 1
 
 affiliations:
- - name: institute 1 # Fusion@ÖAW, Institut für Theoretische Physik—Computational Physics, Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
+ - name: institute 1 Fusion@ÖAW, Institut für Theoretische Physik—Computational Physics, Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
    index: 1
  - name: institute 2 # Max-Planck-Institut für Plasmaphysik, Boltzmannstr. 2, 85748 Garching, Germany
    index: 2
