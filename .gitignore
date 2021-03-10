@@ -69,3 +69,11 @@ EXAMPLES/MATLAB_RUN
 *-blx.aux
 *-blx.bib
 *.run.xml
+
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
