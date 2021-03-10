@@ -31,11 +31,11 @@ authors:
     affiliation: 1
 
 affiliations:
- - name: Fusion@ÖAW, Institut für Theoretische Physik—Computational Physics, Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
+ - name: institute 1 # Fusion@ÖAW, Institut für Theoretische Physik—Computational Physics, Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
    index: 1
- - name: Max-Planck-Institut für Plasmaphysik, Boltzmannstr. 2, 85748 Garching, Germany
+ - name: institute 2 # Max-Planck-Institut für Plasmaphysik, Boltzmannstr. 2, 85748 Garching, Germany
    index: 2
- - name: Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology,” Akademicheskaya str. 1, 61108 Kharkov, Ukraine
+ - name: institute 3 #Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology,” Akademicheskaya str. 1, 61108 Kharkov, Ukraine
    index: 3
 date: 10 March 2021
 bibliography: paper.bib
