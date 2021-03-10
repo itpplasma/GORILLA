@@ -1,15 +1,20 @@
 # GORILLA
 **G**uiding-center **OR**bit **I**ntegration with **L**ocal **L**inearization **A**pproach
 
-GORILLA computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry.
+![alt text](https://github.com/itpplasma/GORILLA/blob/main/DOCUMENTATION/LATEX/figures/title_image-eps-converted-to.pdf "Guiding-center orbit Poincaré plot with GORILLA")
+
+GORILLA computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry. This guiding-center orbit code is designed to be used in scientific plasma physics simulations in the field of magnetic confinement fusion.
+
+### Summary
 The guiding-center orbits are traced via a quasi-geometric integration method described in Ref. [1].
 There, high order interpolation of electromagnetic fields in space is replaced by a special linear interpolation, leading to locally linear Hamiltonian equations of motion with piecewise constant coefficients. The underlying formulation treats the motion in the piecewise linear fields exactly. This further leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity.
 Guiding-center orbits are computed without taking collisions into account.
 
-For various simulations in magnetic confinement fusion, direct modeling of guiding-center particle orbits is utilized, e.g. global kinetic computations of quasi-steady plasma parameters or fast alpha particle loss estimation for stellarator optimization. In such complex simulations a simple interface for the guiding-center orbit integration part is needed. Namely, the initial condition of a particle in six-dimensional phase space is provided (e.g. particle position, magnetic moment, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure “orbit time step routine” acting as an interface with a plasma physics simulation is provided (“orbit_timestep_gorilla”).
-However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincaré plots is at disposal as well (“gorilla_plot”).
-Both applications are realized for demonstration in the program (“test_gorilla_main”).
+For various simulations in magnetic confinement fusion, direct modeling of guiding-center particle orbits is utilized, e.g. global kinetic computations of quasi-steady plasma parameters or fast alpha particle loss estimation for stellarator optimization. In such complex simulations a simple interface for the guiding-center orbit integration part is needed. Namely, the initial condition in five-dimensional phase space is provided (e.g. guiding-center position, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure “orbit time step routine” acting as an interface with a plasma physics simulation is provided (`orbit_timestep_gorilla`).
+However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincaré plots is at disposal as well (`gorilla_plot`).
+Both applications are realized for demonstration in the program (`test_gorilla_main`).
 
+### License
 The code is free to use and modify under the MIT License and links to Runge-Kutta-Fehlberg routines in
 `SRC/contrib/rkf45.f90` from https://people.sc.fsu.edu/~jburkardt/f_src/rkf45/rkf45.html under the GNU LGPL License.
 
@@ -117,6 +122,44 @@ Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge
 
 ### MATLAB:  Step-by-step plotting tutorial
 * MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal as a step-by-step tutorial for all plotting features of GORILL.
+
+
+## Contributing
+
+### Contact
+If you have questions regarding any aspect of the software then please get in touch with the main developer Michael Eder via email - <eder@tugraz.at>. Alternatively you can create an issue on the [Issue Tracker](https://github.com/itpplasma/GORILLA/issues).
+
+### Bugs
+There may be bugs. If you think you've caught one, please report it on the [Issue Tracker](https://github.com/itpplasma/GORILLA/issues). This is also the place to propose new ideas for features or ask questions about the design of GORILLA.
+
+### Code contributions
+We welcome help in improving and extending GORILLA. This is managed through Github pull requests; for external contributions we prefer the ["fork and pull"](https://guides.github.com/activities/forking/) workflow while core developers use branches in the main repository:
+
+1. First open an Issue to discuss the proposed contribution.
+2. Make your own project fork and implement the changes there.
+3. Open a pull request to merge the changes into the main project. A more detailed discussion can take place there before the changes are accepted.
+
+
+## Authors and affiliations
+
+### Authors
+
+* Michael Eder^(1)
+* Christopher G. Albert^(1,2)
+* Lukas M. P. Bauer^(1)
+* Sergei V. Kasilov^(1,3)
+* Winfried Kernbichler^(1)
+* Markus Meisterhofer^(1)
+
+### Affilliations
+1. Fusion@OEAW, Institut für Theoretische Physik - Computational Physics,
+Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
+
+2. Max-Planck-Institut für Plasmaphysik,
+Boltzmannstr. 2, 85748 Garching, Germany
+
+3. Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology”,
+Akademicheskaya str. 1, 61108 Kharkov, Ukraine
 
 
 ## Acknowledgments
