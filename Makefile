@@ -1,6 +1,7 @@
-FC ?= gfortran
+FC = gfortran
 OPTS ?= -J OBJS  -g -fbacktrace -ffpe-trap=zero,overflow,invalid  -fbounds-check -fopenmp
 
+UNAME_S	:= $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
 	NCINC ?= -I/opt/local/include
 	NCLIB ?= -L/opt/local/lib -lnetcdff -lnetcdf -llapack

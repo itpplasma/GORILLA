@@ -41,7 +41,6 @@ Required libraries:
 
 Supported compilers:
 * GNU Fortan
-* Intel Fortran
 
 To install requirements on Ubuntu Linux use
 ```
