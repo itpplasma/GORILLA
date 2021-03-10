@@ -1,56 +1,68 @@
 ---
-title: 'GORILLA: Guiding-center ORbit Integration with Local Linearization Approach'
+title: 'Gala: A Python package for galactic dynamics'
 tags:
-  - Fortran
-  - Theoretical physics
-  - Computational physics
-  - Plasma physics
-  - Plasma dynamics
-  - Numerical integration
-  - Hamiltonian mechanics
-  - Kinetic theory
-  - Magnetic confinement fusion
-  - Fusion reactors
-  - Tokamaks
-  - Stellarators
+  - Python
+  - astronomy
+  - dynamics
+  - galactic dynamics
+  - milky way
 authors:
-  - name: Michael Eder^[Author to whom correspondence should be addressed: <eder@tugraz.at>]
-    orcid: 0000-0002-1392-1664
-    affiliation: 1
-  - name: Christopher G. Albert
-    orcid: 0000-0003-4773-416X
-    affiliation: "1, 2"
-  - name: Lukas M. P. Bauer
-    orcid: 0000-0003-3341-4085
-    affiliation: 1
-  - name:  Sergei V. Kasilov
-    affiliation: "1, 3"
-  - name:  Winfried Kernbichler
-    affiliation: 1
-  - name:  Markus Meisterhofer
-    affiliation: 1
-
+  - name: Adrian M. Price-Whelan^[Custom footnotes for e.g. denoting who the corresponding author is can be included like this.]
+    orcid: 0000-0003-0872-7098
+    affiliation: "1, 2" # (Multiple affiliations must be quoted)
+  - name: Author Without ORCID
+    affiliation: 2
+  - name: Author with no affiliation
+    affiliation: 3
 affiliations:
- - name: Fusion@ÖAW, Institut für Theoretische Physik—Computational Physics, Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
+ - name: Lyman Spitzer, Jr. Fellow, Princeton University
    index: 1
- - name: Max-Planck-Institut für Plasmaphysik, Boltzmannstr. 2, 85748 Garching, Germany
+ - name: Institution Name
    index: 2
- - name: Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology,” Akademicheskaya str. 1, 61108 Kharkov, Ukraine
+ - name: Independent Researcher
    index: 3
-date: 10 March 2021
+date: 13 August 2017
 bibliography: paper.bib
 
+# Optional fields if submitting to a AAS journal too, see this blog post:
+# https://blog.joss.theoj.org/2018/12/a-new-collaboration-with-aas-publishing
+aas-doi: 10.3847/xxxxx <- update this with the DOI from AAS once you know it.
+aas-journal: Astrophysical Journal <- The name of the AAS journal.
 ---
 
 # Summary
 
-summary
+The forces on stars, galaxies, and dark matter under external gravitational
+fields lead to the dynamical evolution of structures in the universe. The orbits
+of these bodies are therefore key to understanding the formation, history, and
+future state of galaxies. The field of "galactic dynamics," which aims to model
+the gravitating components of galaxies to study their structure and evolution,
+is now well-established, commonly taught, and frequently used in astronomy.
+Aside from toy problems and demonstrations, the majority of problems require
+efficient numerical tools, many of which require the same base code (e.g., for
+performing numerical orbit integration).
 
 # Statement of need
 
-[@eder_quasi-geometric_2020]
+`Gala` is an Astropy-affiliated Python package for galactic dynamics. Python
+enables wrapping low-level languages (e.g., C) for speed without losing
+flexibility or ease-of-use in the user-interface. The API for `Gala` was
+designed to provide a class-based and user-friendly interface to fast (C or
+Cython-optimized) implementations of common operations such as gravitational
+potential and force evaluation, orbit integration, dynamical transformations,
+and chaos indicators for nonlinear dynamics. `Gala` also relies heavily on and
+interfaces well with the implementations of physical units and astronomical
+coordinate systems in the `Astropy` package [@astropy] (`astropy.units` and
+`astropy.coordinates`).
 
-`GORILLA`
+`Gala` was designed to be used by both astronomical researchers and by
+students in courses on gravitational dynamics or astronomy. It has already been
+used in a number of scientific publications [@Pearson:2017] and has also been
+used in graduate courses on Galactic dynamics to, e.g., provide interactive
+visualizations of textbook material [@Binney:2008]. The combination of speed,
+design, and support for Astropy functionality in `Gala` will enable exciting
+scientific explorations of forthcoming data releases from the *Gaia* mission
+[@gaia] by students and experts alike.
 
 # Mathematics
 
@@ -85,13 +97,16 @@ For a quick reference, the following citation commands can be used:
 
 # Figures
 
+Figures can be included like this:
+![Caption for example figure.\label{fig:example}](figure.png)
+and referenced from text using \autoref{fig:example}.
 
+Figure sizes can be customized by adding an optional second parameter:
+![Caption for example figure.](figure.png){ width=20% }
 
 # Acknowledgements
 
-The authors would like to thank Michael Drevlak and the ASDEX Upgrade Team for providing the stellarator field configuration and the ASDEX Upgrade MHD equilibrium for shot 26884 at 4300 ms, respectively.
-Further thanks to Martin Heyn, Philipp Ulbl, Rico Buchholz, Patrick Lainer, and Markus Richter for useful discussions.
-This work has been carried out within the framework of the EUROfusion Consortium and has received funding from the Euratom research and training programmes 2014–2018 and 2019–2020 under Grant Agreement No. 633053.
-The views and opinions expressed herein do not necessarily reflect those of the European Commission. The study was supported by the Reduced Complexity Models Grant No. ZT-I-0010 funded by the Helmholtz Association of German Research Centers. Support from NAWI Graz, and from the OeAD under the WTZ Grant Agreement with Ukraine No. UA 04/2017 is gratefully acknowledged.
+We acknowledge contributions from Brigitta Sipocz, Syrtis Major, and Semyeong
+Oh, and support from Kathryn Johnston during the genesis of this project.
 
 # References
