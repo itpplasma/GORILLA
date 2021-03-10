@@ -27,14 +27,16 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Dependencies
-        run: sudo apt install gfortran liblapack-dev libnetcdff-dev unzip
+        run: |
+          sudo apt update
+          sudo apt install wget unzip gfortran liblapack-dev libnetcdff-dev
 
       # Runs a set of commands using the runners shell
       - name: Build
         run: |
           cd $GITHUB_WORKSPACE
-          curl -o 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
           unzip 954.zip
-          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib
+          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/
           make
           
