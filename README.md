@@ -20,9 +20,9 @@ The code is free to use and modify under the MIT License and links to Runge-Kutt
 
 ### Magnetic field input
 The magnetic field can be provided by magnetohydrodynamics (MHD) equilibria with nested magnetic flux surfaces either in 2D (e.g. EFIT) or in 3D (e.g. VMEC). Supported equilibria are in the g-file or NetCDF format, respectively.
-For both equilibria formats, test files for the limited purpose of computing guiding-center orbits are provided. 
-The g-file test equilibrium (`g_file_for_test`) was provided by the ASDEX Upgrade Team for testing purposes and corresponds to the axisymmetric tokamak field configuration of ASDEX Upgrade (shot 26884 at 4300 ms) described in Ref. [3]. 
-The VMEC NetCDF test equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [4], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m. 
+For both equilibria formats, test files for the limited purpose of computing guiding-center orbits are provided.
+The g-file test equilibrium (`g_file_for_test`) was provided by the ASDEX Upgrade Team for testing purposes and corresponds to the axisymmetric tokamak field configuration of ASDEX Upgrade (shot 26884 at 4300 ms) described in Ref. [3].
+The VMEC NetCDF test equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [4], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m.
 
 ## Documentation
 A detailed description of the working principle of GORILLA can be found in `DOCUMENTATION/GORILLA_DOC.pdf`.
@@ -33,14 +33,14 @@ The following supplemental material is available in `DOCUMENTATION/SUPPLEMENTAL_
 
 ## Building
 
-GORILLA can be built with make from Gorilla.mk.
+GORILLA can be built with `make`.
 
 Required libraries:
 * NetCDF
 * LAPACK/BLAS
 
 Supported compilers:
-* GNU Fortan 
+* GNU Fortan
 * Intel Fortran
 
 Include external library:
@@ -53,19 +53,20 @@ N. Flocke, “Algorithm 954: An Accurate and Efficient Cubic and Quartic Equatio
 * GORILLA can be run without this external library. The computation of guiding-center orbits is then limited to the numerical Runge-Kutta option of GORILLA.
 
 
-Building: 
+Building:
 ```bash
 cd /path/to/GORILLA
-make -f Gorilla.mk
+make
 ```
-This will produce `test_gorilla_main.x` required to run the code.
+This will produce `test_gorilla_main.x` required to run the code. To specify the location of
+NetCDF includes and libraries, one has to set the `NCINC` and `NCLIB` variable during `make`.
 
 ## Usage
 
-GORILLA currently runs on a single node with OpenMP shared memory parallelization with one particle per thread and background fields residing in main memory. 
+GORILLA currently runs on a single node with OpenMP shared memory parallelization with one particle per thread and background fields residing in main memory.
 
-The main executable is `test_gorilla_main.x`. 
-As an input it takes .... 
+The main executable is `test_gorilla_main.x`.
+As an input it takes ....
 
 ... the following input files which can be found in the folder `INPUT/`
 * `tetra_grid.inp`                       (Input file for settings of the tetrahedronal grid used in GORLLA)
@@ -81,7 +82,13 @@ As an input it takes ....
 ## Examples
 
 Expamles are realized in MATLAB and Python. For plotting with MATLAB, see below.
-Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given. Detailed descriptions of the respective input files can be found in `INPUT`.
+Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given, and runs are started with
+```
+./test_gorilla_main.x
+```
+To avoid hyperthreading issues, it is beneficial to limit the number of threads to
+the number of actual CPU cores via the environment variable `$OMP_NUM_THREADS`.
+Detailed descriptions of the respective input files can be found in `INPUT`.
 After appropriate compilation of GORILLA, the code can be executed in all of these 5 example folders, respectively.
 For the visualization of the output of these five examples, appropriate plotting methods are at disposal at. `PYTHON/plot_example_1.py` - `PYTHON/plot_example_5.py`.
 
@@ -97,7 +104,7 @@ For the visualization of the output of these five examples, appropriate plotting
 * Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
 * Use the GORILLA Runge-Kutta 4 option.
 * Create a figure with the Poincaré plots ($\varphi = 0$) in cylindrical and symmetry flux coordinates.
-* Compute the normalized total energy as a function of toroidal mappings. 
+* Compute the normalized total energy as a function of toroidal mappings.
 
 ### Example 3
 * Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle.
