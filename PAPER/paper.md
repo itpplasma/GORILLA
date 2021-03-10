@@ -14,7 +14,7 @@ tags:
   - Tokamaks
   - Stellarators
 authors:
-  - name: Michael Eder^[corresponding author]
+  - name: Michael Eder^[corresponding author: eder@tugraz.at]
     orcid: 0000-0002-1392-1664
     affiliation: 1
   - name: Christopher G. Albert
