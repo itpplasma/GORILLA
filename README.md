@@ -43,6 +43,11 @@ Supported compilers:
 * GNU Fortan
 * Intel Fortran
 
+To install requirements on Ubuntu Linux use
+```
+sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
+```
+
 Include external library:
 N. Flocke, “Algorithm 954: An Accurate and Efficient Cubic and Quartic Equation Solver for Physical Applications”
 <https://doi.org/10.1145/2699468>
