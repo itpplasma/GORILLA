@@ -144,7 +144,7 @@ We welcome help in improving and extending GORILLA. This is managed through Gith
 
 ### Authors
 
-* Michael Eder^(1)
+* Michael Eder<sup>1</sup>
 * Christopher G. Albert^(1,2)
 * Lukas M. P. Bauer^(1)
 * Sergei V. Kasilov^(1,3)
