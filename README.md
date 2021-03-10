@@ -1,7 +1,7 @@
 # GORILLA
 **G**uiding-center **OR**bit **I**ntegration with **L**ocal **L**inearization **A**pproach
 
-![alt text](https://github.com/itpplasma/GORILLA/blob/main/DOCUMENTATION/LATEX/figures/title_image-eps-converted-to.pdf "Guiding-center orbit Poincaré plot with GORILLA")
+![alt text](https://github.com/itpplasma/GORILLA/blob/main/DOCUMENTATION/LATEX/figures/title_image.png "Guiding-center orbit Poincaré plot with GORILLA")
 
 GORILLA computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry. This guiding-center orbit code is designed to be used in scientific plasma physics simulations in the field of magnetic confinement fusion.
 
