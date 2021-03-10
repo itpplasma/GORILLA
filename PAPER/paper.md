@@ -1,27 +1,43 @@
 ---
-title: 'Gala: A Python package for galactic dynamics'
+title: 'GORILLA: Guiding-center ORbit Integration with Local Linearization Approach'
 tags:
-  - Python
-  - astronomy
-  - dynamics
-  - galactic dynamics
-  - milky way
+  - Fortran
+  - Theoretical physics
+  - Computational physics
+  - Plasma physics
+  - Plasma dynamics
+  - Numerical integration
+  - Hamiltonian mechanics
+  - Kinetic theory
+  - Magnetic confinement fusion
+  - Fusion reactors
+  - Tokamaks
+  - Stellarators
 authors:
-  - name: Adrian M. Price-Whelan^[Custom footnotes for e.g. denoting who the corresponding author is can be included like this.]
-    orcid: 0000-0003-0872-7098
-    affiliation: "1, 2" # (Multiple affiliations must be quoted)
-  - name: Author Without ORCID
-    affiliation: 2
-  - name: Author with no affiliation
-    affiliation: 3
+  - name: Michael Eder^[Author to whom correspondence should be addressed: <eder@tugraz.at>]
+    orcid: 0000-0002-1392-1664
+    affiliation: 1
+  - name: Christopher G. Albert
+    orcid: 0000-0003-4773-416X
+    affiliation: "1, 2"
+  - name: Lukas M. P. Bauer
+    orcid: 0000-0003-3341-4085
+    affiliation: 1
+  - name:  Sergei V. Kasilov
+    affiliation: "1, 3"
+  - name:  Winfried Kernbichler
+    affiliation: 1
+  - name:  Markus Meisterhofer
+    affiliation: 1
+
 affiliations:
- - name: Lyman Spitzer, Jr. Fellow, Princeton University
+ - name: Fusion@ÖAW, Institut für Theoretische Physik—Computational Physics, Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
    index: 1
- - name: Institution Name
+ - name: Max-Planck-Institut für Plasmaphysik, Boltzmannstr. 2, 85748 Garching, Germany
    index: 2
- - name: Independent Researcher
+ - name: Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology,” Akademicheskaya str. 1, 61108 Kharkov, Ukraine
    index: 3
-date: 13 August 2017
+date: 10 March 2021
 bibliography: paper.bib
 
 # Optional fields if submitting to a AAS journal too, see this blog post:
