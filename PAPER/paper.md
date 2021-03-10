@@ -14,7 +14,7 @@ tags:
   - Tokamaks
   - Stellarators
 authors:
-  - name: Michael Eder^[Author to whom correspondence should be addressed: <eder@tugraz.at>]
+  - name: Michael Eder %^[Author to whom correspondence should be addressed: <eder@tugraz.at>]
     orcid: 0000-0002-1392-1664
     affiliation: 1
   - name: Christopher G. Albert
@@ -29,7 +29,6 @@ authors:
     affiliation: 1
   - name:  Markus Meisterhofer
     affiliation: 1
-
 affiliations:
  - name: institute 1 # Fusion@ÖAW, Institut für Theoretische Physik—Computational Physics, Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
    index: 1
