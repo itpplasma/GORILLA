@@ -27,7 +27,7 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Dependencies
-        run: sudo apt install gfortran liblapack-dev libnetcdff unzip
+        run: sudo apt install gfortran liblapack-dev libnetcdff-dev unzip
 
       # Runs a set of commands using the runners shell
       - name: Build
