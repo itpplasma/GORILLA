@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/343767192.svg)](https://zenodo.org/badge/latestdoi/343767192)
+
 # GORILLA
 **G**uiding-center **OR**bit **I**ntegration with **L**ocal **L**inearization **A**pproach
 
