@@ -1,8 +1,6 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
 
-# Controls when the action will run. 
+# Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
@@ -13,11 +11,8 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -25,18 +20,26 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      # Runs a single command using the runners shell
       - name: Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
 
-      # Runs a set of commands using the runners shell
       - name: Build
         run: |
           cd $GITHUB_WORKSPACE
           wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
           unzip 954.zip
-          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/
+          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
           make
-          
+
+      - name: Test
+        run: |
+          cd EXAMPLES/example_1
+          ./test_gorilla_main.x
+          cd ../../EXAMPLES/example_2
+          ./test_gorilla_main.x
+          cd ../../EXAMPLES/example_3
+          ./test_gorilla_main.x
+          cd ../../EXAMPLES/example_4
+          ./test_gorilla_main.x
