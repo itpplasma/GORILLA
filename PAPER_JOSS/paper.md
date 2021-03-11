@@ -44,14 +44,16 @@ bibliography: paper.bib
 # Introduction
 Extremely hot plasmas with a temperature of several million degrees Celsius are needed to produce energy from nuclear fusion. Under these conditions, hydrogen isotopes are fused and energy is released. The energy release from 1 kg of fusion fuel corresponds approximately to that of 10000 tons of coal. A future use of this energy source is the subject of worldwide research projects. However, the confinement of such hot plasmas poses major physical and technological problems for researchers. In particular, complex numerical methods are necessary to understand the physics of such plasmas in complicated toroidal magnetic fields.
 
-The kinetic approach for simulating the collective behavior of a plasma utilizes direct modeling of particle orbits. A well-known approximation for computing the motion of electrically charged particles in slowly varying electromagnetic fields is to reduce the dynamical equations by separating the relatively fast circular motion around a point called the guiding-center, and instead treat the relatively slow drift motion of this point. This drift motion is described by the guiding-center equations; see [@littlejohn_variational_1983] and [@boozer_guiding_1980].
+The kinetic approach for simulating the collective behavior of a plasma utilizes direct modeling of particle orbits. A well-known approximation for computing the motion of electrically charged particles in slowly varying electromagnetic fields is to reduce the dynamical equations by separating the relatively fast circular motion around a point called the guiding-center, and primarily treat the relatively slow drift motion of this point. This drift motion is described by the guiding-center equations; see [@littlejohn_variational_1983] and [@boozer_guiding_1980].
 
 
 # Summary
 
+`GORILLA` is a Fortran code that computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry. 
+The guiding-center orbits are traced via a quasi-geometric integration method described by @eder_quasi-geometric_2020.
+There, high order interpolation of electromagnetic fields in space is replaced by a special linear interpolation, leading to locally linear Hamiltonian equations of motion with piecewise constant coefficients. 
+This method is geometric in both a structure-preserving and a more literal sense, as it considers intersections of orbits with a spatial mesh. The underlying formulation and discretization of fields exactly preserves the Hamiltonian structure of the equations and treats the motion in the piecewise linear fields exactly. This leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity. In `GORILLA` guiding-center orbits are computed without taking collisions into account.
 
-summary test
-[@eder_quasi-geometric_2020]
 
 
 The source code for `GORILLA` has been archived to Zenodo with the linked DOI: [@eder_gorilla_2021]
@@ -60,22 +62,6 @@ The source code for `GORILLA` has been archived to Zenodo with the linked DOI: [
 
 statemend of need
 
-# Mathematics
-
-Single dollars ($) are required for inline mathematics e.g. $f(x) = e^{\pi/x}$
-
-Double dollars make self-standing equations:
-
-$$\Theta(x) = \left\{\begin{array}{l}
-0\textrm{ if } x < 0\cr
-1\textrm{ else}
-\end{array}\right.$$
-
-You can also use plain \LaTeX for equations
-\begin{equation}\label{eq:fourier}
-\hat f(\omega) = \int_{-\infty}^{\infty} f(x) e^{i\omega x} dx
-\end{equation}
-and refer to \autoref{eq:fourier} from text.
 
 # Citations
 
