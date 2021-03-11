@@ -46,7 +46,9 @@ bibliography: paper.bib
 # Introduction
 Extremely hot plasmas with a temperature of several million degrees Celsius are needed to produce energy from nuclear fusion. Under these conditions, hydrogen isotopes are fused and energy is released. The energy release from 1 kg of fusion fuel corresponds approximately to that of 10000 tons of coal. A future use of this energy source is the subject of worldwide research projects. However, the confinement of such hot plasmas poses major physical and technological problems for researchers. In particular, complex numerical methods are necessary to understand the physics of such plasmas in complicated toroidal magnetic fields.
 
-One kinetic approach for simulating the collective behavior of a plasma utilizes direct modeling of particle orbits. A well-known approximation for computing the motion of electrically charged particles in slowly varying electromagnetic fields is to reduce the dynamical equations by separating the relatively fast circular motion around a point called the guiding-center, and primarily treat the relatively slow drift motion of this point. This drift motion is described by the guiding-center equations; see [@littlejohn_variational_1983] and [@boozer_guiding_1980]. Here, we provide an efficient code for the purpose of solving the guiding-center equations. This code is based on the quasi-geometric integration method described by @eder_quasi-geometric_2020.
+One kinetic approach for simulating the collective behavior of a plasma utilizes direct modeling of particle orbits. A well-known approximation for computing the motion of electrically charged particles in slowly varying electromagnetic fields is to reduce the dynamical equations by separating the relatively fast circular motion around a point called the guiding-center, and primarily treat the relatively slow drift motion of this point. This drift motion is described by the guiding-center equations; see [@littlejohn_variational_1983] and [@boozer_guiding_1980].
+
+Here, we provide an efficient code for the purpose of solving the guiding-center equations. This code is a numerical implementation of the novel, quasi-geometric integration method described by @eder_quasi-geometric_2020.
 
 
 # Summary
@@ -55,17 +57,17 @@ In particular, `GORILLA` is a Fortran code that computes guiding-center orbits f
 Conventional methods for integrating the guiding-center equations utilize high order interpolation of the electromagnetic fields in space.
 In `GORILLA`, a special linear interpolation employing a spatial mesh is used for the discretization of the electromagnetic fields.
 This leads to locally linear equations of motion with piecewise constant coefficients. 
-As shown by @eder_quasi-geometric_2020, this local linearzation approach does not violate the Hamiltonian structure of the guiding-center equations. For practical purposes this means, that the total energy, the magnetic moment and the phase space volume are conserved.
+As shown by @eder_quasi-geometric_2020, this local linearization approach does not violate the Hamiltonian structure of the guiding-center equations. For practical purposes this means, that the total energy, the magnetic moment and the phase space volume are conserved.
 Furthermore, the approach reduces computational effort and sensitivity to noise in the electromagnetic field. In `GORILLA` guiding-center orbits are computed without taking collisions in-between particles into account. Such exemplary guiding-center orbits obtained with `GORILLA` can be seen in \autoref{fig:example} where the magnetic field of a real-world fusion device is used, namely the tokamak “ASDEX Upgrade”. 
 
 # Statement of need
 
 `GORILLA` is designed to be used by researchers in scientific plasma physics simulations in the field of magnetic confinement fusion. 
-In such complex simulations a simple interface for the integration of the guiding-center equations is needed. Namely, the initial condition in five-dimensional phase space is provided (e.g. guiding-center position, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure “orbit time step routine” acting as an interface with a plasma physics simulation is provided.
+In such complex simulations a simple interface for the efficient integration of the guiding-center equations is needed. Namely, the initial condition in five-dimensional phase space is provided (e.g. guiding-center position, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure “orbit time step routine” acting as an interface with a plasma physics simulation is provided.
 However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincaré plots is at disposal as well.
 
-`GORILLA` has already been used by @eder_quasi-geometric_2020 for the application of collisionless guiding-center orbits in an axisymmetric tokamak and a realistic three-dimensional stellarator configuration, where the code demonstrated stable long-term orbit dynamics conserving invariants.
-Further, in the same publication, in Monte Carlo evaluation of transport coefficients, the computational efficiency of `GORILLA` was shown to be an order of magnitude higher than with a standard fourth order Runge–Kutta integrator.
+`GORILLA` has already been used by @eder_quasi-geometric_2020 for the application of collisionless guiding-center orbits in an axisymmetric tokamak and a realistic three-dimensional stellarator configuration. There, the code demonstrated stable long-term orbit dynamics conserving invariants.
+Further, in the same publication, `GORILLA` was applied to the Monte Carlo evaluation of transport coefficients. There, the computational efficiency of `GORILLA` was shown to be an order of magnitude higher than with a standard fourth order Runge–Kutta integrator.
 Currently, `GORILLA` is part of the “EUROfusion Theory, Simulation, Validation and Verification Task for Impurity Sources, Transport, and Screening” where it is tested for the kinetic modelling of the impurity ion component. 
 The source code for `GORILLA` has been archived to Zenodo with the linked DOI: [@eder_gorilla_2021]
 
