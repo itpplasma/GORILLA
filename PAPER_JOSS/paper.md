@@ -52,27 +52,14 @@ One kinetic approach for simulating the collective behavior of a plasma utilizes
 `GORILLA` is a Fortran code that computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry. 
 The guiding-center orbits are traced via a quasi-geometric integration method described by @eder_quasi-geometric_2020.
 There, high order interpolation of electromagnetic fields in space is replaced by a special linear interpolation, leading to locally linear Hamiltonian equations of motion with piecewise constant coefficients. 
-This method is geometric in both a structure-preserving and a more literal sense, as it considers intersections of orbits with a spatial mesh. The underlying formulation and discretization of fields exactly preserves the Hamiltonian structure of the equations and treats the motion in the piecewise linear fields exactly. This leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity. In `GORILLA` guiding-center orbits are computed without taking collisions into account. Such exemplary guiding-center orbits can be seen \autoref{fig:example} where the magnetic field of a real-world fusion device is used, namely the tokamak ``ASDEX Upgrade''. 
+This method is geometric in both a structure-preserving and a more literal sense, as it considers intersections of orbits with a spatial mesh. The underlying formulation and discretization of fields exactly preserves the Hamiltonian structure of the equations and treats the motion in the piecewise linear fields exactly. This leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity. In `GORILLA` guiding-center orbits are computed without taking collisions in-between particles into account. Such exemplary guiding-center orbits obtained with `GORILLA` can be seen in \autoref{fig:example} where the magnetic field of a real-world fusion device is used, namely the tokamak “ASDEX Upgrade”. 
 
 ![Illustration of (a) passing particle and (b) trapped particle guiding-center orbits of a Deuterium ion with a kinetic energy of 3 keV in the axisymmetric magnetic field configuration of ASDEX Upgrade. The blue transparent area shows the toroidal $\varphi = 0$ plane with blue dots indicating the intersections of the orbit with this plane (Poincaré cut).  Red solid lines represent the guiding-center orbits.\label{fig:example}](figure.png)
 
-
-
-
+`GORILLA` is designed to be used in scientific plasma physics simulations in the field of magnetic confinement fusion. It has already been used by @eder_quasi-geometric_2020 for the application of collisionless guiding-center orbits in an axisymmetric tokamak and a realistic three-dimensional stellarator configuration, where `GORILLA` demonstrated stable long-term orbit dynamics conserving invariants.
+Further, in Monte Carlo evaluation of transport coefficients, the computational efficiency of `GORILLA` was shown to be an order of magnitude higher than with a standard fourth order Runge–Kutta integrator.
+Currently, `GORILLA` is part of the “EUROfusion Theory, Simulation, Validation and Verification Task for Impurity Sources, Transport, and Screening”, where it is tested for the kinetic modelling of the impurity ion component. 
 The source code for `GORILLA` has been archived to Zenodo with the linked DOI: [@eder_gorilla_2021]
-
-# Statement of need
-
-statemend of need
-
-
-# Citations
-
-citations
-
-# Figures
-
-figure
 
 # Acknowledgements
 
