@@ -45,6 +45,7 @@ bibliography: paper.bib
 # Summary
 
 summary test
+[@eder_quasi-geometric_2020]
 
 # Statement of need
 
