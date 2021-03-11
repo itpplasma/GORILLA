@@ -175,6 +175,7 @@ We welcome help in improving and extending GORILLA. This is managed through Gith
 * Sergei V. Kasilov<sup>1,3</sup>
 * Winfried Kernbichler<sup>1</sup>
 * Markus Meisterhofer<sup>1</sup>
+* Michael Scheidt<sup>1</sup>
 
 ### Affilliations
 1. Fusion@OEAW, Institut für Theoretische Physik - Computational Physics,
