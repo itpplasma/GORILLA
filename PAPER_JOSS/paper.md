@@ -41,14 +41,15 @@ date: 10 March 2021
 bibliography: paper.bib
 
 ---
+# Introduction
 
 # Summary
 
 summary test
 [@eder_quasi-geometric_2020]
 
-GORILLA
-[@eder_gorilla_2021]
+
+The source code for `GORILLA` has been archived to Zenodo with the linked DOI: [@eder_gorilla_2021]
 
 # Statement of need
 
