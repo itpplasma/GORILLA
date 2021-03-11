@@ -49,6 +49,11 @@ To install requirements on Ubuntu Linux use
 sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
 ```
 
+To install requirements on macOS, install [macports](https://www.macports.org/install.php), then
+```
+sudo port install netcdf netcdf-fortran
+```
+
 Include external library:
 N. Flocke, “Algorithm 954: An Accurate and Efficient Cubic and Quartic Equation Solver for Physical Applications”
 <https://doi.org/10.1145/2699468>
