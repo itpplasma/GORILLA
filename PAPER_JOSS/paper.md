@@ -53,7 +53,7 @@ Here, we provide an efficient code for the purpose of solving the guiding-center
 
 # Summary
 
-In particular, `GORILLA` is a Fortran code that computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry. 
+`GORILLA` is a Fortran code that computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry. 
 Conventional methods for integrating the guiding-center equations utilize high order interpolation of the electromagnetic field in space.
 In `GORILLA`, a special linear interpolation employing a spatial mesh is used for the discretization of the electromagnetic field.
 This leads to locally linear equations of motion with piecewise constant coefficients. 
