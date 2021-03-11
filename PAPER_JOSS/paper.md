@@ -56,9 +56,15 @@ This method is geometric in both a structure-preserving and a more literal sense
 
 ![Illustration of (a) passing particle and (b) trapped particle guiding-center orbits of a Deuterium ion with a kinetic energy of 3 keV in the axisymmetric magnetic field configuration of ASDEX Upgrade. The blue transparent area shows the toroidal $\varphi = 0$ plane with blue dots indicating the intersections of the orbit with this plane (Poincaré cut).  Red solid lines represent the guiding-center orbits.\label{fig:example}](figure.png)
 
-`GORILLA` is designed to be used in scientific plasma physics simulations in the field of magnetic confinement fusion. It has already been used by @eder_quasi-geometric_2020 for the application of collisionless guiding-center orbits in an axisymmetric tokamak and a realistic three-dimensional stellarator configuration, where `GORILLA` demonstrated stable long-term orbit dynamics conserving invariants.
-Further, in Monte Carlo evaluation of transport coefficients, the computational efficiency of `GORILLA` was shown to be an order of magnitude higher than with a standard fourth order Runge–Kutta integrator.
-Currently, `GORILLA` is part of the “EUROfusion Theory, Simulation, Validation and Verification Task for Impurity Sources, Transport, and Screening”, where it is tested for the kinetic modelling of the impurity ion component. 
+# Statement of need
+
+`GORILLA` is designed to be used by researchers in scientific plasma physics simulations in the field of magnetic confinement fusion. 
+In such complex simulations a simple interface for the guiding-center orbit integration part is needed. Namely, the initial condition in five-dimensional phase space is provided (e.g. guiding-center position, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure “orbit time step routine” acting as an interface with a plasma physics simulation is provided.
+However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincaré plots is at disposal as well.
+
+`GORILLA` has already been used by @eder_quasi-geometric_2020 for the application of collisionless guiding-center orbits in an axisymmetric tokamak and a realistic three-dimensional stellarator configuration, where the code demonstrated stable long-term orbit dynamics conserving invariants.
+Further, in the same publication, in Monte Carlo evaluation of transport coefficients, the computational efficiency of `GORILLA` was shown to be an order of magnitude higher than with a standard fourth order Runge–Kutta integrator.
+Currently, `GORILLA` is part of the “EUROfusion Theory, Simulation, Validation and Verification Task for Impurity Sources, Transport, and Screening” where it is tested for the kinetic modelling of the impurity ion component. 
 The source code for `GORILLA` has been archived to Zenodo with the linked DOI: [@eder_gorilla_2021]
 
 # Acknowledgements
