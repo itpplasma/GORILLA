@@ -52,10 +52,10 @@ One kinetic approach for simulating the collective behavior of a plasma utilizes
 `GORILLA` is a Fortran code that computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry. 
 The guiding-center orbits are traced via a quasi-geometric integration method described by @eder_quasi-geometric_2020.
 There, high order interpolation of electromagnetic fields in space is replaced by a special linear interpolation, leading to locally linear Hamiltonian equations of motion with piecewise constant coefficients. 
-This method is geometric in both a structure-preserving and a more literal sense, as it considers intersections of orbits with a spatial mesh. The underlying formulation and discretization of fields exactly preserves the Hamiltonian structure of the equations and treats the motion in the piecewise linear fields exactly. This leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity. In `GORILLA` guiding-center orbits are computed without taking collisions into account. 
+This method is geometric in both a structure-preserving and a more literal sense, as it considers intersections of orbits with a spatial mesh. The underlying formulation and discretization of fields exactly preserves the Hamiltonian structure of the equations and treats the motion in the piecewise linear fields exactly. This leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity. In `GORILLA` guiding-center orbits are computed without taking collisions into account. Fig. shows \autoref{fig:example}.
 
-[Illustration of (a) passing particle and (b) trapped particle guiding-center orbits of 3 keV D ions in axisymmetric ASDEX Upgrade configuration. Blue transparent area shows the $\varphi = 0$ plane with blue dots indicating the intersections of the orbit with this plane (Poincaré cut).  Red solid lines represent guiding-center orbits.\label{fig:example}](figure.png)
-and referenced from text using \autoref{fig:example}.
+![Illustration of (a) passing particle and (b) trapped particle guiding-center orbits of 3 keV D ions in axisymmetric ASDEX Upgrade configuration. Blue transparent area shows the $\varphi = 0$ plane with blue dots indicating the intersections of the orbit with this plane (Poincaré cut).  Red solid lines represent guiding-center orbits.\label{fig:example}](figure.png)
+
 
 
 
