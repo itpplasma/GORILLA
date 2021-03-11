@@ -37,12 +37,12 @@ The following supplemental material is available in `DOCUMENTATION/SUPPLEMENTAL_
 
 GORILLA can be built with `make`.
 
-Required libraries:
+### Supported compilers
+* GNU Fortan
+
+### Required libraries
 * NetCDF
 * LAPACK/BLAS
-
-Supported compilers:
-* GNU Fortan
 
 To install requirements on Ubuntu Linux use
 ```
@@ -54,7 +54,7 @@ To install requirements on macOS, install [macports](https://www.macports.org/in
 sudo port install netcdf netcdf-fortran
 ```
 
-Include external library:
+### Include external library
 N. Flocke, “Algorithm 954: An Accurate and Efficient Cubic and Quartic Equation Solver for Physical Applications”
 <https://doi.org/10.1145/2699468>
 
@@ -71,7 +71,7 @@ cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
 * GORILLA can be run without this external library. The computation of guiding-center orbits is then limited to the numerical Runge-Kutta option of GORILLA.
 
 
-Building:
+### Building with make
 ```bash
 cd /path/to/GORILLA
 make
