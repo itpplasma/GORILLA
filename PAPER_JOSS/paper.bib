@@ -16,3 +16,18 @@
 	pages = {122508},
 	file = {Full Text PDF:/Users/micheder/Zotero/storage/ID7UMXFA/Eder et al. - 2020 - Quasi-geometric integration of guiding-center orbi.pdf:application/pdf;Snapshot:/Users/micheder/Zotero/storage/MGV7TL9A/5.html:text/html},
 }
+
+@misc{michael_eder_gorilla_2021,
+    title = {{GORILLA}: {Guiding}-center {ORbit} {Integration} with {Local} {Linearization} {Approach}},
+    shorttitle = {{GORILLA}},
+    url = {https://zenodo.org/record/4593662#.YEnUBl1Kj0p},
+    abstract = {GORILLA: Guiding-center ORbit Integration with Local Linearization Approach GORILLA computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry. This guiding-center orbit code is designed to be used in scientific plasma physics simulations in the field of magnetic confinement fusion. The guiding-center orbits are traced via a quasi-geometric integration method described in Ref. [1]. There, high order interpolation of electromagnetic fields in space is replaced by a special linear interpolation, leading to locally linear Hamiltonian equations of motion with piecewise constant coefficients. The underlying formulation treats the motion in the piecewise linear fields exactly. This further leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity. Guiding-center orbits are computed without taking collisions into account. For various simulations in magnetic confinement fusion, direct modeling of guiding-center particle orbits is utilized, e.g. global kinetic computations of quasi-steady plasma parameters or fast alpha particle loss estimation for stellarator optimization. In such complex simulations a simple interface for the guiding-center orbit integration part is needed. Namely, the initial condition in five-dimensional phase space is provided (e.g. guiding-center position, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure “orbit time step routine” acting as an interface with a plasma physics simulation is provided (`orbit\_timestep\_gorilla`). However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincaré plots is at disposal as well (`gorilla\_plot`). Both applications are realized for demonstration in the program (`test\_gorilla\_main`).   References: [1] M. Eder, C.G. Albert, L.M.P. Bauer, S.V. Kasilov and W. Kernbichler “Quasi-geometric integration of guiding-center orbits in piecewise linear toroidal fields” Physics of Plasmas 27, 122508 (2020) {\textless}https://doi.org/10.1063/5.0022117{\textgreater} Preprint: {\textless}https://arxiv.org/abs/2007.08151{\textgreater}},
+    urldate = {2021-03-11},
+    publisher = {Zenodo},
+    author = {Michael Eder and Christopher G. Albert and Lukas M. P. Bauer and Sergei V. Kasilov and Winfried Kernbichler and Markus Meisterhofer},
+    month = mar,
+    year = {2021},
+    doi = {10.5281/zenodo.4593661},
+    keywords = {Computational physics, Fortran, Fusion reactors, Hamiltonian mechanics, Kinetic theory, Magnetic confinement fusion, Numerical integration, Plasma dynamics, Plasma physics, Stellarators, Theoretical physics, Tokamaks},
+    file = {Zenodo Snapshot:/Users/micheder/Zotero/storage/5DRVC9WL/4593662.html:text/html},
+}
