@@ -46,7 +46,7 @@ bibliography: paper.bib
 # Introduction
 Extremely hot plasmas with a temperature of several million degrees Celsius are needed to produce energy from nuclear fusion. Under these conditions, hydrogen isotopes are fused, and energy is released. The energy release from 1 kg of fusion fuel corresponds approximately to that of 10000 tons of coal. A future use of this energy source is the subject of worldwide research projects. However, the confinement of such hot plasmas poses major physical and technological problems for researchers. In particular, complex numerical methods are necessary to understand the physics of such plasmas in complicated toroidal magnetic fields.
 
-One kinetic approach for simulating the collective behavior of a plasma utilizes direct modeling of particle orbits. A well-known approximation for computing the motion of electrically charged particles in slowly varying electromagnetic fields is to reduce the dynamical equations by separating the relatively fast circular motion around a point called the guiding-center, and primarily treat the relatively slow drift motion of this point. This drift motion is described by the guiding-center equations; see [@littlejohn_variational_1983] and [@boozer_guiding_1980].
+An important kinetic approach for simulating the collective behavior of a plasma utilizes direct modeling of particle orbits. A well-known approximation for computing the motion of electrically charged particles in slowly varying electromagnetic fields is to reduce the dynamical equations by separating the relatively fast circular motion around a point called the guiding-center, and primarily treat the relatively slow drift motion of this point. This drift motion is described by the guiding-center equations; see [@littlejohn_variational_1983] and [@boozer_guiding_1980].
 
 Here, we provide an efficient code for the purpose of solving the guiding-center equations. This code is a numerical implementation of the novel, quasi-geometric integration method described by @eder_quasi-geometric_2020.
 
@@ -57,7 +57,7 @@ Here, we provide an efficient code for the purpose of solving the guiding-center
 Conventional methods for integrating the guiding-center equations utilize high order interpolation of the electromagnetic field in space.
 In `GORILLA`, a special linear interpolation employing a spatial mesh is used for the discretization of the electromagnetic field.
 This leads to locally linear equations of motion with piecewise constant coefficients. 
-As shown by @eder_quasi-geometric_2020, this local linearization approach does not violate the Hamiltonian structure of the guiding-center equations. For practical purposes this means, that the total energy, the magnetic moment and the phase space volume are conserved.
+As shown by @eder_quasi-geometric_2020, this local linearization approach retains the Hamiltonian structure of the guiding-center equations. For practical purposes this means, that the total energy, the magnetic moment and the phase space volume are conserved.
 Furthermore, the approach reduces computational effort and sensitivity to noise in the electromagnetic field. In `GORILLA` guiding-center orbits are computed without taking collisions in-between particles into account. Such exemplary guiding-center orbits obtained with `GORILLA` can be seen in \autoref{fig:example} where the magnetic field of a real-world fusion device is used, namely the tokamak “ASDEX Upgrade”. 
 
 # Statement of need
@@ -69,7 +69,7 @@ However, the integration process itself can be of high interest as well, thus, a
 `GORILLA` has already been used by @eder_quasi-geometric_2020 for the application of collisionless guiding-center orbits in an axisymmetric tokamak and a realistic three-dimensional stellarator configuration. There, the code demonstrated stable long-term orbit dynamics conserving invariants.
 Further, in the same publication, `GORILLA` was applied to the Monte Carlo evaluation of transport coefficients. There, the computational efficiency of `GORILLA` was shown to be an order of magnitude higher than with a standard fourth order Runge–Kutta integrator.
 Currently, `GORILLA` is part of the “EUROfusion Theory, Simulation, Validation and Verification Task for Impurity Sources, Transport, and Screening” where it is tested for the kinetic modelling of the impurity ion component. 
-The source code for `GORILLA` has been archived to Zenodo with the linked DOI: [@eder_gorilla_2021]
+The source code for `GORILLA` has been archived on Zenodo with the linked DOI: [@eder_gorilla_2021]
 
 ![Illustration of (a) passing particle and (b) trapped particle guiding-center orbits of a Deuterium ion with a kinetic energy of 3 keV in the axisymmetric magnetic field configuration of ASDEX Upgrade. The blue transparent area shows the poloidal $\varphi = 0$ plane with blue dots indicating the intersections of the orbit with this plane (Poincaré cut).  Red solid lines represent the guiding-center orbits.\label{fig:example}](figure.png)
 
