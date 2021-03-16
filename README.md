@@ -172,7 +172,7 @@ We welcome help in improving and extending GORILLA. This is managed through Gith
 * Michael Eder<sup>1</sup>
 * Christopher G. Albert<sup>1,2</sup>
 * Lukas M. P. Bauer<sup>1</sup>
-* Sergei V. Kasilov<sup>1,3</sup>
+* Sergei V. Kasilov<sup>1,3,4</sup>
 * Winfried Kernbichler<sup>1</sup>
 * Markus Meisterhofer<sup>1</sup>
 * Michael Scheidt<sup>1</sup>
@@ -186,6 +186,8 @@ Boltzmannstr. 2, 85748 Garching, Germany
 
 3. Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology”,
 Akademicheskaya str. 1, 61108 Kharkov, Ukraine
+
+4. Department of Applied Physics and Plasma Physics, V. N. Karazin Kharkov National University, Svobody sq. 4, 61022 Kharkov, Ukraine
 
 
 ## Acknowledgments
