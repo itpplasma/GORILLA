@@ -24,7 +24,7 @@ authors:
     orcid: 0000-0003-3341-4085
     affiliation: 1
   - name:  Sergei V. Kasilov
-    affiliation: "1, 3"
+    affiliation: "1, 3, 4"
   - name:  Winfried Kernbichler
     affiliation: 1
   - name:  Markus Meisterhofer
@@ -39,12 +39,14 @@ affiliations:
    index: 2
  - name: Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology,” Akademicheskaya str. 1, 61108 Kharkov, Ukraine
    index: 3
-date: 10 March 2021
+ - name: Department of Applied Physics and Plasma Physics, V. N. Karazin Kharkov National University, Svobody sq. 4, 61022 Kharkov, Ukraine
+   index: 4
+date: 16 March 2021
 bibliography: paper.bib
 
 ---
 # Introduction
-Extremely hot plasmas with a temperature of several million degrees Celsius are needed to produce energy from nuclear fusion. Under these conditions, hydrogen isotopes are fused, and energy is released. The energy release from 1 kg of fusion fuel corresponds approximately to that of 10000 tons of coal. A future use of this energy source is the subject of worldwide research projects. However, the confinement of such hot plasmas poses major physical and technological problems for researchers. In particular, complex numerical methods are necessary to understand the physics of such plasmas in complicated toroidal magnetic fields.
+Extremely hot plasmas with a temperature of the order of hundred million degrees Celsius are needed to produce energy from nuclear fusion. Under these conditions, hydrogen isotopes are fused, and energy is released. The energy release from 1 kg of fusion fuel corresponds approximately to that of 10000 tons of coal. A future use of this energy source is the subject of worldwide research projects. However, the confinement of such hot plasmas poses major physical and technological problems for researchers. In particular, complex numerical methods are necessary to understand the physics of such plasmas in complicated toroidal magnetic fields.
 
 An important kinetic approach for simulating the collective behavior of a plasma utilizes direct modeling of particle orbits. A well-known approximation for computing the motion of electrically charged particles in slowly varying electromagnetic fields is to reduce the dynamical equations by separating the relatively fast circular motion around a point called the guiding-center, and primarily treat the relatively slow drift motion of this point. This drift motion is described by the guiding-center equations; see, e.g., [@littlejohn_variational_1983] and [@boozer_guiding_1980].
 
