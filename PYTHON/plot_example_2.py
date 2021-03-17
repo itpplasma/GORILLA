@@ -55,3 +55,5 @@ ax3.set_ylabel('E_tot / E_tot(t=0)')
 ax3.set_title('Total energy')
 
 plt.tight_layout()
+
+plt.show()

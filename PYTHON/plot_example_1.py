@@ -54,3 +54,5 @@ ax3.set_ylabel('J_par / J_par(t=0)')
 ax3.set_title('Parallel adiabatic invariant')
 
 plt.tight_layout()
+
+plt.show()

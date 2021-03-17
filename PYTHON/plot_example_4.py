@@ -41,5 +41,6 @@ ax2.set_xlabel('theta')
 ax2.set_ylabel('s')
 ax2.set_title('Poincaré phi = 0')
 
-
 plt.tight_layout()
+
+plt.show()

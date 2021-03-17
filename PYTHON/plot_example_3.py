@@ -54,3 +54,5 @@ ax3.set_ylabel('p_phi / p_phi(t=0)')
 ax3.set_title('Toroidal angular momentum')
 
 plt.tight_layout()
+
+plt.show()
