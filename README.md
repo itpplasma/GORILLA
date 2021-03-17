@@ -12,7 +12,7 @@ The guiding-center orbits are traced via a quasi-geometric integration method de
 There, high order interpolation of electromagnetic fields in space is replaced by a special linear interpolation, leading to locally linear Hamiltonian equations of motion with piecewise constant coefficients. The underlying formulation treats the motion in the piecewise linear fields exactly. This further leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity.
 Guiding-center orbits are computed without taking collisions into account.
 
-For various simulations in magnetic confinement fusion, direct modeling of guiding-center particle orbits is utilized, e.g. global kinetic computations of quasi-steady plasma parameters or fast alpha particle loss estimation for stellarator optimization. In such complex simulations a simple interface for the guiding-center orbit integration part is needed. Namely, the initial condition in five-dimensional phase space is provided (e.g. guiding-center position, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure “orbit time step routine” acting as an interface with a plasma physics simulation is provided (`orbit_timestep_gorilla`).
+For various simulations in magnetic confinement fusion, direct modeling of guiding-center particle orbits is utilized, e.g. global kinetic computations of quasi-steady plasma parameters or fast alpha particle loss estimation for stellarator optimization. In such complex simulations a simple interface for the guiding-center orbit integration part is needed. Namely, the initial condition in five-dimensional phase space is provided (i.e. guiding-center position, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure “orbit time step routine” acting as an interface with a plasma physics simulation is provided (`orbit_timestep_gorilla`).
 However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincaré plots is at disposal as well (`gorilla_plot`).
 Both applications are realized for demonstration in the program (`test_gorilla_main`).
 
@@ -108,7 +108,7 @@ To avoid hyperthreading issues, it is beneficial to limit the number of threads 
 the number of actual CPU cores via the environment variable `$OMP_NUM_THREADS`.
 Detailed descriptions of the respective input files can be found in `INPUT`.
 After appropriate compilation of GORILLA, the code can be executed in all of these 5 example folders, respectively.
-For the visualization of the output of these five examples, appropriate plotting methods are at disposal at. `PYTHON/plot_example_1.py` - `PYTHON/plot_example_5.py`.
+For the visualization of the output of these five examples, appropriate plotting methods for Python 3 are at disposal at. `PYTHON/plot_example_1.py` - `PYTHON/plot_example_5.py`.
 
 ### Example 1
 * Compute a collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle.
@@ -206,8 +206,10 @@ Physics of Plasmas 27, 122508 (2020)
 <https://doi.org/10.1063/5.0022117>
 Preprint: <https://arxiv.org/abs/2007.08151>
 
-[2] M. Eder
-“Placeholder for JOSS - GORILLA: Guiding-center ORbit Integration with Local Linearization Approach”
+[2] M. Eder, C.G. Albert, L.M.P. Bauer, S.V. Kasilov, W. Kernbichler, M. Meisterhofer and M.Scheidt
+“GORILLA: Guiding-center ORbit Integration with Local Linearization Approach”
+submitted to Journal of Open Source Software
+Preprint: <https://github.com/openjournals/joss-papers/blob/joss.03116/joss.03116/10.21105.joss.03116.pdf>
 
 
 ## References for provided MHD equilibria
