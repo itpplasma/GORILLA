@@ -1,4 +1,5 @@
 [![DOI](https://zenodo.org/badge/343767192.svg)](https://zenodo.org/badge/latestdoi/343767192)
+[![](https://img.shields.io/github/workflow/status/itpplasma/GORILLA/build)](https://github.com/itpplasma/GORILLA/blob/main/.github/workflows/build.yml)
 
 # GORILLA
 **G**uiding-center **OR**bit **I**ntegration with **L**ocal **L**inearization **A**pproach
