@@ -1,4 +1,5 @@
 [![DOI](https://zenodo.org/badge/343767192.svg)](https://zenodo.org/badge/latestdoi/343767192)
+[![](https://img.shields.io/github/workflow/status/itpplasma/GORILLA/CI)](https://github.com/itpplasma/GORILLA/actions/workflows/build.yml)
 [![GitHub](https://img.shields.io/github/license/itpplasma/GORILLA?style=flat)](https://github.com/itpplasma/GORILLA/blob/master/LICENCE)
 
 # GORILLA
