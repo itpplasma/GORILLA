@@ -71,13 +71,16 @@ module tetra_physics_poly_precomp_mod
 !
         subroutine make_precomp_poly
 !
-            use gorilla_settings_mod, only: i_precomp,ipusher
+            use gorilla_settings_mod, only: i_precomp,ipusher,boole_newton_precalc
 !
             implicit none
 !
             select case(ipusher)
                 case(1) !numerical RK pusher
-                    call make_precomp_poly4()
+!
+                    if(boole_newton_precalc) then
+                        call make_precomp_poly4()
+                    endif
 !
                 case(2) !polynomial pusher
 !
