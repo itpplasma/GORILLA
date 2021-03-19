@@ -77,7 +77,7 @@ subroutine create_points(verts_per_ring, n_slices, points_rphiz, points_sthetaph
             varphi = points_sthetaphi(3,i)        
 !         
             !Find corresponding VMEC-theta for SFC-theta
-            verts_theta_vmec(i) = theta_vmec2theta_sym_flux(s,theta,varphi)
+            verts_theta_vmec(i) = theta_sym_flux2theta_vmec(s,theta,varphi)
 !
             !Read VMEC Spline for Cylindrical variables
             call splint_vmec_data(s,verts_theta_vmec(i),varphi,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,       &
@@ -176,8 +176,33 @@ function theta_vmec2theta_sym_flux(s,theta_vmec,varphi) result(theta_sym_flux)
         theta_sym_flux = theta_vmec + alam
 !
 end function theta_vmec2theta_sym_flux
-
-
+!
+function theta_sym_flux2theta_vmec(s,theta_sym_flux,varphi) result(theta_vmec)
+!
+  implicit none
+!
+  double precision :: s,varphi,theta_sym_flux
+  double precision :: theta_vmec
+  double precision :: dl_dt,alam,deltheta
+  integer :: iter
+  double precision, parameter :: epserr = 1.d-14
+!
+!
+  ! Begin Newton iteration to find VMEC theta
+!
+  theta_vmec = theta_sym_flux
+!
+  do iter=1,100
+!
+    call splint_lambda(s,theta_vmec,varphi,alam,dl_dt)
+!
+    deltheta = (theta_sym_flux-theta_vmec-alam)/(1.d0+dl_dt)
+    theta_vmec = theta_vmec + deltheta
+    if(abs(deltheta).lt.epserr) exit
+  enddo
+!
+end function theta_sym_flux2theta_vmec
+!
 subroutine calc_mesh(verts_per_ring, n_slices, points, n_tetras, & 
                      verts, neighbours, neighbour_faces, perbou_phi, perbou_theta, repeat_center_point)
     integer, intent(in) :: n_slices
