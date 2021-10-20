@@ -150,6 +150,9 @@ if(diag_pusher_tetry_poly) then
 !
 endif
 !
+            !Initialize iper_phi (for the case that handover2neighbour does not set this value)
+            iper_phi = 0
+!
             !Initialize vnorm correction (Particle turns exactly at the face)
             boole_vnorm_correction = .false.
 !
