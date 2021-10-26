@@ -65,8 +65,15 @@ OBJS/%.o: SRC/contrib/%.f90
 OBJS/%.o: SRC/%.f90
 	$(FC) $(OPTS) -c $^ -o $@ $(NCINC)
 
+OBJS/libsut.a: $(OBJS_CONTRIB) $(OBJS)
+	$(AR) -r $@ $?
+
+tests:
+	$(MAKE) -C SRC/TESTS all
+
 .PHONY: clean
 clean:
 	rm -f OBJS/*
 	rm -f SRC/*.mod
 	rm -f test_gorilla_main.x
+	$(MAKE) -C SRC/TESTS/ clean
