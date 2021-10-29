@@ -55,6 +55,8 @@ SOURCES = SetWorkingPrecision.f90\
 
 OBJS = $(patsubst %.f90,OBJS/%.o,$(SOURCES))
 
+.PHONY: all
+all: test_gorilla_main.x OBJS/libsut.a
 
 test_gorilla_main.x: $(OBJS_CONTRIB) $(OBJS)
 	$(FC) $(OPTS) -o $@ $^ $(NCLIB)
