@@ -1,0 +1,22 @@
+cmake_minimum_required(VERSION 3.12)
+
+project (GORILLA
+  VERSION 1.0.0
+  LANGUAGES Fortran)
+
+#set(CMAKE_VERBOSE_MAKEFILE ON)
+
+include_directories(/usr/include)
+include_directories(/usr/lib/x86_64-linux-gnu)
+
+find_package(BLAS REQUIRED)
+find_package(LAPACK REQUIRED)
+find_package(netCDF REQUIRED)
+find_package(PFUNIT REQUIRED)
+enable_testing()
+
+add_compile_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp -I/usr/include)
+add_link_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp)
+
+add_subdirectory(SRC)
+
