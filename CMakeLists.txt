@@ -16,7 +16,7 @@ find_package(PFUNIT REQUIRED)
 enable_testing()
 
 add_compile_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp -I/usr/include)
-add_link_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp)
+add_link_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp --coverage)
 
 add_subdirectory(SRC)
 

@@ -1,4 +1,4 @@
-set(CMAKE_VERBOSE_MAKEFILE ON)
+#set(CMAKE_VERBOSE_MAKEFILE ON)
 
 add_pfunit_ctest (test_various_functions_mod
   TEST_SOURCES test_various_functions_mod.pf

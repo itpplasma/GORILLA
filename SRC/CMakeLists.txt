@@ -44,9 +44,9 @@ add_library(GORILLA
 	gorilla_plot_mod.f90
   )
 
-#target_compile_options(GORILLA
-#	PRIVATE --coverage
-#	)
+target_compile_options(GORILLA
+	PRIVATE --coverage
+	)
 
 add_executable(test_gorilla_main
   test_gorilla_main.f90
