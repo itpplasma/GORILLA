@@ -26,5 +26,20 @@ contains
 
    end subroutine test_dmatinv3
    
+   @test
+   subroutine test_dmatinv3_fail()
+      
+      double precision,dimension(3,3) :: A, B, C, D
+      integer :: ierr
+      logical:: resL
+      
+      A = reshape( (/1., 0., 0., 0., 1., 0., 0., 0., 0./), (/3, 3/) )
+      call dmatinv3(A, B, ierr)
+      
+      @assertEqual(ierr, 1, message = "test various_functions_mod, matrix not invertible")
+
+
+   end subroutine test_dmatinv3_fail
+   
    
 end module test_various_functions_mod

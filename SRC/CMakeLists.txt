@@ -1,4 +1,4 @@
-#set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 add_library(GORILLA
   SetWorkingPrecision.f90
