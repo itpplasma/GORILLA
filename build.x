@@ -3,18 +3,10 @@ then
     rm -rf BUILD
 fi
 
+export GORILLA_COVERAGE=FALSE
+
 mkdir -p BUILD
 cd BUILD
-cmake .. -DCMAKE_PREFIX_PATH=$PFUNIT_DIR
+cmake ..
 make -j
-
-ctest --verbose
-cd SRC/CMakeFiles/GORILLA.dir/
-
-gcov-9 *.gcno
-lcov --gcov-tool gcov-9 --capture --no-recursion --directory . --output-file covered.info
-lcov --gcov-tool gcov-9 --capture --no-recursion -i --directory . --output-file uncovered.info
-lcov -a covered.info -a uncovered.info --output-file result.info
-genhtml --output-directory ../../../COVERAGE result.info
-
 

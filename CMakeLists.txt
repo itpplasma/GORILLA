@@ -6,17 +6,24 @@ project (GORILLA
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
-include_directories(/usr/include)
-include_directories(/usr/lib/x86_64-linux-gnu)
+#include_directories(/usr/include)
+#include_directories(/usr/lib/x86_64-linux-gnu)
 
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 find_package(netCDF REQUIRED)
-find_package(PFUNIT REQUIRED)
-enable_testing()
+
+if ($ENV{GORILLA_COVERAGE} STREQUAL "TRUE")
+	find_package(PFUNIT REQUIRED)
+	enable_testing()
+endif()
 
 add_compile_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp -I/usr/include)
-add_link_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp --coverage)
+add_link_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp)
+
+if ($ENV{GORILLA_COVERAGE} STREQUAL "TRUE")
+	add_link_options(--coverage)
+endif()
 
 add_subdirectory(SRC)
 

@@ -44,21 +44,25 @@ add_library(GORILLA
 	gorilla_plot_mod.f90
   )
 
-target_compile_options(GORILLA
-	PRIVATE --coverage
-	)
+if ($ENV{GORILLA_COVERAGE} STREQUAL "TRUE")
+	target_compile_options(GORILLA
+		PRIVATE --coverage
+		)
+endif()
 
-add_executable(test_gorilla_main
+add_executable(test_gorilla_main.x
   test_gorilla_main.f90
   )
 
-target_link_libraries(test_gorilla_main GORILLA netcdff netcdf lapack)
+target_link_libraries(test_gorilla_main.x GORILLA netcdff netcdf lapack)
 
 set_target_properties (GORILLA PROPERTIES
   Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 target_include_directories(GORILLA PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
-add_subdirectory(TESTS)
+if ($ENV{GORILLA_COVERAGE} STREQUAL "TRUE")
+	add_subdirectory(TESTS)
+endif()
 
 
