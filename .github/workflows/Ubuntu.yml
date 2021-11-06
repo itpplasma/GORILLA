@@ -98,5 +98,5 @@ jobs:
       - name: Run script
         uses: matlab-actions/run-command@v1
         with:
-          command: addpath('MATLAB'), example_5_cmake
+          command: cd MATLAB, example_5_cmake
           
