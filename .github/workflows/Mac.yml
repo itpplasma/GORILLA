@@ -14,7 +14,7 @@ jobs:
     
     env:
       FC: gfortran-9
-      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.2
+      PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.2
 
     steps:
       - name: Checkout
