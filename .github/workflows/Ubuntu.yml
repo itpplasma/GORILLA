@@ -84,11 +84,11 @@ jobs:
       - name: Run examples
         run: |
           cd EXAMPLES/example_1
-          ./test_gorilla_main.x
+          ./test_gorilla_main_cmake.x
           cd ../../EXAMPLES/example_2
-          ./test_gorilla_main.x
+          ./test_gorilla_main_cmake.x
           cd ../../EXAMPLES/example_3
-          ./test_gorilla_main.x
+          ./test_gorilla_main_cmake.x
           cd ../../EXAMPLES/example_4
-          ./test_gorilla_main.x
+          ./test_gorilla_main_cmake.x
           
