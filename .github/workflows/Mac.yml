@@ -1,0 +1,39 @@
+name: Ubuntu
+
+on:
+  #push:
+  #  branches: [ main ]
+  #pull_request:
+  #  branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  Mac:
+    runs-on: macos-latest
+    
+    env:
+      FC: gfortran
+      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Dependencies
+        run: |
+          curl -LO https://raw.githubusercontent.com/GiovanniBussi/macports-ci/master/macports-ci
+          source ./macports-ci install
+          sudo port install netcdf netcdf-fortran
+          
+      - name: Additional Files
+        run: |
+          cd $GITHUB_WORKSPACE
+          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+          unzip 954.zip
+          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
+          
+      - name: Build
+        run: |
+          ./build.x
+  
