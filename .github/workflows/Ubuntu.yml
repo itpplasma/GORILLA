@@ -92,3 +92,11 @@ jobs:
           cd ../../EXAMPLES/example_4
           ./test_gorilla_main_cmake.x
           
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v1
+        
+      - name: Run script
+        uses: matlab-actions/run-command@v1
+        with:
+          command: addpath('MATLAB'), example_5_cmake
+          
