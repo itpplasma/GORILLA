@@ -6,7 +6,11 @@ project (GORILLA
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-include_directories(/usr/include)
+if(UNIX AND NOT APPLE)
+	include_directories(/usr/include)
+elseif(APPLE)
+	include_directories(/opt/local/include)
+endif()
 
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
@@ -19,6 +23,10 @@ endif()
 
 add_compile_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp)
 add_link_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp)
+
+if(APPLE)
+	add_link_options(-L/opt/local/lib)
+endif()
 
 if ($ENV{GORILLA_COVERAGE} STREQUAL "TRUE")
 	add_link_options(--coverage)
