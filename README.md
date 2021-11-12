@@ -103,7 +103,7 @@ cd /path/to/GORILLA
 ```
 This will produce `test_gorilla_main.x` in the folder BUILD/SRC/ required to run the code.
 
-To get additional tests and coverage, build GORILLA with `build_coverage.x`. This requires the additional tools and a correct set PFUNIT_DIR. See the pFUnit github [project page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit) for additional information.
+To get additional tests and code coverage, build GORILLA with `build_coverage.x`. This requires the additional tools and a correct set PFUNIT_DIR. See the pFUnit github [project page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit) for additional information.
 
 
 ## Usage
@@ -129,7 +129,11 @@ As an input it takes ....
 Expamles are realized in MATLAB and Python. For plotting with MATLAB, see below.
 Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given, and runs are started with
 ```
-./test_gorilla_main.x
+./test_gorilla_main.x   #if the build was done with make
+```
+or
+```
+./test_gorilla_main_cmake.x   #if the build was done with cmake
 ```
 To avoid hyperthreading issues, it is beneficial to limit the number of threads to
 the number of actual CPU cores via the environment variable `$OMP_NUM_THREADS`.
