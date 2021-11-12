@@ -37,7 +37,7 @@ The following supplemental material is available in `DOCUMENTATION/SUPPLEMENTAL_
 
 ## Building
 
-GORILLA can be built with `make`.
+GORILLA can be built with `make` or `cmake`.
 
 ### Supported compilers
 * GNU Fortan
@@ -54,6 +54,20 @@ sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
 To install requirements on macOS, install [macports](https://www.macports.org/install.php), then
 ```
 sudo port install netcdf netcdf-fortran
+```
+### Additional tools
+* [pFUnit](https://github.com/Goddard-Fortran-Ecosystem/pFUnit)
+* [lcov](https://github.com/linux-test-project/lcov)
+
+To install pFUnit, follow the instructions on the linked github project page.
+
+To install lcov on Ubuntu Linux use
+```
+sudo apt install lcov
+```
+To install lcov on macOS use
+```
+sudo port install lcov
 ```
 
 ### Include external library
@@ -80,6 +94,17 @@ make
 ```
 This will produce `test_gorilla_main.x` required to run the code. To specify the location of
 NetCDF includes and libraries, one has to set the `NCINC` and `NCLIB` variable during `make`.
+
+### Building with cmake
+To build GORILLA with `cmake`, use `build.x`.
+```bash
+cd /path/to/GORILLA
+./build.x
+```
+This will produce `test_gorilla_main.x` in the folder BUILD/SRC/ required to run the code.
+
+To get additional tests and coverage, build GORILLA with `build_coverage.x`. This requires the additional tools and a correct set PFUNIT_DIR. See the pFUnit github [project page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit) for additional information.
+
 
 ## Usage
 
