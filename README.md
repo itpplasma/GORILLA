@@ -179,6 +179,9 @@ Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge
 ### MATLAB:  Step-by-step plotting tutorial
 * MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal as a step-by-step tutorial for all plotting features of GORILL.
 
+## Tests and Coverage
+
+Tests are implemented with pFUnit. The generation of coverage files are done with the compiler option `--coverage` and the evaluation of the files is implemented with lcov. To see the coverage report, build with `cmake` and open `index.html` in the folder /BUILD/COVERAGE or take a look in the github workflows `Ubuntu` or `Mac`.
 
 ## Contributing
 
@@ -207,6 +210,7 @@ We welcome help in improving and extending GORILLA. This is managed through Gith
 * Winfried Kernbichler<sup>1</sup>
 * Markus Meisterhofer<sup>1</sup>
 * Michael Scheidt<sup>1</sup>
+* Daniel Forstenlechner
 
 ### Affilliations
 1. Fusion@OEAW, Institut für Theoretische Physik - Computational Physics,
