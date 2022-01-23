@@ -1,5 +1,3 @@
-#set(CMAKE_VERBOSE_MAKEFILE ON)
-
 add_library(GORILLA
   SetWorkingPrecision.f90
   contrib/Polynomial234RootSolvers.f90 

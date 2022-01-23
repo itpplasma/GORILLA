@@ -4,8 +4,6 @@ project (GORILLA
   VERSION 1.0.0
   LANGUAGES Fortran)
 
-#set(CMAKE_VERBOSE_MAKEFILE ON)
-
 if(UNIX AND NOT APPLE)
 	include_directories(/usr/include)
 elseif(APPLE)
