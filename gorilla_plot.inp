@@ -1,0 +1,141 @@
+! INPUT FILE FOR GORILLA PLOTTING
+!
+! GORILLA PLOTTING NAMELIST
+&GORILLA_PLOT_NML
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Orbit plotting options (Single OR Multiple orbits)
+!
+ !Switch for options
+ ! 1 ... Single orbit - Starting positions and pitch for the orbit are taken from file (see below) [First Line]
+ ! 2 ... Single orbit - Starting positions and pitch for the orbit are taken from starting drift surfaces (see below)
+ ! 3 ... Multiple orbits - Starting positions and pitch for orbits are taken from file (see below) [Every Line New Starting position]
+ ! 4 ... Multiple orbits - Starting positions and pitch for orbits are taken from drift surfaces with regular spacing (see below)
+ i_orbit_options = 2 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Total individual orbit flight time for plotting
+ total_orbit_time = 2.0d-1 ,
+!
+ !Total Energy of particle
+ energy_eV_start = 3.d3 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Plot Poincaré cuts ($\varphi$ = 0)
+!
+ !Switch for plotting Poincaré cuts at toroidal variable $\varphi$ = 0
+ boole_poincare_phi_0 = .true. ,
+!
+ !Number of skipped (non-printed) Poincaré cuts at toroidal variable $\varphi$ = 0
+ n_skip_phi_0 = 10 ,
+!
+ !Filename for Poincaré cuts at toroidal variable $\varphi$ = 0 in cylindrical coordinates (R,$\varphi$,Z)
+ filename_poincare_phi_0_rphiz = 'poincare_plot_phi_0_rphiz.dat' ,
+!
+ !Filename for Poincaré cuts at toroidal variable $\varphi$ = 0 in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
+ filename_poincare_phi_0_sthetaphi = 'poincare_plot_phi_0_sthetaphi.dat' ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Plot Poincaré cuts ($v_\parallel$ = 0)
+!
+ !Switch for plotting Poincaré cuts at parallel velocity $v_\parallel$ = 0
+ boole_poincare_vpar_0 = .false. ,
+!
+ !Number of skipped (non-printed) Poincaré cuts at parallel velocity $v_\parallel$ = 0
+ n_skip_vpar_0 = 1 ,
+!
+ !Filename for Poincaré cuts at parallel velocity $v_\parallel$ = 0 in cylindrical coordinates (R,$\varphi$,Z)
+ filename_poincare_vpar_0_rphiz = 'poincare_plot_vpar_0_rphiz.dat' ,
+!
+ !Filename for Poincaré cuts at parallel velocity $v_\parallel$ = 0 in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
+ filename_poincare_vpar_0_sthetaphi = 'poincare_plot_vpar_0_sthetaphi.dat' ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Plot full orbit (after every tetrahedron passing)
+!
+ !Switch for plotting full orbit
+ boole_full_orbit = .false. ,
+!
+ !Number of skipped (non-printed tetrahedra passings) full orbit
+ n_skip_full_orbit = 100 ,
+!
+ !Filename for full orbit in cylindrical coordinates (R,$\varphi$,Z)
+ filename_full_orbit_rphiz = 'full_orbit_plot_rphiz.dat' ,
+!
+ !Filename for full orbit in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
+ filename_full_orbit_sthetaphi = 'full_orbit_plot_sthetaphi.dat' ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Plot invariances of motion (ONLY for single orbits)
+!
+ !Switch for plotting total particle energy
+ boole_e_tot = .false. ,
+!
+ !Filename for total energy
+ filename_e_tot = 'e_tot.dat' ,
+!
+ !Switch for plotting canoncial (toroidal) angular momentum $p_\varphi$
+ boole_p_phi = .false. ,
+!
+ !Filename for canoncial (toroidal) angular momentum $p_\varphi$
+ filename_p_phi = 'p_phi.dat' ,
+!
+ !Switch for parallel adiabatic invariant $J_\parallel$
+ boole_J_par = .false. ,
+!
+ !Filename for parallel adiabatic invariant $J_\parallel$
+ filename_J_par = 'J_par.dat' ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Starting positions of particles (BOTH single and multiple orbits) and starting pitch parameter
+ !File (either rphiz or sthetaphi) is automatically chosen dependent on coord_system in 'gorilla.inp')
+!
+ !Filename for list of starting position(s) of particle(s) in cylindrical coordinates (R,$\varphi$,Z) and pitch ($\lambda$)
+ filename_orbit_start_pos_rphiz = 'orbit_start_rphizlambda.dat' ,
+!
+ !Filename for list of starting position(s) of particle(s) in symmetry flux coordinates (s,$\vartheta$,$\varphi$) and pitch ($\lambda$)
+ filename_orbit_start_pos_sthetaphi = 'orbit_start_sthetaphilambda.dat' ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Single orbit from starting drift surface (i_orbit_options = 2)
+ !Multiple orbits from drift surfaces with regular spacing (i_orbit_options = 4)
+!
+ !Starting drift surface
+ ! = s for (s,$\vartheta$,$\varphi$)
+ ! = R for (R,$\varphi$,Z)
+ start_pos_x1_beg = 0.5d0 ,
+!
+ !End drift surface
+ ! = s for (s,$\vartheta$,$\varphi$)
+ ! = R for (R,$\varphi$,Z)
+ start_pos_x1_end = 0.9d0 ,
+!
+ !Number of drift surfaces in between start and end
+ n_surfaces = 30 ,
+!
+ !Starting value for toroidal variable
+ ! = $\vartheta$ for (s,$\vartheta$,$\varphi$)
+ ! = $\varphi$ for (R,$\varphi$,Z)
+ start_pos_x2  = 0.1d0 ,
+!
+ !Starting value for poloidal variable $\vartheta$
+ ! = $\varphi$ for (s,$\vartheta$,$\varphi$)
+ ! = Z for (R,$\varphi$,Z)
+ start_pos_x3  = 0.63d0 ,
+!
+ !Pitch parameter $\lambda$ = $v_\parallel$ / vmod
+ start_pitch_parameter = 0.9d0 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+/
+
+

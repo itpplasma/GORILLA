@@ -1,0 +1,61 @@
+! INPUT FILE FOR TETRAHEDRONAL GRID
+!
+! TETRA_GRID SETTINGS NAMELIST
+&TETRA_GRID_NML
+!    
+ !Grid Size
+ !Rectangular: nR, Field-aligned: ns
+ n1 = 100 ,
+ !Rectangular: nphi, Field-aligned: nphi                  			
+ n2 = 40 ,
+ !Rectangular: nZ, Field-aligned: ntheta                          		
+ n3 = 40 ,
+!
+ !Grid kind
+ !1 ... rectangular grid for axisymmetric EFIT data (g-file)
+ !2 ... field-aligned grid for axisymmetric EFIT data (g-file)
+ !3 ... field-aligned grid for non-axisymmetric VMEC (netcdf)
+ grid_kind = 3 ,
+!
+ !MHD equilibrium filename
+ g_file_filename = 'MHD_EQUILIBRIA/g_file_for_test' ,
+ convex_wall_filename = 'MHD_EQUILIBRIA/convex_wall_for_test.dat' ,
+ netcdf_filename = 'MHD_EQUILIBRIA/netcdf_file_for_test.nc' ,
+!
+ !Switch for selecting number of field periods automatically or manually
+ ! .true. ... number of field periods is selected automatically (Tokamak = 1, Stellarator depending on VMEC equilibrium)
+ ! .false. ... number of field periods is selected manually (see below)
+ boole_n_field_periods = .true. ,
+!
+ !Number of field periods (manual)
+ n_field_periods_manual =  1 ,
+!
+ !Symmetry Flux Coordinates Annulus (Minimal value for flux coordinates s)
+ sfc_s_min = 1.d-1 ,
+!
+ !Option for $\theta$-variable being used in grid
+ ! 1 ... theta scaling in symmetry flux coordinates
+ ! 2 ... theta scaling in geometrical theta angle
+ theta_geom_flux = 1 ,
+!
+ !Option for $\theta$-variable origin
+ ! .true. $\theta$-variable starts at the line between O- and X-Point
+ ! .false. $\theta$-variable starts at the line between O-Point and intersection between O-Point-[1,0]-straight-line and separatrix
+ theta0_at_xpoint = .true. ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !Switch for writing object file with mesh data
+ boole_write_mesh_obj = .false. ,
+!
+ !Filename for mesh object file in cylindrical coordintes
+ filename_mesh_rphiz = 'mesh_rphiz.obj' ,
+!
+ !Filename for mesh object file in symmetry flux coordintes
+ filename_mesh_sthetaphi = 'mesh_sthetaphi.obj' ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!    
+/
+
+

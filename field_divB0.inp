@@ -1,0 +1,36 @@
+0                                 ipert        ! 0=eq only, 1=vac, 2,3=vac+plas
+1                                 iequil       ! 0=pert. alone, 1=with equil.
+0.25                              ampl         ! amplitude of perturbation, a.u.
+4 72                                ntor         ! number of toroidal harmonics
+0.99                              cutoff       ! inner cutoff in psi/psi_a units
+4                                 icftype      ! type of coil file
+'see_tetra_grid_inp'              gfile          ! equilibrium file
+'DATA/MESH3D_31135odd/field.dat' !’/itp/MooseFS/kasilov/MESH3D_31135odd/field.dat'  !'DATA/ASDEX/MESH3D_30835/field.dat'    pfile        ! coil        file
+'see_tetra_grid_inp'            convexfile   ! convex file for stretchcoords
+'DATA/ASDEX/FLUXDATA'                  fluxdatapath ! directory with data in flux coord.
+0                                 window size for filtering of psi array over R
+0                                 window size for filtering of psi array over Z
+
+
+
+
+
+More detailed comments on switches.
+Axisymmetric equilibrium is called in all cases. If some routines are not 
+called, their data is not required.
+
+Perturbation switch "ipert": 
+0 - axisymmetric equilibrium is called alone (can be run withot coild data
+    and resonance plasma response data)
+1 - cylindrical routine is called in addition to equilibrium (plasma response
+    data is not required
+2 - both, cylindrical and flux coordinate routine modelling plasma response
+    are called, all data is required. Derivatives are not computed
+3 - the same as 2 with computation of derivatives (7 times slower)
+
+Equilibrium switch "iequil":
+0 - equilibrium field is not added to the output (needed for computing the 
+    perturbation field alone). The equilibrium routine is called - its
+    data is needed for plasma response field. For future: this call can be
+    disabled for stellarator modelling.
+1 - normal mode, perturbation is added to the output field
