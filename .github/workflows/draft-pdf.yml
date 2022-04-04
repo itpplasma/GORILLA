@@ -1,3 +1,5 @@
+name: Paper_JOSS
+
 on: [push]
 
 jobs:

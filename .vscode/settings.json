@@ -1,0 +1,18 @@
+{
+    "makefile.extensionOutputFolder": "./.vscode",
+    "cmake.buildDirectory": "${workspaceFolder}/BUILD",
+    "cmake.buildEnvironment": {},
+    "cmake.environment": {
+        "GORILLA_COVERAGE": "TRUE"
+    },
+    "cmake.configureArgs": [
+        "-DCMAKE_PREFIX_PATH=$PFUNIT_DIR"
+    ],
+    "fortran-ls.lowercaseIntrinsics": true,
+    "cmake.ctestArgs": [
+        "--output-on-failure"
+    ],
+    "cmake.allowCommentsInPresetsFile": false,
+    "fortran-ls.variableHover": false,
+    "fortran-ls.hoverSignature": false,
+}

@@ -77,3 +77,6 @@ EXAMPLES/MATLAB_RUN
 *.synctex.gz(busy)
 *.pdfsync
 
+#Folders
+/build
+/BUILD

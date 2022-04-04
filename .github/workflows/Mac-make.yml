@@ -1,0 +1,60 @@
+name: Mac-make
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    env:
+      FC: gfortran-9
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Dependencies
+        run: |
+          curl -LO https://raw.githubusercontent.com/GiovanniBussi/macports-ci/master/macports-ci
+          source ./macports-ci install
+          sudo port install netcdf netcdf-fortran
+          
+      - name: Additional files
+        run: |
+          cd $GITHUB_WORKSPACE
+          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+          unzip 954.zip
+          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
+          
+      - name: Provide gfortran9 
+        run: |
+          sudo ln -s /usr/local/bin/gfortran-9 /usr/local/bin/gfortran 
+          sudo mkdir /usr/local/gfortran
+          sudo ln -s /usr/local/Cellar/gcc@9/9.3.0_1/lib/gcc/9 /usr/local/gfortran/lib
+          gfortran --version
+        
+      - name: Build
+        run: |
+          make
+          
+      - name: Test
+        run: |
+          cd EXAMPLES/example_1
+          ./test_gorilla_main.x
+          cd ../../EXAMPLES/example_2
+          ./test_gorilla_main.x
+          cd ../../EXAMPLES/example_3
+          ./test_gorilla_main.x
+          cd ../../EXAMPLES/example_4
+          ./test_gorilla_main.x
