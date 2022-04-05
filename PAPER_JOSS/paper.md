@@ -23,6 +23,8 @@ authors:
   - name: Lukas M. P. Bauer
     orcid: 0000-0003-3341-4085
     affiliation: 1
+  - name: Daniel Forstenlechner
+  	affiliation: 1
   - name:  Sergei V. Kasilov
     affiliation: "1, 3, 4"
   - name:  Winfried Kernbichler

@@ -1,0 +1,102 @@
+name: Ubuntu
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  Ubuntu-coverage:
+    runs-on: ubuntu-20.04
+    
+    env:
+      FC: gfortran
+      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.2/
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
+          sudo apt install lcov
+          
+      - name: Install pFUnit
+        run: |
+          git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit
+          cd pFUnit
+          mkdir -p build
+          cd build
+          cmake ..
+          make -j$(nproc)
+          make tests
+          make install
+          
+      - name: Additional Files
+        run: |
+          cd $GITHUB_WORKSPACE
+          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+          unzip 954.zip
+          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
+          
+      - name: Build
+        run: |
+          ./build_coverage.sh
+        
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v2
+        with:
+          name: code-coverage-report
+          path: BUILD/COVERAGE/
+          
+  Ubuntu:
+    runs-on: ubuntu-20.04
+    
+    env:
+      FC: gfortran
+      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
+          
+      - name: Additional Files
+        run: |
+          cd $GITHUB_WORKSPACE
+          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+          unzip 954.zip
+          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
+          
+      - name: Build
+        run: |
+          ./build.sh
+          
+      - name: Run examples
+        run: |
+          cd EXAMPLES/example_1
+          ./test_gorilla_main_cmake.x
+          cd ../../EXAMPLES/example_2
+          ./test_gorilla_main_cmake.x
+          cd ../../EXAMPLES/example_3
+          ./test_gorilla_main_cmake.x
+          cd ../../EXAMPLES/example_4
+          ./test_gorilla_main_cmake.x
+          
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v1
+        
+      - name: Run script
+        uses: matlab-actions/run-command@v1
+        with:
+          command: cd MATLAB, example_5
+          

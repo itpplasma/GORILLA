@@ -3,7 +3,7 @@
 %-----------------------------------------------------------------------------------------------------------------------
 % * Compute collisionless guiding-center orbits with GORILLA for two passing and one trapped Deuterium particle.
 % * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
-% * Create a figure with the Poincaré plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
+% * Create a figure with the Poincarï¿½ plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
 %
 %#######################################################################################################################
 % used functions:
@@ -132,19 +132,19 @@ tetra_grid.read();
     %Total Energy of particle in eV
         gorilla_plot.GORILLA_PLOT_NML.energy_eV_start = 3000;
 
-    %Switch for plotting Poincaré cuts at toroidal variable $\varphi$ = 0
+    %Switch for plotting Poincarï¿½ cuts at toroidal variable $\varphi$ = 0
         gorilla_plot.GORILLA_PLOT_NML.boole_poincare_phi_0 = true;
 
-        %Number of skipped (non-printed) Poincaré cuts at toroidal variable $\varphi$ = 0
+        %Number of skipped (non-printed) Poincarï¿½ cuts at toroidal variable $\varphi$ = 0
             gorilla_plot.GORILLA_PLOT_NML.n_skip_phi_0 = 100;
 
-        %Filename for Poincaré cuts at toroidal variable $\varphi$ = 0 in cylindrical coordinates (R,$\varphi$,Z)
+        %Filename for Poincarï¿½ cuts at toroidal variable $\varphi$ = 0 in cylindrical coordinates (R,$\varphi$,Z)
             gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_rphiz = 'poincare_plot_phi_0_rphiz.dat';
 
-        %Filename for Poincaré cuts at toroidal variable $\varphi$ = 0 in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
+        %Filename for Poincarï¿½ cuts at toroidal variable $\varphi$ = 0 in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
             gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi = 'poincare_plot_phi_0_sthetaphi.dat';
 
-    %Switch for plotting Poincaré cuts at parallel velocity $v_\parallel$ = 0
+    %Switch for plotting Poincarï¿½ cuts at parallel velocity $v_\parallel$ = 0
         gorilla_plot.GORILLA_PLOT_NML.boole_poincare_vpar_0 = false;
 
     %Switch for plotting full orbit
@@ -190,7 +190,14 @@ gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 tetra_grid.write([path_RUN,'/tetra_grid.inp']);
 
 %Create softlinks for used files
-! ln -s ../../../test_gorilla_main.x .
+if isfile('../../../test_gorilla_main.x')
+    ! ln -s ../../../test_gorilla_main.x .
+elseif isfile('../../../BUILD/SRC/test_gorilla_main.x')
+    ! ln -s ../../../BUILD/SRC/test_gorilla_main.x .
+else
+    disp('GORILLA not built, exiting the MatLab script')
+    return
+end
 ! ln -s ../../../MHD_EQUILIBRIA .
 ! ln -s ../../../INPUT/field_divB0.inp .
 ! ln -s ../../../INPUT/preload_for_SYNCH.inp .
