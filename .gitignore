@@ -49,6 +49,9 @@ out.*
 *.asv
 EXAMPLES/MATLAB_RUN
 
+# PYTHON
+EXAMPLES/PYTHON_RUN
+
 # Latex
 *.aux
 *.lof
