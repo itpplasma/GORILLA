@@ -48,7 +48,7 @@
         if(boole_n_field_periods) then !Automatically
             !Select number of field periods depending on input equilibrium
             select case(grid_kind)
-                case(1,2) !2D EFIT eqilibria
+                case(1,2,4) !2D EFIT eqilibria
                     call set_n_field_periods(1)
                 case(3) !3D VMEC equilibria
                     call set_n_field_periods(0) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
@@ -114,6 +114,18 @@
 !
             call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
 !            
+          case(4) !SOLEDGE3X_EIRENE-grid               
+            !
+                        !subroutine field must be called at start in order to read input file and provide necessary quantities in field_eq_mod
+                        rrr=1.d0
+                        ppp=0.d0
+                        zzz=0.d0
+            !
+                        call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+                                      & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
+            !         
+                        call make_grid_SOLEDGE3X_EIRENE(grid_size)
+            !
         end select
 !
         !Compute vertices in Cartesian coordinates
@@ -236,6 +248,40 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
     enddo
   !
   end subroutine make_grid_aligned
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+ subroutine make_grid_SOLEDGE3X_EIRENE(grid_size)
+  !
+    use constants, only: pi
+    use circular_mesh_SOLEDGE3X_EIRENE, only : calc_mesh_SOLEDGE3X_EIRENE, create_points_SOLEDGE3X_EIRENE
+!
+    implicit none
+!
+    integer:: i, verts_per_slice
+    integer, dimension(3), intent(in) :: grid_size
+    integer, allocatable, dimension(:, :) :: verts, neighbours, neighbour_faces, perbou_phi
+!
+    integer :: mesh_nr,nphi,mesh_ntheta
+!
+    nphi = grid_size(2)
+!
+
+    call create_points_SOLEDGE3X_EIRENE(nphi, verts_rphiz,verts_per_slice)
+!   
+    nvert = verts_per_slice*nphi
+    call calc_mesh_SOLEDGE3X_EIRENE(nphi, verts_rphiz, verts_per_slice, ntetr, verts, neighbours, neighbour_faces, perbou_phi)
+!
+    allocate(tetra_grid(1:ntetr))
+!
+    do i=1,ntetr
+      tetra_grid(i)%ind_knot = verts(:, i)
+      tetra_grid(i)%neighbour_tetr = neighbours(:, i)
+      tetra_grid(i)%neighbour_face = neighbour_faces(:, i)
+      tetra_grid(i)%neighbour_perbou_phi(:) = perbou_phi(:, i)
+    enddo
+  !
+  end subroutine make_grid_SOLEDGE3X_EIRENE
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

@@ -2,7 +2,8 @@ module circular_mesh
 implicit none
 private
 double precision, parameter :: pi = 3.14159265358979d0
-public :: calc_mesh, create_points, calc_points_circular, calc_n_tetras, calc_n_verts
+public :: calc_mesh, create_points, calc_points_circular, calc_n_tetras, calc_n_verts, &
+& wrap_idx_inplace
 integer :: n_field_periods
 
 contains
