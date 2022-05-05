@@ -38,7 +38,7 @@ end module field_eq_mod
 !
 module field_mod
   integer          :: icall=0
-  integer          :: ipert,iequil
+  integer          :: ipert,iequil,iaxieq=0
   double precision :: ampl
 end module field_mod
 !
@@ -64,7 +64,7 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
   use field_mod
   use inthecore_mod, only : incore,cutoff
   use field_eq_mod, only : nwindow_r,nwindow_z
-  use tetra_grid_settings_mod, only: g_file_filename, convex_wall_filename !=> Michael Eder, 08 March 2021
+  use tetra_grid_settings_mod, only: g_file_filename, convex_wall_filename, iaxieq_in !=> Michael Eder, 05 May 2022
 !
   implicit none
 !
@@ -90,13 +90,15 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
      read(iunit,*) fluxdatapath ! directory with data in flux coord.
      read(iunit,*) nwindow_r    ! widow size for filtering of psi array over R
      read(iunit,*) nwindow_z    ! widow size for filtering of psi array over Z
-     close(iunit)
+     read(iunit,*,err=7) dummy !iaxieq ! format of axisymmetric equilibrium file, 0 for EFIT (default), 1 for WEST => Michael Eder, 05 May 2022
+7    close(iunit)
      print *, 'Perturbation field',ipert,'Ampl',ampl
      if(icall_c.eq.-1) ipert=1
 
-     !Use input data from tetra_grid_settings_mod => Michael Eder, 08 March 2021
+     !Use input data from tetra_grid_settings_mod => Michael Eder, 05 May 2022
      gfile = g_file_filename
      convexfile = convex_wall_filename
+     iaxieq = iaxieq_in
   endif
 
   call stretch_coords(r,z,rm,zm)
@@ -189,6 +191,7 @@ subroutine field_eq(r,ppp,z,Brad,Bphi,Bzet,dBrdR,dBrdp,dBrdZ  &
 !
   use input_files
   use field_eq_mod
+  use field_mod, only : iaxieq
 !
   implicit none
 !
@@ -201,14 +204,32 @@ subroutine field_eq(r,ppp,z,Brad,Bphi,Bzet,dBrdR,dBrdp,dBrdZ  &
 !-------first call: read data from disk-------------------------------
   if(icall_eq .lt. 1) then
 !
-!     call read_dimeq0(nrad,nzet)
-    call read_dimeq1(nrad,nzet)
+    select case(iaxieq)
+    case(0)
+      print *,'axisymmetric equilibrium: EFIT format'
 !
-    allocate(rad(nrad),zet(nzet))
-    allocate(psi0(nrad,nzet),psi(nrad,nzet))
-    allocate(splfpol(0:5,nrad))                                                      !<=18.12.18
-
-!     call read_eqfile0(nrad, nzet, psib, btf, rtf, rad, zet, psi)
+      call read_dimeq1(nrad,nzet)
+!
+      allocate(rad(nrad),zet(nzet))
+      allocate(psi0(nrad,nzet),psi(nrad,nzet))
+      allocate(splfpol(0:5,nrad))
+!
+    case(1)
+      print *,'axisymmetric equilibrium: WEST format'
+      use_fpol=.false.
+!
+      call read_dimeq_west(nrad,nzet)
+!
+      allocate(rad(nrad),zet(nzet))
+      allocate(psi0(nrad,nzet),psi(nrad,nzet))
+!
+      call read_eqfile_west(nrad, nzet, psib, btf, rtf, rad, zet, psi)
+!
+    case default
+      print *,'axisymmetric equilibrium: unknown format'
+      stop
+    end select
+!
     if(use_fpol) then                                                                !<=18.12.18
       call read_eqfile2(nrad, nzet, psi_axis, psi_sep, btf, rtf,    &                !<=18.12.18
                         splfpol(0,:), rad, zet, psi)                                 !<=18.12.18
@@ -216,7 +237,7 @@ subroutine field_eq(r,ppp,z,Brad,Bphi,Bzet,dBrdR,dBrdp,dBrdZ  &
       psi_sep=(psi_sep-psi_axis)*1.d8                                                !<=18.12.18
       splfpol(0,:)=splfpol(0,:)*1.d6                                                 !<=18.12.18
       call spline_fpol                                                               !<=18.12.18
-    else                                                                             !<=18.12.18
+    elseif(iaxieq.eq.0) then
       call read_eqfile1(nrad, nzet, psib, btf, rtf, rad, zet, psi)
     endif                                                                            !<=18.12.18
 !
@@ -1169,7 +1190,7 @@ subroutine read_field4(nr,np,nz,rmin,rmax,pmin,pmax,zmin,zmax,Br,Bp,Bz)
   double precision :: rmin,rmax,pmin,pmax,zmin,zmax
   double precision, dimension(nr,np,nz)       :: Br,Bp,Bz
 !
-  open(iunit,file=pfile) 
+  open(iunit,file=pfile)
   read(iunit,*) nr,np,nz
   read(iunit,*) rmin,rmax
   read(iunit,*) pmin,pmax
@@ -1234,3 +1255,50 @@ end subroutine read_field4
   enddo
 !
   end subroutine splint_fpol
+!
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+! Input of axisymmetric equilibrium for WEST tokamak:
+!
+  subroutine read_dimeq_west(nrad,nzet)
+!
+  use input_files, only : iunit,gfile
+!
+  implicit none
+!
+  integer :: nrad,nzet
+!
+  open(unit=iunit,file=trim(gfile),status='old',action='read')
+  read(iunit,*) nrad,nzet
+  close(iunit)
+!
+  end subroutine read_dimeq_west
+!
+!----------------------------------------------------------------------
+!
+  subroutine read_eqfile_west(nrad, nzet, psib, btf, rtf, rad, zet, psi)
+!
+  use input_files, only : iunit,gfile
+!
+  implicit none
+!
+  integer :: nrad,nzet,ir
+  real(kind=8) :: psib, btf, rtf
+  real(kind=8) :: rad(nrad), zet(nzet)
+  real(kind=8) :: psi(nrad,nzet)
+!
+  psib=0.d0
+!
+  open(unit=iunit,file=trim(gfile),status='old',action='read')
+  read(iunit,*) nrad,nzet
+  read(iunit,*) btf
+  read(iunit,*) rad
+  read(iunit,*) zet
+  do ir=1,nrad
+    read(iunit,*) psi(ir,:)
+  enddo
+  close(iunit)
+  rtf=0.5d0*(rad(1)+rad(nrad))
+  btf=btf/rtf
+!
+  end subroutine read_eqfile_west

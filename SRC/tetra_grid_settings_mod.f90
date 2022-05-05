@@ -36,6 +36,9 @@
     !Option for $\theta$-variable origin
     logical, public, protected :: theta0_at_xpoint
 !
+    !Axisymmetric equilibrium type (reader variable)
+    integer, public, protected :: iaxieq_in
+!
     !Object file with mesh data
     logical,public,protected :: boole_write_mesh_obj
     character(50),public,protected :: filename_mesh_rphiz,filename_mesh_sthetaphi
@@ -54,7 +57,15 @@
             open(unit=9, file='tetra_grid.inp', status='unknown')
             read(9,nml=tetra_grid_nml)
             close(9)
-
+!
+            !Set axisymmetric equilibrium type
+            select case(grid_kind)
+                case(4) !Axisymmetric equilibrium of WEST
+                    iaxieq_in = 1
+                case default
+                    iaxieq_in = 0
+            end select
+!
             print *,'Tetrahedronal Grid: Loaded input data from tetra_grid.inp'
 !            
         end subroutine load_tetra_grid_inp
