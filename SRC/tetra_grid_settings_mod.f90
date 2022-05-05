@@ -27,6 +27,10 @@
     character*64,public,protected :: convex_wall_filename
     character*64,public,protected :: netcdf_filename
 !
+    !MESH_SOLEDGE3X_EIRENE filename
+    character*64,public,protected :: knots_SOLEDGE3X_EIRENE_filename
+    character*64,public,protected :: triangles_SOLEDGE3X_EIRENE_filename
+!
     !Symmetry Flux Coordinates Annulus
     double precision,public,protected :: sfc_s_min
 !
@@ -46,7 +50,8 @@
     !Namelist for Tetrahedronal Grid input
     NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual,sfc_s_min, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
-                            & g_file_filename,convex_wall_filename,netcdf_filename
+                            & g_file_filename,convex_wall_filename,netcdf_filename, &
+                            & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename
 !
     public :: load_tetra_grid_inp,set_grid_size,set_n_field_periods
 !

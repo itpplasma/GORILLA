@@ -10,13 +10,15 @@ contains
 
 subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice)
 !
+    use tetra_grid_settings_mod, only: knots_SOLEDGE3X_EIRENE_filename
+!
     integer, intent(in) :: n_slices
     integer, intent(out) :: verts_per_slice
     double precision, dimension(:, :), allocatable, intent(out) :: points_rphiz !(r, phi, z)
 !
     integer :: file_id_knots
     integer, dimension(2) :: shape_knots
-    character(50) :: filename_knots
+    character(70) :: filename_knots
     double precision, dimension(:,:),allocatable :: knots_SOLEDGE3X_EIRENE
 !
     integer :: n_verts,phi_position, i
@@ -25,7 +27,7 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
 !
     !Define file ids and filenames for SOLEDGE3X_EIRENE mesh data
     file_id_knots = 501
-    filename_knots = './MHD_EQUILIBRIA/MESH_SOLEDGE3X_EIRENE/knots.dat'
+    filename_knots = knots_SOLEDGE3X_EIRENE_filename
 !
     !Load knots
     open(unit=file_id_knots, file=filename_knots, status='unknown')
@@ -61,6 +63,7 @@ end subroutine create_points_SOLEDGE3X_EIRENE
 subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n_tetras, & 
                      verts, neighbours, neighbour_faces, perbou_phi)
 !
+    use tetra_grid_settings_mod, only: triangles_SOLEDGE3X_EIRENE_filename
     use circular_mesh, only: wrap_idx_inplace
 !
     integer, intent(in) :: n_slices,verts_per_slice
@@ -73,16 +76,15 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
 !
     integer :: file_id_triangles
     integer, dimension(2) :: shape_triangles
-    character(50) :: filename_triangles
+    character(70) :: filename_triangles
     integer, dimension(:,:), allocatable :: triangle_type
 !
     integer, dimension(4, 6) :: tetra_conf, mask_theta, mask_phi, mask_r
     integer, dimension(4, 3) :: slice_offset, ring_offset, cur_triangle_offset, no_offset
     integer :: n_verts, mask_idx,prism_orientation, slice,&
-                & cur_triangle, cur_stand_alone_vertex, tetra_idx, prism_i, prism_j, tetras_per_slice, &
+                & cur_triangle, cur_stand_alone_vertex, tetra_idx, tetras_per_slice, &
                 vertex_I, vertex_II, vertex_III
-    integer, dimension(:), allocatable :: count_connected
-    logical :: match
+    integer, dimension(:), allocatable :: count_connected, count_connected_repaired
 !         
     !Compute A_phi (psif) for every vertex in 2d-plane
     do i = 1,verts_per_slice
@@ -90,7 +92,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     enddo
 !
     file_id_triangles = 502
-    filename_triangles = './MHD_EQUILIBRIA/MESH_SOLEDGE3X_EIRENE/triangles.dat'
+    filename_triangles = triangles_SOLEDGE3X_EIRENE_filename
 !
     !Load triangles
     open(unit=file_id_triangles, file=filename_triangles, status='unknown')
@@ -204,88 +206,15 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
 !
     end do !cur_triangles
 !
-    if (allocated(count_connected)) deallocate(count_connected)
-    allocate(count_connected(n_triangles))
-    count_connected = 0
+    call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected)
 !
-    !$OMP PARALLEL DEFAULT(NONE) &
-    !$OMP& SHARED(n_triangles,tetras_per_slice,neighbours,neighbour_faces,verts,count_connected) &
-    !$OMP& PRIVATE(prism_i,tetra_idx,prism_j,match)
-    !$OMP DO
-    do prism_i = 1, n_triangles
-!
-        ! connect with prisms in neighbouring slices
-        tetra_idx = (prism_i - 1) * 3 + 1
-        neighbours(4, tetra_idx) = tetra_idx + 2 - tetras_per_slice
-        neighbour_faces(4, tetra_idx) = 1
-        neighbours(1, tetra_idx + 2) = tetra_idx + tetras_per_slice
-        neighbour_faces(1, tetra_idx + 2) = 4
-!
-        do prism_j = prism_i, n_triangles
-!
-            ! --- connect neighbouring tetras  ---
-            ! connect neighbouring tetras in this prism
-            call connect_prisms_SOLEDGE3X_EIRENE(prism_i, prism_j, verts, neighbours, neighbour_faces,match)
-!
-            !$omp critical
-            if (match .and. (prism_i /= prism_j)) then
-                count_connected(prism_i) = count_connected(prism_i) + 1
-                count_connected(prism_j) = count_connected(prism_j) + 1
-            end if
-            !$omp end critical
-!
-            !If already three prisms were found that connect to the current prism_i
-            !-> stop further search
-            if (count_connected(prism_i) > 2) exit
-!
-        end do !prism_j
-!
-    end do !prism_i
-    !$OMP END DO
-    !$OMP END PARALLEL
-!
-    ! checks for missmatched prims and tries to solve it by changing classification LOCALLY
+    ! checks for missmatched prims and tries to solve it by changing classification LOCALLY and reconnect
     call repair(count_connected,triangle_type,mask_r,mask_phi,mask_theta,verts_per_slice,verts,neighbours,neighbour_faces)
 !
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-if(.true.) then
-!if (allocated(count_connected)) deallocate(count_connected)
-!allocate(count_connected(n_triangles))
-count_connected = 0
-!
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP& SHARED(n_triangles,tetras_per_slice,neighbours,neighbour_faces,verts,count_connected) &
-!$OMP& PRIVATE(prism_i,tetra_idx,prism_j,match)
-!$OMP DO
-do prism_i = 1, n_triangles
-!
-do prism_j = prism_i, n_triangles
-!
-! --- connect neighbouring tetras  ---
-! connect neighbouring tetras in this prism
-call connect_prisms_SOLEDGE3X_EIRENE(prism_i, prism_j, verts, neighbours, neighbour_faces,match)
-!
-!$omp critical
-if (match .and. (prism_i /= prism_j)) then
-count_connected(prism_i) = count_connected(prism_i) + 1
-count_connected(prism_j) = count_connected(prism_j) + 1
-end if
-!$omp end critical
-!
-!If already three prisms were found that connect to the current prism_i
-!-> stop further search
-if (count_connected(prism_i) > 2) exit
-!
-end do !prism_j
-!
-end do !prism_i
-!$OMP END DO
-!$OMP END PARALLEL
-!
-end if
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
+if (.true.) then ! Check now if all prisms of the plane are properly connected (only at border of regime should be neighbours < 3)
+    call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected_repaired)
+    call repair_report(count_connected,count_connected_repaired, triangle_type)
+end if ! repair_report
 !
     ! for all the other slices we can calculate the verts by incrementing the
     ! vert indices of the first(idx = 0) slice by slice * verts_per_slice
@@ -352,41 +281,7 @@ end if
     end do
     print *, "mesh consistency check ok"
 !
-open(123, file='./MESH_CHECK/border_triangles.dat')
-do cur_triangle = 1, n_triangles
-    if ((count_connected(cur_triangle) < 3)) then
-        write(123,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
-    end if
-end do
-close(123)
-!
-open(123, file='./MESH_CHECK/border_triangles_types.dat')
-do cur_triangle = 1, n_triangles
-    if ((count_connected(cur_triangle) < 3)) then
-        write(123,*) triangle_type(cur_triangle,1)
-    end if
-end do
-close(123)
-!
-open(123, file='./MESH_CHECK/border_triangles_error.dat')
-do cur_triangle = 1, n_triangles
-    if ((count_connected(cur_triangle) < 3)) then
-        if(is_not_border(cur_triangle)) then
-            write(123,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
-        end if
-    end if
-end do
-close(123)
-!
-open(123, file='./MESH_CHECK/triangles_types.dat')
-do cur_triangle = 1, n_triangles
-    write(123,*) triangle_type(cur_triangle,1)
-end do
-close(123)
-!
     deallocate(triangles_SOLEDGE3X_EIRENE, triangle_type,count_connected)
-!
-stop
 !
 end subroutine calc_mesh_SOLEDGE3X_EIRENE
 !
@@ -433,110 +328,153 @@ end subroutine vector_potential_rz
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-subroutine calc_triangle_type(A_phi_vec,triangle_type)
+    subroutine calc_triangle_type(A_phi_vec,triangle_type)
 !
-    double precision, dimension(:), intent(in) :: A_phi_vec
-    integer, dimension(n_triangles,2), intent(out) :: triangle_type
-    double precision, dimension(3) :: diff_Aphi_vec
-    integer :: i, i_min_diff, vertex_1, vertex_2, vertex_3
+        double precision, dimension(:), intent(in) :: A_phi_vec
+        integer, dimension(n_triangles,2), intent(out) :: triangle_type
+        double precision, dimension(3) :: diff_Aphi_vec
+        integer :: i, i_min_diff, vertex_1, vertex_2, vertex_3
 !
-    do i = 1, n_triangles
+        do i = 1, n_triangles
 !
-        vertex_1 = triangles_SOLEDGE3X_EIRENE(i,1)
-        vertex_2 = triangles_SOLEDGE3X_EIRENE(i,2)
-        vertex_3 = triangles_SOLEDGE3X_EIRENE(i,3)
+            vertex_1 = triangles_SOLEDGE3X_EIRENE(i,1)
+            vertex_2 = triangles_SOLEDGE3X_EIRENE(i,2)
+            vertex_3 = triangles_SOLEDGE3X_EIRENE(i,3)
 !
-        diff_Aphi_vec(1) = abs(A_phi_vec(vertex_1)-A_phi_vec(vertex_2))
-        diff_Aphi_vec(2) = abs(A_phi_vec(vertex_2)-A_phi_vec(vertex_3))
-        diff_Aphi_vec(3) = abs(A_phi_vec(vertex_3)-A_phi_vec(vertex_1))
+            diff_Aphi_vec(1) = abs(A_phi_vec(vertex_1)-A_phi_vec(vertex_2))
+            diff_Aphi_vec(2) = abs(A_phi_vec(vertex_2)-A_phi_vec(vertex_3))
+            diff_Aphi_vec(3) = abs(A_phi_vec(vertex_3)-A_phi_vec(vertex_1))
 !
-        i_min_diff = minloc(diff_Aphi_vec,1)
+            i_min_diff = minloc(diff_Aphi_vec,1)
 !
-if (i == 372) then
-print*, diff_Aphi_vec
-end if
+            select case(i_min_diff)
+                case(1)
+                    if( (A_phi_vec(vertex_1)).gt.(A_phi_vec(vertex_3))) then
+                        triangle_type(i,1) = 0
+                    else
+                        triangle_type(i,1) = 1
+                    endif
+                    triangle_type(i,2) = 3
+                case(2)
+                    if( (A_phi_vec(vertex_2)).gt.(A_phi_vec(vertex_1))) then
+                        triangle_type(i,1) = 0
+                    else
+                        triangle_type(i,1) = 1
+                    endif
+                    triangle_type(i,2) = 1
+                case(3)
+                    if( (A_phi_vec(vertex_3)).gt.(A_phi_vec(vertex_2))) then
+                        triangle_type(i,1) = 0
+                    else
+                        triangle_type(i,1) = 1
+                    endif
+                    triangle_type(i,2) = 2
+            end select
+        end do
 !
-        select case(i_min_diff)
-            case(1)
-                if( (A_phi_vec(vertex_1)).gt.(A_phi_vec(vertex_3))) then
-                    triangle_type(i,1) = 0
-                else
-                    triangle_type(i,1) = 1
-                endif
-                triangle_type(i,2) = 3
-            case(2)
-                if( (A_phi_vec(vertex_2)).gt.(A_phi_vec(vertex_1))) then
-                    triangle_type(i,1) = 0
-                else
-                    triangle_type(i,1) = 1
-                endif
-                triangle_type(i,2) = 1
-            case(3)
-                if( (A_phi_vec(vertex_3)).gt.(A_phi_vec(vertex_2))) then
-                    triangle_type(i,1) = 0
-                else
-                    triangle_type(i,1) = 1
-                endif
-                triangle_type(i,2) = 2
-        end select
-    end do
-!
-end subroutine calc_triangle_type
+    end subroutine calc_triangle_type
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-subroutine connect_prisms_SOLEDGE3X_EIRENE(prism_1_idx, prism_2_idx, verts, neighbours, neighbour_faces,match)
-    integer, intent(in) :: prism_1_idx, prism_2_idx
-    integer, dimension(:, :), intent(in) :: verts
-    integer, dimension(:, :), intent(inout) :: neighbours, neighbour_faces
-    logical, intent(out) :: match
+    subroutine connect_prisms_SOLEDGE3X_EIRENE(prism_1_idx, prism_2_idx, verts, neighbours, neighbour_faces,match)
 !
-    integer :: tetra_1_base, tetra_2_base, tetra_1_idx, tetra_2_idx, tetra_1_off, tetra_2_off, &
-               tetra_1_face, tetra_2_face, i
+        integer, intent(in) :: prism_1_idx, prism_2_idx
+        integer, dimension(:, :), intent(in) :: verts
+        integer, dimension(:, :), intent(inout) :: neighbours, neighbour_faces
+        logical, intent(out) :: match
+!
+        integer :: tetra_1_base, tetra_2_base, tetra_1_idx, tetra_2_idx, tetra_1_off, tetra_2_off, &
+                tetra_1_face, tetra_2_face, i
 !   
-    logical, dimension(4) :: same_vert_1, same_vert_2
+        logical, dimension(4) :: same_vert_1, same_vert_2
 !
-    match = .false.
+        match = .false.
 !
-    tetra_1_base = (prism_1_idx - 1) * 3 + 1
-    tetra_2_base = (prism_2_idx - 1) * 3 + 1
+        tetra_1_base = (prism_1_idx - 1) * 3 + 1
+        tetra_2_base = (prism_2_idx - 1) * 3 + 1
 !
-    do tetra_1_off = 0, 2
-        tetra_1_idx = tetra_1_base + tetra_1_off
-        do tetra_2_off = 0, 2
-            tetra_2_idx = tetra_2_base + tetra_2_off
+        do tetra_1_off = 0, 2
+            tetra_1_idx = tetra_1_base + tetra_1_off
+            do tetra_2_off = 0, 2
+                tetra_2_idx = tetra_2_base + tetra_2_off
 !
-            if (tetra_1_idx == tetra_2_idx) cycle
+                if (tetra_1_idx == tetra_2_idx) cycle
 !
-            do i = 1, 4
-                same_vert_1(i) = any(verts(:, tetra_2_idx) == verts(i, tetra_1_idx))
-                same_vert_2(i) = any(verts(i, tetra_2_idx) == verts(:, tetra_1_idx))
+                do i = 1, 4
+                    same_vert_1(i) = any(verts(:, tetra_2_idx) == verts(i, tetra_1_idx))
+                    same_vert_2(i) = any(verts(i, tetra_2_idx) == verts(:, tetra_1_idx))
+                end do
+!
+                if (count(same_vert_1) == 3) then
+                    tetra_1_face = minloc(abs(transfer(same_vert_1 , 1, size=4)), dim=1)
+                    tetra_2_face = minloc(abs(transfer(same_vert_2 , 1, size=4)), dim=1)
+!
+                    neighbours(tetra_1_face, tetra_1_idx) = tetra_2_idx
+                    neighbours(tetra_2_face, tetra_2_idx) = tetra_1_idx
+!
+                    neighbour_faces(tetra_1_face, tetra_1_idx) = tetra_2_face
+                    neighbour_faces(tetra_2_face, tetra_2_idx) = tetra_1_face
+!
+                    match = .true.
+!
+                end if
             end do
-!
-            if (count(same_vert_1) == 3) then
-                tetra_1_face = minloc(abs(transfer(same_vert_1 , 1, size=4)), dim=1)
-                tetra_2_face = minloc(abs(transfer(same_vert_2 , 1, size=4)), dim=1)
-!
-! if ((prism_1_idx /= prism_2_idx) .and. &
-!     & (neighbour_faces(tetra_1_face, tetra_1_idx) /= -1 .or. (neighbour_faces(tetra_2_face, tetra_2_idx) /= -1))) then
-!     print*, 'Try to connect faces that are already link to others -> broken'
-!     print*, 'when connecting ', prism_1_idx, ' with ', prism_2_idx
-!     stop
-! end if
-!
-                neighbours(tetra_1_face, tetra_1_idx) = tetra_2_idx
-                neighbours(tetra_2_face, tetra_2_idx) = tetra_1_idx
-!
-                neighbour_faces(tetra_1_face, tetra_1_idx) = tetra_2_face
-                neighbour_faces(tetra_2_face, tetra_2_idx) = tetra_1_face
-!
-                match = .true.
-!
-            end if
         end do
-    end do
 !
-end subroutine connect_prisms_SOLEDGE3X_EIRENE
+    end subroutine connect_prisms_SOLEDGE3X_EIRENE
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected)
+        integer, intent(in) :: tetras_per_slice
+        integer, dimension(:,:), intent(in) :: verts
+        integer, dimension(:,:), intent(inout) :: neighbours, neighbour_faces
+        integer, dimension(:), allocatable, intent(out) :: count_connected
+!
+        integer :: prism_i, tetra_idx, prism_j
+        logical :: match
+!
+        if (allocated(count_connected)) deallocate(count_connected)
+        allocate(count_connected(n_triangles))
+        count_connected = 0
+!
+        !$OMP PARALLEL DEFAULT(NONE) &
+        !$OMP& SHARED(n_triangles,tetras_per_slice,neighbours,neighbour_faces,verts,count_connected) &
+        !$OMP& PRIVATE(prism_i,tetra_idx,prism_j,match)
+        !$OMP DO
+        do prism_i = 1, n_triangles
+!
+                ! connect with prisms in neighbouring slices
+                tetra_idx = (prism_i - 1) * 3 + 1
+                neighbours(4, tetra_idx) = tetra_idx + 2 - tetras_per_slice
+                neighbour_faces(4, tetra_idx) = 1
+                neighbours(1, tetra_idx + 2) = tetra_idx + tetras_per_slice
+                neighbour_faces(1, tetra_idx + 2) = 4
+!
+                do prism_j = prism_i, n_triangles
+!
+                    ! --- connect neighbouring tetras  ---
+                    ! connect neighbouring tetras in this prism
+                    call connect_prisms_SOLEDGE3X_EIRENE(prism_i, prism_j, verts, neighbours, neighbour_faces,match)
+!
+                    !$omp critical
+                    if (match .and. (prism_i /= prism_j)) then
+                        count_connected(prism_i) = count_connected(prism_i) + 1
+                        count_connected(prism_j) = count_connected(prism_j) + 1
+                    end if
+                    !$omp end critical
+!
+                    !If already three prisms were found that connect to the current prism_i
+                    !-> stop further search
+                    if (count_connected(prism_i) > 2) exit
+!
+                end do !prism_j
+!
+            end do !prism_i
+            !$OMP END DO
+            !$OMP END PARALLEL!
+!
+    end subroutine connect_plane_SOLEDGE3X_EIRENE
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -662,8 +600,6 @@ end subroutine connect_prisms_SOLEDGE3X_EIRENE
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
     subroutine repair(count_connected,triangle_type,mask_r,mask_phi,mask_theta,verts_per_slice,verts,neighbours,neighbour_faces)
 !
         integer, intent(in) :: verts_per_slice
@@ -758,4 +694,45 @@ end subroutine connect_prisms_SOLEDGE3X_EIRENE
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+    subroutine repair_report(count_connected,count_connected_repaired, triangle_type)
+        integer, dimension(:), intent(in) :: count_connected,count_connected_repaired
+        integer, dimension(:,:), intent(in) :: triangle_type
+!
+        integer :: cur_triangle
+!
+        open(123, file='./MESH_CHECK/border_triangles_error.dat')
+        do cur_triangle = 1, n_triangles
+            if ((count_connected(cur_triangle) < 3)) then
+                if((count_connected_repaired(cur_triangle) == 3)) then
+                    write(123,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
+                end if
+            end if
+        end do
+        close(123)
+!
+        open(123, file='./MESH_CHECK/border_triangles.dat')
+        do cur_triangle = 1, n_triangles
+            if ((count_connected_repaired(cur_triangle) < 3)) then
+                write(123,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
+            end if
+        end do
+        close(123)
+!
+        open(123, file='./MESH_CHECK/border_triangles_types.dat')
+        do cur_triangle = 1, n_triangles
+            if ((count_connected_repaired(cur_triangle) < 3)) then
+                write(123,*) triangle_type(cur_triangle,1)
+            end if
+        end do
+        close(123)
+!
+        open(123, file='./MESH_CHECK/triangles_types.dat')
+        do cur_triangle = 1, n_triangles
+            write(123,*) triangle_type(cur_triangle,1)
+        end do
+        close(123)
+!
+    end subroutine repair_report
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 end module circular_mesh_SOLEDGE3X_EIRENE

@@ -142,8 +142,8 @@
       ipert = ipert_in
 !
       !Set coord_system in module according to coord_system_in
-      if((grid_kind.eq.1).and.(coord_system_in.ne.1)) then
-        print *, 'Error: Wrong coordinate system - Only RPhiZ-coordinates are allowed for rectangular grid.'
+      if( ( (grid_kind.eq.1).or.(grid_kind.eq.4) ) .and.(coord_system_in.ne.1)) then
+        print *, 'Error: Wrong coordinate system - Only RPhiZ-coordinates are allowed for rectangular or SOLEDGE3X_EIRENE grid.'
         stop
       elseif((grid_kind.eq.3).and.(coord_system_in.ne.2)) then
         print *, 'Error: Wrong coordinate system - Only (s,theta,phi)-coordinates are allowed for field aligned VMEC grid.'
@@ -175,7 +175,7 @@
 !
       !Pre-processing for EFIT
 !
-      if( (grid_kind.eq.1).or.(grid_kind.eq.2) ) then
+      if( (grid_kind.eq.1).or.(grid_kind.eq.2).or.(grid_kind.eq.4) ) then
         !subroutine field must be called in order to realize perturbation according to ipert_in
         rrr=1.d0
         ppp=0.d0
@@ -328,6 +328,11 @@
           if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_sthetaphi(3,iv) .eq. 0.d0)) then !if(tetra in last phi_slice & phi .eq. 0)
             p_x3(i) = 2.d0*pi/n_field_periods
           endif
+        case(4) !SOLEDGE3X_EIRENE grid
+                !R,Phi,Z --> Cylindrical coordinate system
+                if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_rphiz(2,iv) .eq. 0.d0)) then
+                p_x2(i) = 2.d0*pi
+                endif  
 !
       end select
 !

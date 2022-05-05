@@ -2606,7 +2606,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
                     !+1, since formula is 0-based (like istarttetr in make_grid_rect)
                 indtetr_end = indtetr_start + 5
 !
-            case(2) !EFIT field-aligned grid
+            case(2,4) !EFIT field-aligned grid or SOLEDGE3X_EIRENE
 !
             select case(coord_system)
                 case(1)
