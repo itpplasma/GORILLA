@@ -52,6 +52,9 @@ EXAMPLES/MATLAB_RUN
 # PYTHON
 EXAMPLES/PYTHON_RUN
 
+# EIRENE
+RUN
+
 # Latex
 *.aux
 *.lof
@@ -83,3 +86,4 @@ EXAMPLES/PYTHON_RUN
 #Folders
 /build
 /BUILD
+/RUN
