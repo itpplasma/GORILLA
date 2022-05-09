@@ -31,14 +31,16 @@ TK=hdf5read(filename_meshEIRENE,'/triangles/tri_knots');
 %% Write data as .dat file
 
 % knots
-fid=fopen('knots.dat','w');
+filename_knots = 'knots_for_test.dat';
+fid=fopen(filename_knots,'w');
 fprintf(fid,'%d %d \n',numel(R),2);
 fclose(fid);
-writematrix([R,Z],'knots.dat','Delimiter','space','WriteMode','append');
+writematrix([R,Z],filename_knots,'Delimiter','space','WriteMode','append');
 
 
 % triangles
-fid=fopen('triangles.dat','w');
+filename_triangles = 'triangles_for_test.dat';
+fid=fopen(filename_triangles,'w');
 fprintf(fid,'%d %d \n',numel(TK(:,1)),3);
 fclose(fid);
-writematrix(TK,'triangles.dat','Delimiter','space','WriteMode','append');
+writematrix(TK,filename_triangles,'Delimiter','space','WriteMode','append');
