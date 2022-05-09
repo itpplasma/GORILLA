@@ -19,7 +19,8 @@
     !Rectangular grid: [n1,n2,n3] = [nR,nphi,nZ], Field-aligned grid: [n1,n2,n3] = [nr,nphi,ntheta]
     integer, dimension(3),public,protected  :: grid_size
 !
-    !Grid kind - Selection of grid kind (1 ... rectangular grid, 2 ... field-aligned grid)
+    !Grid kind - Selection of grid kind
+    !(1 ... rectangular grid, 2 ... field-aligned grid EFIT, 3 ... field-aligned grid VMEC, 4 ... SOLEDGE3X-EIRENE grid)
     integer,public,protected :: grid_kind
 !
     !MHD equilibrium filename

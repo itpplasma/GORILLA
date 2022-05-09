@@ -168,7 +168,7 @@
                         call random_number(rnd_axi_noise)
                     endif
                 case default
-                    print *, 'Error: Manipulation of electromagnetic field with noise ONLY for axisymmetric configurations.'
+                    print *, 'Error: Manipulation of electromagnetic field with noise ONLY for axisymmetric configurations of EFIT equilibrium.'
                     stop
             end select
       endif

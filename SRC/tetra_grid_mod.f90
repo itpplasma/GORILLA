@@ -48,7 +48,7 @@
         if(boole_n_field_periods) then !Automatically
             !Select number of field periods depending on input equilibrium
             select case(grid_kind)
-                case(1,2,4) !2D EFIT eqilibria
+                case(1,2,4) !2D EFIT & WEST equilibria
                     call set_n_field_periods(1)
                 case(3) !3D VMEC equilibria
                     call set_n_field_periods(0) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
@@ -115,17 +115,17 @@
             call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
 !            
           case(4) !SOLEDGE3X_EIRENE-grid               
-            !
-                        !subroutine field must be called at start in order to read input file and provide necessary quantities in field_eq_mod
-                        rrr=1.d0
-                        ppp=0.d0
-                        zzz=0.d0
-            !
-                        call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
-                                      & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
-            !         
-                        call make_grid_SOLEDGE3X_EIRENE(grid_size)
-            !
+!
+            !subroutine field must be called at start in order to read input file and provide necessary quantities in field_eq_mod
+            rrr=1.d0
+            ppp=0.d0
+            zzz=0.d0
+!
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+                          & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
+!
+            call make_grid_SOLEDGE3X_EIRENE(grid_size)
+!
         end select
 !
         !Compute vertices in Cartesian coordinates

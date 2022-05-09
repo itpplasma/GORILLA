@@ -205,10 +205,11 @@ We welcome help in improving and extending GORILLA. This is managed through Gith
 ### Authors
 
 * Michael Eder<sup>1</sup>
-* Christopher G. Albert<sup>1,2</sup>
+* Christopher G. Albert<sup>1</sup>
 * Lukas M. P. Bauer<sup>1</sup>
+* Georg S. Graßler<sup>1</sup>
 * Daniel Forstenlechner<sup>1</sup>
-* Sergei V. Kasilov<sup>1,3,4</sup>
+* Sergei V. Kasilov<sup>1,2,3</sup>
 * Winfried Kernbichler<sup>1</sup>
 * Markus Meisterhofer<sup>1</sup>
 * Michael Scheidt<sup>1</sup>
@@ -217,20 +218,16 @@ We welcome help in improving and extending GORILLA. This is managed through Gith
 1. Fusion@OEAW, Institut für Theoretische Physik - Computational Physics,
 Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
 
-2. Max-Planck-Institut für Plasmaphysik,
-Boltzmannstr. 2, 85748 Garching, Germany
-
-3. Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology”,
+2. Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology”,
 Akademicheskaya str. 1, 61108 Kharkov, Ukraine
 
-4. Department of Applied Physics and Plasma Physics, V. N. Karazin Kharkov National University, Svobody sq. 4, 61022 Kharkov, Ukraine
+3. Department of Applied Physics and Plasma Physics, V. N. Karazin Kharkov National University, Svobody sq. 4, 61022 Kharkov, Ukraine
 
 
 ## Acknowledgments
 The authors would like to thank Michael Drevlak and the ASDEX Upgrade Team for providing the stellarator field configuration and the ASDEX Upgrade MHD equilibrium for shot 26884 at 4300 ms.
 Further thanks to Martin Heyn, Philipp Ulbl, Rico Buchholz, Patrick Lainer, and Markus Richter for useful discussions.
-This work has been carried out within the framework of the EUROfusion Consortium and has received funding from the Euratom research and training programmes 2014–2018 and 2019–2020 under Grant Agreement No. 633053.
-The views and opinions expressed herein do not necessarily reflect those of the European Commission. The study was supported by the Reduced Complexity Models Grant No. ZT-I-0010 funded by the Helmholtz Association of German Research Centers. Support from NAWI Graz, and from the OeAD under the WTZ Grant Agreement with Ukraine No. UA 04/2017 is gratefully acknowledged.
+This work has been carried out within the framework of the EUROfusion Consortium, funded by the European Union via the Euratom Research and Training Programme (Grant Agreement No 101052200 — EUROfusion). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Commission. Neither the European Union nor the European Commission can be held responsible for them.
 
 
 ## References for GORILLA

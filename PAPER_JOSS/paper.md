@@ -17,43 +17,43 @@ authors:
   - name: Michael Eder^[corresponding author]
     orcid: 0000-0002-1392-1664
     affiliation: 1
-  - name: Christopher G. Albert
-    orcid: 0000-0003-4773-416X
-    affiliation: "1, 2"
   - name: Lukas M. P. Bauer
     orcid: 0000-0003-3341-4085
     affiliation: 1
   - name: Daniel Forstenlechner
   	affiliation: 1
+  - name: Georg S. Graßler
+    affiliation: 1   
   - name:  Sergei V. Kasilov
-    affiliation: "1, 3, 4"
+    affiliation: "1, 2, 3"
   - name:  Winfried Kernbichler
     affiliation: 1
   - name:  Markus Meisterhofer
     affiliation: 1
   - name:  Michael Scheidt
     affiliation: 1
+  - name: Christopher G. Albert
+    orcid: 0000-0003-4773-416X
+    affiliation: 1
 
 affiliations:
  - name: Institut für Theoretische Physik - Computational Physics, Technische Universität Graz, Petersgasse 16, 8010 Graz, Austria
    index: 1
- - name: Max-Planck-Institut für Plasmaphysik, Boltzmannstr. 2, 85748 Garching, Germany
-   index: 2
  - name: Institute of Plasma Physics, National Science Center, “Kharkov Institute of Physics and Technology,” Akademicheskaya str. 1, 61108 Kharkov, Ukraine
-   index: 3
+   index: 2
  - name: Department of Applied Physics and Plasma Physics, V. N. Karazin Kharkov National University, Svobody sq. 4, 61022 Kharkov, Ukraine
-   index: 4
-date: 16 March 2021
+   index: 3
+date: 10 May 2022
 bibliography: paper.bib
 
 ---
 # Introduction
 Extremely hot plasmas with a temperature of the order of hundred million degrees Celsius are needed to produce energy from nuclear fusion. Under these conditions, hydrogen isotopes are fused, and energy is released. The energy release from 1 kg of fusion fuel corresponds approximately to that of 10000 tons of coal. A future use of this energy source is the subject of worldwide research projects. The confinement of such hot plasmas, however, poses major physical and technological problems for researchers. In particular, complex numerical methods are necessary to understand the physics of such plasmas in complicated toroidal magnetic fields.
 
-An important kinetic approach for simulating the collective behavior of a plasma utilizes direct modeling of particle orbits. A well-known approximation for computing the motion of electrically charged particles in slowly varying electromagnetic fields is to reduce the dynamical equations by separating the relatively fast circular motion around a point called the guiding-center, and primarily treat the relatively slow drift motion of this point. This drift motion is described by the guiding-center equations; see, e.g., [@littlejohn_variational_1983], [@boozer_guiding_1980] and [@cary_hamiltonian_2009].
+An important kinetic approach for simulating the collective behavior of a plasma utilizes direct modeling of particle orbits. A well-known approximation for computing the motion of electrically charged particles in slowly varying electromagnetic fields is to reduce the dynamical equations by separating the relatively fast circular motion around a point called the guiding-center, and primarily treat the relatively slow drift motion of this point. This drift motion is described by the guiding-center equations in non-canonical Hamiltonian form; see, e.g., [@littlejohn_variational_1983], [@boozer_guiding_1980] and [@cary_hamiltonian_2009].
 
-Here, we provide an efficient code for the purpose of solving the guiding-center equations. This code is a numerical implementation of the novel, quasi-geometric integration method described by @eder_quasi-geometric_2020.
-
+Here, we provide `GORILLA`: an efficient code for the purpose of solving the guiding-center equations. This code is a numerical implementation of the novel, quasi-geometric integration method described by @eder_quasi-geometric_2020.
+There exist a variety of codes for tracing guiding-center drift motion including ORBIT [@white_hamiltonian_1984], FORTEC-3D [@satake_non-local_2005], XGC [@ku_full-f_2009], ASCOT [@hirvijoki_alfven_2012], VENUS-LEVIS [@pfefferle_venus-levis_2014], SIMPLE [@albert_symplectic_2020] etc. Most of these codes solve the guiding-center equations primarily in the plasma core of toroidal fusion devices. Due to its formulation in general curvilinear coordinates, `GORILLA` is not limited by field topology. That means that the computation domain of `GORILLA` covers both the closed field line region (i.e. the plasma core) and the open field line region (i.e. the scrape-off layer). 
 
 # Summary
 
@@ -75,13 +75,12 @@ Further, in the same publication, `GORILLA` was applied to the Monte Carlo evalu
 Currently, `GORILLA` is part of the “EUROfusion Theory, Simulation, Validation and Verification Task for Impurity Sources, Transport, and Screening” where it is tested for the kinetic modelling of the impurity ion component. 
 The source code for `GORILLA` has been archived on Zenodo with the linked DOI: [@eder_gorilla_2021]
 
-![Illustration of (a) passing particle and (b) trapped particle guiding-center orbits of a Deuterium ion with a kinetic energy of 3 keV in the axisymmetric magnetic field configuration of ASDEX Upgrade. The blue transparent area shows the poloidal $\varphi = 0$ plane with blue dots indicating the intersections of the orbit with this plane (Poincaré cut).  Red solid lines represent the guiding-center orbits.\label{fig:example}](figure.png)
-
 # Acknowledgements
 
 The authors would like to thank Michael Drevlak and the ASDEX Upgrade Team for providing the stellarator field configuration and the ASDEX Upgrade MHD equilibrium for shot 26884 at 4300 ms which are used in the code examples.
 Further thanks to Martin Heyn, Alex Runov, Philipp Ulbl, Rico Buchholz, Patrick Lainer, and Markus Richter for useful discussions.
-This work has been carried out within the framework of the EUROfusion Consortium and has received funding from the Euratom research and training programmes 2014–2018 and 2019–2020 under Grant Agreement No. 633053.
-The views and opinions expressed herein do not necessarily reflect those of the European Commission. The study was supported by the Reduced Complexity Models Grant No. ZT-I-0010 funded by the Helmholtz Association of German Research Centers. Support from NAWI Graz, and from the OeAD under the WTZ Grant Agreement with Ukraine No. UA 04/2017 is gratefully acknowledged.
+This work has been carried out within the framework of the EUROfusion Consortium, funded by the European Union via the Euratom Research and Training Programme (Grant Agreement No 101052200 — EUROfusion). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Commission. Neither the European Union nor the European Commission can be held responsible for them.
+
+![Illustration of (a) passing particle and (b) trapped particle guiding-center orbits of a Deuterium ion with a kinetic energy of 3 keV in the axisymmetric magnetic field configuration of ASDEX Upgrade. The blue transparent area shows the poloidal $\varphi = 0$ plane with blue dots indicating the intersections of the orbit with this plane (Poincaré cut).  Red solid lines represent the guiding-center orbits.\label{fig:example}](figure.png)
 
 # References
