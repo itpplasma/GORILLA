@@ -211,7 +211,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     ! checks for missmatched prims and tries to solve it by changing classification LOCALLY and reconnect
     call repair(count_connected,triangle_type,mask_r,mask_phi,mask_theta,verts_per_slice,verts,neighbours,neighbour_faces)
 !
-if (.true.) then ! Check now if all prisms of the plane are properly connected (only at border of regime should be neighbours < 3)
+if (.false.) then ! Check now if all prisms of the plane are properly connected (only at border of regime should be neighbours < 3)
     call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected_repaired)
     call repair_report(count_connected,count_connected_repaired, triangle_type)
 end if ! repair_report
@@ -688,7 +688,7 @@ end subroutine vector_potential_rz
             end do
         end do PARENT !n_error
 !
-        write(*,'(A,I3,A,I3,A)') 'Repaired ', n_repair, ' / ', n_error, ' prisms!'
+        write(*,'(A,I3,A,I3,A)') ' Repaired ', n_repair, ' / ', n_error, ' prisms!'
 !
     end subroutine repair
 !
