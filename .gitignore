@@ -80,7 +80,7 @@ EXAMPLES/PYTHON_RUN
 *.synctex.gz(busy)
 *.pdfsync
 
-#Folders
+# Folders
 /build
 /BUILD
 /RUN
