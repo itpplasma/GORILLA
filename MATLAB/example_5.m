@@ -209,7 +209,14 @@ gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 tetra_grid.write([path_RUN,'/tetra_grid.inp']);
 
 %Create softlinks for used files
-! ln -s ../../../test_gorilla_main.x .
+if isfile('../../../test_gorilla_main.x')
+    ! ln -s ../../../test_gorilla_main.x .
+elseif isfile('../../../BUILD/SRC/test_gorilla_main.x')
+    ! ln -s ../../../BUILD/SRC/test_gorilla_main.x .
+else
+    disp('GORILLA not built, exiting the MatLab script')
+    return
+end
 ! ln -s ../../../MHD_EQUILIBRIA .
 ! ln -s ../../../INPUT/field_divB0.inp .
 ! ln -s ../../../INPUT/preload_for_SYNCH.inp .

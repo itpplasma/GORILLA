@@ -34,10 +34,11 @@ The following supplemental material is available in `DOCUMENTATION/SUPPLEMENTAL_
 * arXiv preprint of Ref. [1]
 * Master's thesis of M. Eder (preliminary work with some detailed explanations referenced in `GORILLA_DOC.pdf`)
 * Master's thesis of L. Bauer (preliminary work with some detailed explanations referenced in `GORILLA_DOC.pdf`)
+* Bachelor's thesis of D. Forstenlechner (unit testing with pFUnit)
 
 ## Building
 
-GORILLA can be built with `make`.
+GORILLA can be built with `make` or `cmake`.
 
 ### Supported compilers
 * GNU Fortan
@@ -54,6 +55,20 @@ sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
 To install requirements on macOS, install [macports](https://www.macports.org/install.php), then
 ```
 sudo port install netcdf netcdf-fortran
+```
+### Additional tools
+* [pFUnit](https://github.com/Goddard-Fortran-Ecosystem/pFUnit)
+* [lcov](https://github.com/linux-test-project/lcov)
+
+To install pFUnit, follow the instructions on the linked github project page.
+
+To install lcov on Ubuntu Linux use
+```
+sudo apt install lcov
+```
+To install lcov on macOS use
+```
+sudo port install lcov
 ```
 
 ### Include external library
@@ -81,6 +96,17 @@ make
 This will produce `test_gorilla_main.x` required to run the code. To specify the location of
 NetCDF includes and libraries, one has to set the `NCINC` and `NCLIB` variable during `make`.
 
+### Building with cmake
+To build GORILLA with `cmake`, use `build.x`.
+```bash
+cd /path/to/GORILLA
+./build.x
+```
+This will produce `test_gorilla_main.x` in the folder BUILD/SRC/ required to run the code.
+
+To get additional tests and code coverage, build GORILLA with `build_coverage.x`. This requires the additional tools and a correct set PFUNIT_DIR. See the pFUnit github [project page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit) for additional information.
+
+
 ## Usage
 
 GORILLA currently runs on a single node with OpenMP shared memory parallelization with one particle per thread and background fields residing in main memory.
@@ -104,7 +130,11 @@ As an input it takes ....
 Expamles are realized in MATLAB and Python. For plotting with MATLAB, see below.
 Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given, and runs are started with
 ```
-./test_gorilla_main.x
+./test_gorilla_main.x   #if the build was done with make
+```
+or
+```
+./test_gorilla_main_cmake.x   #if the build was done with cmake
 ```
 To avoid hyperthreading issues, it is beneficial to limit the number of threads to
 the number of actual CPU cores via the environment variable `$OMP_NUM_THREADS`.
@@ -150,6 +180,9 @@ Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge
 ### MATLAB:  Step-by-step plotting tutorial
 * MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal as a step-by-step tutorial for all plotting features of GORILL.
 
+## Tests and coverage
+
+Tests are implemented with pFUnit. The generation of coverage files are done with the compiler option `--coverage` and the evaluation of the files is implemented with lcov. To see the coverage report, build with `build_coverage.x` and open `index.html` in the folder /BUILD/COVERAGE or take a look in the github workflows `Ubuntu` or `Mac`.
 
 ## Contributing
 
@@ -174,6 +207,7 @@ We welcome help in improving and extending GORILLA. This is managed through Gith
 * Michael Eder<sup>1</sup>
 * Christopher G. Albert<sup>1,2</sup>
 * Lukas M. P. Bauer<sup>1</sup>
+* Daniel Forstenlechner<sup>1</sup>
 * Sergei V. Kasilov<sup>1,3,4</sup>
 * Winfried Kernbichler<sup>1</sup>
 * Markus Meisterhofer<sup>1</sup>
