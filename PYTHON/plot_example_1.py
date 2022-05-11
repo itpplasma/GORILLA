@@ -198,7 +198,7 @@ if os.path.exists(path_main + '/test_gorilla_main.x'):
 elif os.path.exists(path_main + '/BUILD/SRC/test_gorilla_main.x'):
   os.system('ln -s ../../../BUILD/SRC/test_gorilla_main.x  .') 
 else:
-  print('GORILLA not built, exiting the MatLab script')
+  print('GORILLA not built, exiting the PYTHON script')
   stop
 
 os.system('ln -s ../../../MHD_EQUILIBRIA .')

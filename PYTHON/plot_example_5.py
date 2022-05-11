@@ -1,24 +1,25 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.9
 # -*- coding: utf-8 -*-
 """
-Created on Tue Mar  9 11:32:20 2021
+Created on Wed May 11 17:32:30 2022
 
-Example 3:
- * Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle.
- * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
- * Compare the results of GORILLA with different polynominal orders and Runge-Kutta 4.
- * Create a figure with the Poincaré plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
- * Compute the normalized toroidal angular momentum as a function of toroidal mappings.
+Example 5:
+ * Compute collisionless guiding-center orbits with GORILLA for a passing and a trapped Deuterium particle.
+ * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file).
+ * Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot (\varphi = 0) for both orbits.
 
-@author: Michael Eder
+@author: Georg Graßler
 """
 
+from cmath import pi
 from tracemalloc import stop
+from auxillary_functions import boundary_search
 import f90nml
 import os
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 mpl.rcdefaults()
 
 
@@ -26,7 +27,7 @@ mpl.rcdefaults()
 # -----------------------------------------------------------------------------------------------------------------------
 
 # Name of the current calculation to create folder
-name_test_case = 'example_3'
+name_test_case = 'example_5'
 
 # path of PYTHON script
 path_script = os.getcwd()
@@ -99,9 +100,9 @@ gorilla['gorillanml']['poly_order'] = 2
 # Rectangular: nR, Field-aligned: ns
 tetra_grid['tetra_grid_nml']['n1'] = 100
 # Rectangular: nphi, Field-aligned: nphi
-tetra_grid['tetra_grid_nml']['n2'] = 30
+tetra_grid['tetra_grid_nml']['n2'] = 40
 # Rectangular: nZ, Field-aligned: ntheta
-tetra_grid['tetra_grid_nml']['n3'] = 30
+tetra_grid['tetra_grid_nml']['n3'] = 40
 
 # Grid kind
 # 1 ... rectangular grid for axisymmetric EFIT data
@@ -126,7 +127,7 @@ tetra_grid['tetra_grid_nml']['boole_n_field_periods'] = True
 gorilla_plot['gorilla_plot_nml']['i_orbit_options'] = 2
 
 # Total individual orbit flight time for plotting
-gorilla_plot['gorilla_plot_nml']['total_orbit_time'] = 2
+gorilla_plot['gorilla_plot_nml']['total_orbit_time'] = 0.004
 
 # Total Energy of particle in eV
 gorilla_plot['gorilla_plot_nml']['energy_eV_start'] = 3000
@@ -135,19 +136,29 @@ gorilla_plot['gorilla_plot_nml']['energy_eV_start'] = 3000
 gorilla_plot['gorilla_plot_nml']['boole_poincare_phi_0'] = True
 
 # Number of skipped (non-printed) Poincaré cuts at parallel velocity $v_\parallel$ = 0
-gorilla_plot['gorilla_plot_nml']['n_skip_phi_0'] = 100
+gorilla_plot['gorilla_plot_nml']['n_skip_phi_0'] = 1
 
 # Filename for Poincaré cuts at parallel velocity $v_\parallel$ = 0 in cylindrical coordinates (R,$\varphi$,Z)
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_rphiz'] = 'poincare_plot_phi_0_rphiz_order2.dat'
+gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_rphiz'] = 'poincare_plot_phi_0_rphiz_passing.dat'
 
 # Filename for Poincaré cuts at parallel velocity $v_\parallel$ = 0 in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_sthetaphi'] = 'poincare_plot_phi_0_sthetaphi_order2.dat'
+gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_sthetaphi'] = 'poincare_plot_phi_0_sthetaphi_passing.dat'
 
 # Switch for plotting Poincaré cuts at parallel velocity $v_\parallel$ = 0
 gorilla_plot['gorilla_plot_nml']['boole_poincare_vpar_0'] = False
 
 # Switch for plotting full orbit
-gorilla_plot['gorilla_plot_nml']['boole_full_orbit'] = False
+gorilla_plot['gorilla_plot_nml']['boole_full_orbit'] = True
+
+# Number of skipped (non-printed tetrahedra passings) full orbit
+gorilla_plot['gorilla_plot_nml']['n_skip_full_orbit'] = 1
+
+# Filename for full orbit in cylindrical coordinates (R,$\varphi$,Z)
+gorilla_plot['gorilla_plot_nml']['filename_full_orbit_rphiz'] = 'full_orbit_plot_rphiz_passing.dat'
+
+# Filename for full orbit in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
+gorilla_plot['gorilla_plot_nml']['filename_full_orbit_sthetaphi'] = 'full_orbit_plot_sthetaphi_passing.dat'
+
 
 # Plot invariances of motion (ONLY for single orbits)
 
@@ -155,10 +166,7 @@ gorilla_plot['gorilla_plot_nml']['boole_full_orbit'] = False
 gorilla_plot['gorilla_plot_nml']['boole_e_tot'] = False
 
 # Switch for plotting canoncial (toroidal) angular momentum $p_\varphi$
-gorilla_plot['gorilla_plot_nml']['boole_p_phi'] = True
-
-# Filename for canoncial (toroidal) angular momentum $p_\varphi$
-gorilla_plot['gorilla_plot_nml']['filename_p_phi'] = 'p_phi_order2.dat'
+gorilla_plot['gorilla_plot_nml']['boole_p_phi'] = False
 
 # Switch for parallel adiabatic invariant $J_\parallel$
 gorilla_plot['gorilla_plot_nml']['boole_J_par'] = False
@@ -170,18 +178,26 @@ gorilla_plot['gorilla_plot_nml']['boole_J_par'] = False
 # = R for (R,$\varphi$,Z)
 gorilla_plot['gorilla_plot_nml']['start_pos_x1_beg'] = 0.5
 
+# End drift surface
+# = s for (s,$\vartheta$,$\varphi$)
+# = R for (R,$\varphi$,Z)
+gorilla_plot['gorilla_plot_nml']['start_pos_x1_end'] = 0.9
+
+# Number of drift surfaces in between start and end
+gorilla_plot['gorilla_plot_nml']['n_surfaces'] = 30
+
 # Starting value for toroidal variable
 # = $\vartheta$ for (s,$\vartheta$,$\varphi$)
 # = $\varphi$ for (R,$\varphi$,Z)
-gorilla_plot['gorilla_plot_nml']['start_pos_x2']  = 0
+gorilla_plot['gorilla_plot_nml']['start_pos_x2'] = 0.1
 
 # Starting value for poloidal variable $\vartheta$
 # = $\varphi$ for (s,$\vartheta$,$\varphi$)
 # = Z for (R,$\varphi$,Z)
-gorilla_plot['gorilla_plot_nml']['start_pos_x3']  = 0.63
+gorilla_plot['gorilla_plot_nml']['start_pos_x3']  = 3.63
 
 # Pitch parameter $\lambda$ = $v_\parallel$ / vmod
-gorilla_plot['gorilla_plot_nml']['start_pitch_parameter'] = 0.7
+gorilla_plot['gorilla_plot_nml']['start_pitch_parameter'] = 0.9
 
 
 # Run GORILLA
@@ -208,33 +224,20 @@ os.system('ln -s ../../../INPUT/preload_for_SYNCH.inp .')
 # Run GORILLA code
 os.system('./test_gorilla_main.x')
 
-# Repeat orbit calculation for different polynominal orders and Runge-Kutta 4
-# polynominal order = 3
-gorilla['gorillanml']['poly_order'] = 3
-gorilla_plot['gorilla_plot_nml']['filename_p_phi'] = 'p_phi_order3.dat'
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_rphiz'] = 'poincare_plot_phi_0_rphiz_order3.dat'
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_sthetaphi'] = 'poincare_plot_phi_0_sthetaphi_order3.dat'
-gorilla.write(path_RUN + '/gorilla.inp', force = True)
-gorilla_plot.write(path_RUN + '/gorilla_plot.inp', force = True)
-os.system('./test_gorilla_main.x')
 
-# polynominal order = 4
-gorilla['gorillanml']['poly_order'] = 4
-gorilla_plot['gorilla_plot_nml']['filename_p_phi'] = 'p_phi_order4.dat'
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_rphiz'] = 'poincare_plot_phi_0_rphiz_order4.dat'
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_sthetaphi'] = 'poincare_plot_phi_0_sthetaphi_order4.dat'
-gorilla.write(path_RUN + '/gorilla.inp', force = True)
-gorilla_plot.write(path_RUN + '/gorilla_plot.inp', force = True)
-os.system('./test_gorilla_main.x')
+# Second run for trapped particle
+# -----------------------------------------------------------------------------------------------------------------------
 
-# numerical RK4
-gorilla['gorillanml']['ipusher'] = 1
-gorilla['gorillanml']['boole_pusher_ode45'] = False
-gorilla_plot['gorilla_plot_nml']['filename_p_phi'] = 'p_phi_rk4.dat'
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_rphiz'] = 'poincare_plot_phi_0_rphiz_rk4.dat'
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_sthetaphi'] = 'poincare_plot_phi_0_sthetaphi_rk4.dat'
-gorilla.write(path_RUN + '/gorilla.inp', force = True)
+# Changes in Input files
+gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_rphiz'] = 'poincare_plot_phi_0_rphiz_trapped.dat'
+gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_sthetaphi'] = 'poincare_plot_phi_0_sthetaphi_trapped.dat'
+gorilla_plot['gorilla_plot_nml']['filename_full_orbit_rphiz'] = 'full_orbit_plot_rphiz_trapped.dat'
+gorilla_plot['gorilla_plot_nml']['filename_full_orbit_sthetaphi'] = 'full_orbit_plot_sthetaphi_trapped.dat'
+gorilla_plot['gorilla_plot_nml']['start_pitch_parameter'] = 0.4
+
 gorilla_plot.write(path_RUN + '/gorilla_plot.inp', force = True)
+
+# Run GORILLA code
 os.system('./test_gorilla_main.x')
 
 
@@ -245,69 +248,88 @@ os.system('./test_gorilla_main.x')
 path_script2RUN = path_RUN
 extension = '.png'
 
-# Load Poincaré cut data in symmetry flux coordinates (s,\vartheta,\varphi)
-poincare_sthetaphi_order2 = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_sthetaphi_order2.dat')
-poincare_sthetaphi_order3 = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_sthetaphi_order3.dat')
-poincare_sthetaphi_order4 = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_sthetaphi_order4.dat')
-poincare_sthetaphi_rk4 = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_sthetaphi_rk4.dat')
+# Names for particle calculation in plot
+particle_type = ['Passing','Trapped']
 
-# Load Poincaré cut data in cylindrical coordinates (R,\varphi,Z)
-poincare_rphiz_order2 = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_rphiz_order2.dat')
-poincare_rphiz_order3 = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_rphiz_order3.dat')
-poincare_rphiz_order4 = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_rphiz_order4.dat')
-poincare_rphiz_rk4 = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_rphiz_rk4.dat')
+# Number of points shown from full_orbit_files [passing, trapped]
+n_show_points = [290,300]
 
-# Load toroidal momentum data 
-p_phi_order2 = np.genfromtxt(path_script2RUN + '/' + 'p_phi_order2.dat')
-p_phi_order3 = np.genfromtxt(path_script2RUN + '/' + 'p_phi_order3.dat')
-p_phi_order4 = np.genfromtxt(path_script2RUN + '/' + 'p_phi_order4.dat')
-p_phi_rk4 = np.genfromtxt(path_script2RUN + '/' + 'p_phi_rk4.dat')
+# Loop over GORILLA calculations
+for i in range(2):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
 
-# Normalize toroidal momentum to the value at t = 0
-p_phi_order2[:,1] = p_phi_order2[:,1] / p_phi_order2[0,1]
-p_phi_order3[:,1] = p_phi_order3[:,1] / p_phi_order3[0,1] 
-p_phi_order4[:,1] = p_phi_order4[:,1] / p_phi_order4[0,1] 
-p_phi_rk4[:,1] = p_phi_rk4[:,1] / p_phi_rk4[0,1]  
+    # Data for passing or trapped paricle
+    if (i == 0):
+        full_orbit_rphiz = np.genfromtxt(path_script2RUN + '/' + 'full_orbit_plot_rphiz_passing.dat') 
+        poincare_rphiz = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_rphiz_passing.dat') 
+    elif (i==1):
+        full_orbit_rphiz = np.genfromtxt(path_script2RUN + '/' + 'full_orbit_plot_rphiz_trapped.dat') 
+        poincare_rphiz = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_rphiz_trapped.dat') 
 
-# Plot Poincaré sections and evolution of the normalized toroidal momentum as a function of toroidal mappings
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-fig.set_size_inches(18.5,10.5)
-fig.suptitle('Tokamak: Poincaré sections and toroidal angular momentum of passing particle')
+    # XYZ Data of orbit for plot
+    full_orbit_xyz = full_orbit_rphiz.copy()
+    full_orbit_xyz[:,0] = full_orbit_rphiz[:,0]*np.cos(full_orbit_rphiz[:,1])
+    full_orbit_xyz[:,1] = full_orbit_rphiz[:,0]*np.sin(full_orbit_rphiz[:,1])
 
+    poincare_xyz = poincare_rphiz.copy()
+    poincare_xyz[:,0] = poincare_rphiz[:,0]*np.cos(poincare_rphiz[:,1])
+    poincare_xyz[:,1] = poincare_rphiz[:,0]*np.sin(poincare_rphiz[:,1])
 
-ax1.plot(poincare_rphiz_order2[:,0],poincare_rphiz_order2[:,2],'s',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax1.plot(poincare_rphiz_order3[:,0],poincare_rphiz_order3[:,2],'d',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax1.plot(poincare_rphiz_order4[:,0],poincare_rphiz_order4[:,2],'v',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax1.plot(poincare_rphiz_rk4[:,0],poincare_rphiz_rk4[:,2],'^',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax1.set_xlabel('$R$ [cm]')
-ax1.set_ylabel('$Z$ [cm]')
-ax1.legend(['GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4'])
-ax1.set_title(r'Poincaré $\varphi = 0$')
+    # Used points of full orbit
+    full_orbit_xyz=full_orbit_xyz[-1-n_show_points[i]:-1,:]
 
+    # Plasma boundaries
+    filename = path_RUN + '/MHD_EQUILIBRIA/g_file_for_test'
+    conversion = 100
+    [rbbbs,zbbbs] = boundary_search(filename,'e')
+    rbbbs = rbbbs[zbbbs>(np.min(full_orbit_rphiz[:,2])-48)/conversion]
+    zbbbs = zbbbs[zbbbs>(np.min(full_orbit_rphiz[:,2])-48)/conversion]
+    phibbbs = np.linspace(0,1.5*np.pi,100)
+    [R,PHI] = np.meshgrid(rbbbs*conversion, phibbbs)
+    Z = np.tile(zbbbs*conversion, (len(phibbbs),1))
+    sb = ax.plot_surface(R*np.cos(PHI),R*np.sin(PHI),Z, label = 'Plasma Boundary')
+    sb.set_color((0, 0.3, 0.3, 0.3))
+    sb.set_edgecolor('none')
+    sb._edgecolors2d = sb._edgecolor3d
+    sb._facecolors2d = sb._facecolor3d
 
-ax2.plot(poincare_sthetaphi_order2[:,1],poincare_sthetaphi_order2[:,0],'s',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax2.plot(poincare_sthetaphi_order3[:,1],poincare_sthetaphi_order3[:,0],'d',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax2.plot(poincare_sthetaphi_order4[:,1],poincare_sthetaphi_order4[:,0],'v',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax2.plot(poincare_sthetaphi_rk4[:,1],poincare_sthetaphi_rk4[:,0],'^',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax2.set_xlabel(r'$\vartheta$')
-ax2.set_ylabel('$s$')
-ax2.legend(['GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4'])
-ax2.set_title(r'Poincaré $\varphi = 0$')
+    # Plane of Poincare plot
+    xp = [np.min(poincare_rphiz[:,0])-30,np.max(poincare_rphiz[:,0])+30]
+    zp = [np.min(full_orbit_rphiz[:,2])-48,np.max(full_orbit_rphiz[:,2])+30]
+    x1 = np.array([ [xp[0], xp[1]], [xp[0], xp[1]]])
+    y1 = np.zeros(np.shape(x1))
+    z1 = np.array([ [zp[0], zp[0]], [zp[1], zp[1]]])
 
+    v = ax.plot_surface(x1,y1,z1)
+    v.set_color((0.5, 0.5, 0.5, 0.2))
+    v.set_edgecolor((0.1, 0.1, 0.1, 1))
 
-ax3.plot(np.abs(p_phi_order2[:,0]),p_phi_order2[:,1],'s',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax3.plot(np.abs(p_phi_order3[:,0]),p_phi_order3[:,1],'d',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax3.plot(np.abs(p_phi_order4[:,0]),p_phi_order4[:,1],'v',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax3.plot(np.abs(p_phi_rk4[:,0]),p_phi_rk4[:,1],'^',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
-ax3.set_xlabel('$N_{mappings}$')
-ax3.set_ylabel(r'$p_{\varphi} / p_{\varphi}(t=0)$')
-ax3.legend(['GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4'])
-ax3.set_title('Normalized toroidal angular momentum')
+    t = ax.text(xp[1]-70,0,zp[0]+15, '%s' % (r'$\varphi=0$'), size=15, zorder=1, color='k')
 
-plt.tight_layout()
+    # Full orbit positons
+    p0 = ax.plot(full_orbit_xyz[:,0],full_orbit_xyz[:,1],full_orbit_xyz[:,2],color ='r',linewidth=2)
 
-# Save figure to file and show
-fig.savefig(path_data_plots + '/results' + name_test_case + extension)
+    # Current particle position
+    p1 = ax.scatter(full_orbit_xyz[-1,0],full_orbit_xyz[-1,1],full_orbit_xyz[-1,2],color = 'r',label= particle_type[i] + ' particle')
+
+    # Poincare plot
+    p2 = ax.scatter(poincare_xyz[:,0],poincare_xyz[:,1],poincare_xyz[:,2],'b',s = 6,label = 'Poincaré plot')
+
+    # Legend
+    lh = ax.legend(handles = [sb,p1,p2])
+
+    # Limits of plot and view
+    ax.set_xlim(-xp[1],xp[1])
+    ax.set_ylim(-xp[1],xp[1])
+    ax.set_zlim(-xp[1],xp[1])
+    ax.view_init(elev=24.2848,azim = -57)
+    ax.axis('off')
+    ax.dist = 6
+
+    # Save figure to file and show
+    fig.savefig(path_data_plots + '/results' + name_test_case + particle_type[i] + extension)
+
 plt.show()
 
 # Go back to path of PYTHON script
