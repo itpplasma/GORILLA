@@ -241,7 +241,6 @@ os.system('./test_gorilla_main.x')
 # Create plots of generated data
 # -----------------------------------------------------------------------------------------------------------------------
 
-#path_script2RUN = '../EXAMPLES/PYTHON_RUN/' + name_test_case
 # Here the absolut path to the RUN folder is needed
 path_script2RUN = path_RUN
 extension = '.png'
@@ -276,30 +275,30 @@ fig.set_size_inches(18.5,10.5)
 fig.suptitle('Stellarator: Poincaré sections and parallel adiabatic invariant of trapped particle')
 
 
-ax1.plot(poincare_rphiz_order2[:,0],poincare_rphiz_order2[:,2],'s',markersize=2,markerfacecolor="None")
-ax1.plot(poincare_rphiz_order3[:,0],poincare_rphiz_order3[:,2],'d',markersize=2,markerfacecolor="None")
-ax1.plot(poincare_rphiz_order4[:,0],poincare_rphiz_order4[:,2],'v',markersize=2,markerfacecolor="None")
-ax1.plot(poincare_rphiz_rk4[:,0],poincare_rphiz_rk4[:,2],'^',markersize=2,markerfacecolor="None")
+ax1.plot(poincare_rphiz_order2[:,0],poincare_rphiz_order2[:,2],'s',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
+ax1.plot(poincare_rphiz_order3[:,0],poincare_rphiz_order3[:,2],'d',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
+ax1.plot(poincare_rphiz_order4[:,0],poincare_rphiz_order4[:,2],'v',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
+ax1.plot(poincare_rphiz_rk4[:,0],poincare_rphiz_rk4[:,2],'^',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
 ax1.set_xlabel('$R$ [cm]')
 ax1.set_ylabel('$Z$ [cm]')
 ax1.legend(['GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4'])
 ax1.set_title('Poincaré $v_{\parallel} = 0$')
 
 
-ax2.plot(poincare_sthetaphi_order2[:,1],poincare_sthetaphi_order2[:,0],'s',markersize=2,markerfacecolor="None")
-ax2.plot(poincare_sthetaphi_order3[:,1],poincare_sthetaphi_order3[:,0],'d',markersize=2,markerfacecolor="None")
-ax2.plot(poincare_sthetaphi_order4[:,1],poincare_sthetaphi_order4[:,0],'v',markersize=2,markerfacecolor="None")
-ax2.plot(poincare_sthetaphi_rk4[:,1],poincare_sthetaphi_rk4[:,0],'^',markersize=2,markerfacecolor="None")
+ax2.plot(poincare_sthetaphi_order2[:,1],poincare_sthetaphi_order2[:,0],'s',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
+ax2.plot(poincare_sthetaphi_order3[:,1],poincare_sthetaphi_order3[:,0],'d',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
+ax2.plot(poincare_sthetaphi_order4[:,1],poincare_sthetaphi_order4[:,0],'v',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
+ax2.plot(poincare_sthetaphi_rk4[:,1],poincare_sthetaphi_rk4[:,0],'^',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
 ax2.set_xlabel(r'$\vartheta$')
 ax2.set_ylabel('$s$')
 ax2.legend(['GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4'])
 ax2.set_title('Poincaré $v_{\parallel} = 0$')
 
 
-ax3.plot(J_par_order2[:,0],J_par_order2[:,1],'s',markersize=2,markerfacecolor="None")
-ax3.plot(J_par_order3[:,0],J_par_order3[:,1],'d',markersize=2,markerfacecolor="None")
-ax3.plot(J_par_order4[:,0],J_par_order4[:,1],'v',markersize=2,markerfacecolor="None")
-ax3.plot(J_par_rk4[:,0],J_par_rk4[:,1],'^',markersize=2,markerfacecolor="None")
+ax3.plot(np.abs(J_par_order2[:,0]),J_par_order2[:,1],'s',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
+ax3.plot(np.abs(J_par_order3[:,0]),J_par_order3[:,1],'d',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
+ax3.plot(np.abs(J_par_order4[:,0]),J_par_order4[:,1],'v',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
+ax3.plot(np.abs(J_par_rk4[:,0]),J_par_rk4[:,1],'^',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
 ax3.set_xlabel('$N_{mappings}$')
 ax3.set_ylabel('$J_{par} / J_{par}(t=0)$')
 ax3.legend(['GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4'])
