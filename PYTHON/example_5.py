@@ -325,7 +325,7 @@ for i in range(2):
     ax.set_zlim(-xp[1],xp[1])
     ax.view_init(elev=24.2848,azim = -57)
     ax.axis('off')
-    ax.dist = 6
+    ax.dist = 6.5
 
     # Save figure to file and show
     fig.savefig(path_data_plots + '/results' + name_test_case + particle_type[i] + extension)
