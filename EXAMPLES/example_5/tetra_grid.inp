@@ -1,0 +1,17 @@
+&tetra_grid_nml
+    n1 = 100,
+    n2 = 40,
+    n3 = 40,
+    grid_kind = 2,
+    g_file_filename = 'MHD_EQUILIBRIA/g_file_for_test',
+    convex_wall_filename = 'MHD_EQUILIBRIA/convex_wall_for_test.dat',
+    netcdf_filename = 'MHD_EQUILIBRIA/netcdf_file_for_test.nc',
+    boole_n_field_periods = .true.,
+    n_field_periods_manual = 1,
+    sfc_s_min = 0.1,
+    theta_geom_flux = 1,
+    theta0_at_xpoint = .true.,
+    boole_write_mesh_obj = .false.,
+    filename_mesh_rphiz = 'mesh_rphiz.obj',
+    filename_mesh_sthetaphi = 'mesh_sthetaphi.obj',
+/
