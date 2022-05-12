@@ -125,9 +125,18 @@ As an input it takes ....
 * `netcdf_file_for_test.nc`: VMEC NetCDF equlibrium (File name can be specified in `tetra_grid.inp`.)
 * `g_file_for_test`: g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
 
+## Tutorial
+
+A tutorial for running GORILLA and plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion is realized redundantly in both MATLAB and Python.
+
+### Step-by-step plotting tutorial in MATLAB
+* MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal in `MATLAB` as a step-by-step tutorial for all plotting features of GORILLA.
+
+### Step-by-step plotting tutorial in Python
+* Jupyter Notebook with the name `plotting_tutorial.ipynb` is at disposal in `PYTHON` as a step-by-step tutorial for all plotting features of GORILLA.
+
 ## Examples
 
-Expamles are realized in MATLAB and Python. For plotting with MATLAB, see below.
 Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given, and runs are started with
 ```
 ./test_gorilla_main.x   #if the build was done with make
@@ -168,17 +177,15 @@ For the visualization of the output of these five examples, appropriate plotting
 * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
 * Create a figure with the Poincaré plots ($\varphi = 0$) in cylindrical and symmetry flux coordinates.
 
-### Example 5 (only MATLAB)
+### Example 5
 * Compute collisionless guiding-center orbits with GORILLA for a passing and a trapped Deuterium particle.
 * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file).
 * Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot ($\varphi = 0$) for both orbits.
 
-### MATLAB: Generation of input files and plotting
-A detailed explanation of all examples (1-5) including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN`) and plotting of the results with MATLAB can be found in the folder `MATLAB`.
+### Generation of input files and plotting in MATLAB and Python
+A detailed explanation of all examples (1-5) including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN` and `EXAMPLES/PYTHON_RUN`) and plotting of the results with MATLAB and Python can be found in the folders `MATLAB` and `PYTHON`, respectively.
 Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge-Kutta 4 are compared.
 
-### MATLAB:  Step-by-step plotting tutorial
-* MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal as a step-by-step tutorial for all plotting features of GORILL.
 
 ## Tests and coverage
 
