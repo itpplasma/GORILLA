@@ -11,7 +11,6 @@ Example 4:
 @author: Michael Eder
 """
 
-from cmath import pi
 from tracemalloc import stop
 import f90nml
 import os
@@ -106,6 +105,7 @@ tetra_grid['tetra_grid_nml']['n3'] = 30
 # 1 ... rectangular grid for axisymmetric EFIT data
 # 2 ... field-aligned grid for axisymmetric EFIT data
 # 3 ... field-aligned grid for non-axisymmetric VMEC
+# 4 ... SOLEDGE3X_EIRENE grid
 tetra_grid['tetra_grid_nml']['grid_kind'] = 2
 
 # Switch for selecting number of field periods automatically or manually
@@ -235,7 +235,7 @@ ax2.plot(poincare_sthetaphi[:,1],poincare_sthetaphi[:,0],'s',markersize=3,marker
 ax2.set_xlabel(r'$\vartheta$')
 ax2.set_ylabel('$s$')
 ax2.set_title(r'Poincaré $\varphi = 0$')
-ax2.set_xlim(0,2*pi)
+ax2.set_xlim(0,2*np.pi)
 
 
 plt.tight_layout()

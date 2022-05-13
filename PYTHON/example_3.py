@@ -107,6 +107,7 @@ tetra_grid['tetra_grid_nml']['n3'] = 30
 # 1 ... rectangular grid for axisymmetric EFIT data
 # 2 ... field-aligned grid for axisymmetric EFIT data
 # 3 ... field-aligned grid for non-axisymmetric VMEC
+# 4 ... SOLEDGE3X_EIRENE grid
 tetra_grid['tetra_grid_nml']['grid_kind'] = 2
 
 # Switch for selecting number of field periods automatically or manually
