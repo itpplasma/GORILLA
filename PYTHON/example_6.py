@@ -1,12 +1,12 @@
 #!/usr/bin/env python3.9
 # -*- coding: utf-8 -*-
 """
-Created on Wed May 11 17:32:30 2022
+Created on Fri May 13 15:34:30 2022
 
-Example 5:
- * Compute collisionless guiding-center orbits with GORILLA for a passing and a trapped Deuterium particle.
- * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file).
- * Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot (\varphi = 0) for both orbits.
+Example 6:
+ * Compute collisionless guiding-center orbits with GORILLA for passing and trapped Deuterium particles (WEST geometry).
+ * Construct a 3D extension of the Soledge3x-EIRENE 2D-mesh for an axisymmetric tokamak equilibrium (g-file)
+ * Plot the 2D projection of the guiding-center orbits on the original Soledge3x-EIRENE grid for both particle types.
 
 @author: Georg Graßler
 """
@@ -18,7 +18,6 @@ import os
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 mpl.rcdefaults()
 
 
@@ -26,7 +25,7 @@ mpl.rcdefaults()
 # -----------------------------------------------------------------------------------------------------------------------
 
 # Name of the current calculation to create folder
-name_test_case = 'example_5'
+name_test_case = 'example_6'
 
 # path of PYTHON script
 path_script = os.getcwd()
@@ -69,12 +68,12 @@ gorilla_plot.end_comma = True
 # All necessary variables for current calculation
 
 # Change in the electrostatic potential within the plasma volume in Gaussian units
-gorilla['gorillanml']['eps_Phi'] = 0
+gorilla['gorillanml']['eps_Phi'] = -1e-7
 
 # Coordinate system
 # 1 ... (R,phi,Z) cylindrical coordinate system
 # 2 ... (s,theta,phi) symmetry flux coordinate system
-gorilla['gorillanml']['coord_system'] = 2
+gorilla['gorillanml']['coord_system'] = 1
 
 # particle species
 # 1 ... electron, 2 ... deuterium ion, 3 ... alpha particle
@@ -89,7 +88,7 @@ gorilla['gorillanml']['boole_periodic_relocation'] = False
 gorilla['gorillanml']['ipusher'] = 2
 
 # Polynomial order for orbit pusher (from 2 to 4)
-gorilla['gorillanml']['poly_order'] = 2
+gorilla['gorillanml']['poly_order'] = 4
 
 
 # Input file tetra_grid.inp
@@ -99,16 +98,21 @@ gorilla['gorillanml']['poly_order'] = 2
 # Rectangular: nR, Field-aligned: ns
 tetra_grid['tetra_grid_nml']['n1'] = 100
 # Rectangular: nphi, Field-aligned: nphi
-tetra_grid['tetra_grid_nml']['n2'] = 40
+tetra_grid['tetra_grid_nml']['n2'] = 60
 # Rectangular: nZ, Field-aligned: ntheta
-tetra_grid['tetra_grid_nml']['n3'] = 40
+tetra_grid['tetra_grid_nml']['n3'] = 60
 
 # Grid kind
 # 1 ... rectangular grid for axisymmetric EFIT data
 # 2 ... field-aligned grid for axisymmetric EFIT data
 # 3 ... field-aligned grid for non-axisymmetric VMEC
 # 4 ... SOLEDGE3X_EIRENE grid
-tetra_grid['tetra_grid_nml']['grid_kind'] = 2
+tetra_grid['tetra_grid_nml']['grid_kind'] = 4
+
+# MHD equilibrium filename
+tetra_grid['tetra_grid_nml']['g_file_filename'] = 'MHD_EQUILIBRIA/g_file_for_test_WEST'
+tetra_grid['tetra_grid_nml']['convex_wall_filename'] = 'MHD_EQUILIBRIA/convex_wall_for_test_WEST.dat'
+
 
 # Switch for selecting number of field periods automatically or manually
 # .true. ... number of field periods is selected automatically (Tokamak = 1, Stellarator depending on VMEC equilibrium)
@@ -124,7 +128,7 @@ tetra_grid['tetra_grid_nml']['boole_n_field_periods'] = True
 # 2 ... Single orbit - Starting positions and pitch for the orbit are taken from starting drift surfaces (see below)
 # 3 ... Multiple orbits - Starting positions and pitch for orbits are taken from file (see below) [Every Line New Starting position]
 # 4 ... Multiple orbits - Starting positions and pitch for orbits are taken from drift surfaces with regular spacing (see below)
-gorilla_plot['gorilla_plot_nml']['i_orbit_options'] = 2
+gorilla_plot['gorilla_plot_nml']['i_orbit_options'] = 3
 
 # Total individual orbit flight time for plotting
 gorilla_plot['gorilla_plot_nml']['total_orbit_time'] = 0.004
@@ -133,16 +137,7 @@ gorilla_plot['gorilla_plot_nml']['total_orbit_time'] = 0.004
 gorilla_plot['gorilla_plot_nml']['energy_eV_start'] = 3000
 
 # Switch for plotting Poincaré cuts at toroidal variable $\varphi$ = 0
-gorilla_plot['gorilla_plot_nml']['boole_poincare_phi_0'] = True
-
-# Number of skipped (non-printed) Poincaré cuts at parallel velocity $v_\parallel$ = 0
-gorilla_plot['gorilla_plot_nml']['n_skip_phi_0'] = 1
-
-# Filename for Poincaré cuts at parallel velocity $v_\parallel$ = 0 in cylindrical coordinates (R,$\varphi$,Z)
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_rphiz'] = 'poincare_plot_phi_0_rphiz_passing.dat'
-
-# Filename for Poincaré cuts at parallel velocity $v_\parallel$ = 0 in symmetry flux coordinates (s,$\vartheta$,$\varphi$)
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_sthetaphi'] = 'poincare_plot_phi_0_sthetaphi_passing.dat'
+gorilla_plot['gorilla_plot_nml']['boole_poincare_phi_0'] = False
 
 # Switch for plotting Poincaré cuts at parallel velocity $v_\parallel$ = 0
 gorilla_plot['gorilla_plot_nml']['boole_poincare_vpar_0'] = False
@@ -171,34 +166,33 @@ gorilla_plot['gorilla_plot_nml']['boole_p_phi'] = False
 # Switch for parallel adiabatic invariant $J_\parallel$
 gorilla_plot['gorilla_plot_nml']['boole_J_par'] = False
 
-# Single orbit from starting drift surface (i_orbit_options = 2)
+# Multiple orbits: starting positions taken from file (i_orbit_options = 3)
 
-# Starting drift surface
-# = s for (s,$\vartheta$,$\varphi$)
-# = R for (R,$\varphi$,Z)
-gorilla_plot['gorilla_plot_nml']['start_pos_x1_beg'] = 0.5
+# Filename for list of starting position(s) of particle(s) in cylindrical coordinates (R,$\varphi$,Z) and pitch ($\lambda$)
+gorilla_plot['gorilla_plot_nml']['filename_orbit_start_pos_rphiz'] = 'orbit_start_rphizlambda_passing.dat'
 
-# End drift surface
-# = s for (s,$\vartheta$,$\varphi$)
-# = R for (R,$\varphi$,Z)
-gorilla_plot['gorilla_plot_nml']['start_pos_x1_end'] = 0.9
+# Create inputfile for starting positions
+# R,phi,Z,lambda
+R_left_values = np.linspace(192.245,205.714,7).tolist()
+Z_left_values = np.linspace(57.143,40.000,7).tolist()
+R_inner_left_values = [207.959]
+Z_inner_left_values = [37.143]
+R_inner_right_values = [266.327,268.571]
+Z_inner_right_values = [-37.143,-40.000]
+R_right_values = np.linspace(270.816,291.020,10).tolist()
+Z_right_values = np.linspace(-42.857,-68.571,10).tolist()
+R_values = R_left_values + R_inner_left_values + R_inner_right_values + R_right_values
+Z_values = Z_left_values + Z_inner_left_values + Z_inner_right_values + Z_right_values
 
-# Number of drift surfaces in between start and end
-gorilla_plot['gorilla_plot_nml']['n_surfaces'] = 30
+lambda_values = np.empty(2)
+lambda_values[0] = 0.9
 
-# Starting value for toroidal variable
-# = $\vartheta$ for (s,$\vartheta$,$\varphi$)
-# = $\varphi$ for (R,$\varphi$,Z)
-gorilla_plot['gorilla_plot_nml']['start_pos_x2'] = 0.1
-
-# Starting value for poloidal variable $\vartheta$
-# = $\varphi$ for (s,$\vartheta$,$\varphi$)
-# = Z for (R,$\varphi$,Z)
-gorilla_plot['gorilla_plot_nml']['start_pos_x3']  = 3.63
-
-# Pitch parameter $\lambda$ = $v_\parallel$ / vmod
-gorilla_plot['gorilla_plot_nml']['start_pitch_parameter'] = 0.9
-
+fileID = open(path_RUN + '/' + gorilla_plot['gorilla_plot_nml']['filename_orbit_start_pos_rphiz'],'w')
+for k in range(len(R_values)):
+  entry = [R_values[k],0,Z_values[k],lambda_values[0]]
+  fileID.write(" ".join(map(lambda n: '%.8f'%n, entry)))
+  fileID.write("\n")
+fileID.close()
 
 # Run GORILLA
 # -----------------------------------------------------------------------------------------------------------------------
@@ -229,11 +223,23 @@ os.system('./test_gorilla_main.x')
 # -----------------------------------------------------------------------------------------------------------------------
 
 # Changes in Input files
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_rphiz'] = 'poincare_plot_phi_0_rphiz_trapped.dat'
-gorilla_plot['gorilla_plot_nml']['filename_poincare_phi_0_sthetaphi'] = 'poincare_plot_phi_0_sthetaphi_trapped.dat'
 gorilla_plot['gorilla_plot_nml']['filename_full_orbit_rphiz'] = 'full_orbit_plot_rphiz_trapped.dat'
 gorilla_plot['gorilla_plot_nml']['filename_full_orbit_sthetaphi'] = 'full_orbit_plot_sthetaphi_trapped.dat'
-gorilla_plot['gorilla_plot_nml']['start_pitch_parameter'] = 0.4
+gorilla_plot['gorilla_plot_nml']['filename_orbit_start_pos_rphiz'] = 'orbit_start_rphizlambda_trapped.dat'
+lambda_values[1] = 0.3
+R_values[9] +=  0.5
+del R_values[10]
+del R_values[7]
+Z_values[9] += -0.5
+del Z_values[10]
+del Z_values[7]
+
+fileID = open(path_RUN + '/' + gorilla_plot['gorilla_plot_nml']['filename_orbit_start_pos_rphiz'],'w')
+for k in range(len(R_values)):
+  entry = [R_values[k],0,Z_values[k],lambda_values[1]]
+  fileID.write(" ".join(map(lambda n: '%.8f'%n, entry)))
+  fileID.write("\n")
+fileID.close()
 
 gorilla_plot.write(path_RUN + '/gorilla_plot.inp', force = True)
 
@@ -251,84 +257,82 @@ extension = '.png'
 # Names for particle calculation in plot
 particle_type = ['Passing','Trapped']
 
-# Number of points shown from full_orbit_files [passing, trapped]
-n_show_points = [290,300]
+# Read in SOLEDGE3X-EIRENE mesh data
+coordinates = []
+fileID = open('MHD_EQUILIBRIA/MESH_SOLEDGE3X_EIRENE/knots_for_test.dat','r')
+desc = fileID.readline()
+s = desc.split()
+n_vertex = int(s[0])
+for i in range(n_vertex):
+  desc = fileID.readline()
+  s = desc.split()
+  for k in s:
+    coordinates.append(float(k))
+fileID.close()
+coordinates = np.array(coordinates)
+coordinates = np.reshape(coordinates,(n_vertex,2))
+
+triangles = []
+fileID = open('MHD_EQUILIBRIA/MESH_SOLEDGE3X_EIRENE/triangles_for_test.dat','r')
+desc = fileID.readline()
+s = desc.split()
+n_triangles = int(s[0])
+for i in range(n_triangles):
+  desc = fileID.readline()
+  s = desc.split()
+  for k in s:
+    triangles.append(int(k))
+fileID.close()
+triangles = np.array(triangles)
+triangles = np.reshape(triangles,(n_triangles,3))
+
+# Prepare 2D grid for plotting (NAN seperating the individual triangles -> one single grafic object)
+grid = float("NAN")*np.ones((n_triangles*5,2))
+for t in range(n_triangles):
+    for k in range(3):
+        grid[t*5 + k,:] = coordinates[triangles[t,k]-1,:]
+    grid[t*5 + 3,:] = coordinates[triangles[t,0]-1,:]
+    grid[t*5 + 4,:] = float("NAN")
+
+# Colorscheme
+grid_color = np.array([204,204,204])/256
+grid_thickness = 0.3
+orbit_color = np.array([4,90,141])/256
+orbit_thickness = 2
 
 # Loop over GORILLA calculations
 for i in range(2):
-    fig = plt.figure(figsize=(12, 9))
-    ax = fig.add_subplot(111, projection='3d')
+  fig = plt.figure(figsize=(15, 12))
+  ax = fig.add_subplot(111)
 
-    # Data for passing or trapped paricle
-    if (i == 0):
-        full_orbit_rphiz = np.genfromtxt(path_script2RUN + '/' + 'full_orbit_plot_rphiz_passing.dat') 
-        poincare_rphiz = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_rphiz_passing.dat') 
-    elif (i==1):
-        full_orbit_rphiz = np.genfromtxt(path_script2RUN + '/' + 'full_orbit_plot_rphiz_trapped.dat') 
-        poincare_rphiz = np.genfromtxt(path_script2RUN + '/' + 'poincare_plot_phi_0_rphiz_trapped.dat') 
+  # Data for passing or trapped paricle
+  if (i == 0):
+      full_orbit_rphiz = np.genfromtxt(path_script2RUN + '/' + 'full_orbit_plot_rphiz_passing.dat') 
+      start_pos = np.genfromtxt(path_script2RUN + '/' + 'orbit_start_rphizlambda_passing.dat') 
+  elif (i==1):
+      full_orbit_rphiz = np.genfromtxt(path_script2RUN + '/' + 'full_orbit_plot_rphiz_trapped.dat') 
+      start_pos = np.genfromtxt(path_script2RUN + '/' + 'orbit_start_rphizlambda_trapped.dat')  
 
-    # XYZ Data of orbit for plot
-    full_orbit_xyz = full_orbit_rphiz.copy()
-    full_orbit_xyz[:,0] = full_orbit_rphiz[:,0]*np.cos(full_orbit_rphiz[:,1])
-    full_orbit_xyz[:,1] = full_orbit_rphiz[:,0]*np.sin(full_orbit_rphiz[:,1])
+  # Plot the grid
+  grid_plot = ax.plot(grid[:,0],grid[:,1],color = grid_color,linewidth = grid_thickness, 
+                      label = 'SOLEDGE3X-EIRENE mesh')
 
-    poincare_xyz = poincare_rphiz.copy()
-    poincare_xyz[:,0] = poincare_rphiz[:,0]*np.cos(poincare_rphiz[:,1])
-    poincare_xyz[:,1] = poincare_rphiz[:,0]*np.sin(poincare_rphiz[:,1])
+  # Plot the guiding-center orbit projection
+  orbit_plot = ax.plot(full_orbit_rphiz[:,0],full_orbit_rphiz[:,2],'.',color = orbit_color,
+                        markersize = orbit_thickness, label = 'Guiding-center orbit-projection')
 
-    # Used points of full orbit
-    full_orbit_xyz=full_orbit_xyz[-1-n_show_points[i]:-1,:]
+  # Plot the starting positions
+  start_pos_plot = ax.plot(start_pos[:,0],start_pos[:,2],'o',markerfacecolor = orbit_color,
+                            markeredgecolor = orbit_color, label = 'Guiding-center starting postions')
 
-    # Plasma boundaries
-    filename = path_RUN + '/MHD_EQUILIBRIA/g_file_for_test'
-    conversion = 100
-    [rbbbs,zbbbs] = boundary_search(filename,'e')
-    rbbbs = rbbbs[zbbbs>(np.min(full_orbit_rphiz[:,2])-48)/conversion]
-    zbbbs = zbbbs[zbbbs>(np.min(full_orbit_rphiz[:,2])-48)/conversion]
-    phibbbs = np.linspace(0,1.5*np.pi,100)
-    [R,PHI] = np.meshgrid(rbbbs*conversion, phibbbs)
-    Z = np.tile(zbbbs*conversion, (len(phibbbs),1))
-    sb = ax.plot_surface(R*np.cos(PHI),R*np.sin(PHI),Z, label = 'Plasma Boundary')
-    sb.set_color((0, 0.3, 0.3, 0.3))
-    sb.set_edgecolor('none')
-    sb._edgecolors2d = sb._edgecolor3d
-    sb._facecolors2d = sb._facecolor3d
+  # Legend, labels and title
+  lh = ax.legend(loc = 'lower left')
+  ax.set_xlabel('R [cm]')
+  ax.set_ylabel('Z [cm]')
+  ax.set_title(r'SOLEDGE3X-EIRENE: Toroidal projection ($\varphi=0$) of guiding-center orbits ($\lambda =$ ' + str(lambda_values[i]) + ')')
 
-    # Plane of Poincare plot
-    xp = [np.min(poincare_rphiz[:,0])-30,np.max(poincare_rphiz[:,0])+30]
-    zp = [np.min(full_orbit_rphiz[:,2])-48,np.max(full_orbit_rphiz[:,2])+30]
-    x1 = np.array([ [xp[0], xp[1]], [xp[0], xp[1]]])
-    y1 = np.zeros(np.shape(x1))
-    z1 = np.array([ [zp[0], zp[0]], [zp[1], zp[1]]])
-
-    v = ax.plot_surface(x1,y1,z1)
-    v.set_color((0.5, 0.5, 0.5, 0.2))
-    v.set_edgecolor((0.1, 0.1, 0.1, 1))
-
-    t = ax.text(xp[1]-70,0,zp[0]+15, '%s' % (r'$\varphi=0$'), size=15, zorder=1, color='k')
-
-    # Full orbit positons
-    p0 = ax.plot(full_orbit_xyz[:,0],full_orbit_xyz[:,1],full_orbit_xyz[:,2],color ='r',linewidth=2)
-
-    # Current particle position
-    p1 = ax.scatter(full_orbit_xyz[-1,0],full_orbit_xyz[-1,1],full_orbit_xyz[-1,2],color = 'r',label= particle_type[i] + ' particle')
-
-    # Poincare plot
-    p2 = ax.scatter(poincare_xyz[:,0],poincare_xyz[:,1],poincare_xyz[:,2],'b',s = 6,label = 'Poincaré plot')
-
-    # Legend
-    lh = ax.legend(handles = [sb,p1,p2])
-
-    # Limits of plot and view
-    ax.set_xlim(-xp[1],xp[1])
-    ax.set_ylim(-xp[1],xp[1])
-    ax.set_zlim(-xp[1],xp[1])
-    ax.view_init(elev=24.2848,azim = -57)
-    ax.axis('off')
-    ax.dist = 6.5
-
-    # Save figure to file and show
-    fig.savefig(path_data_plots + '/results' + name_test_case + particle_type[i] + extension)
+  # Save figure to file and show
+  fig.savefig(path_data_plots + '/results' + name_test_case + particle_type[i] + extension)
 
 plt.show()
 

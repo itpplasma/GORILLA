@@ -175,8 +175,6 @@ R_left_values = linspace(192.245,205.714,7);
 Z_left_values = linspace(57.143,40.000,7);
 R_inner_left_values = [207.959];
 Z_inner_left_values = [37.143];
-% R_inner_left_values = [];
-% Z_inner_left_values = [];
 R_inner_right_values = [266.327,268.571];
 Z_inner_right_values = [-37.143,-40.000];
 R_right_values = linspace(270.816,291.020,10);
@@ -283,7 +281,7 @@ end
 
 %Loop over GORILLA calculations
 for i=1:2
-    figure('Renderer', 'painters', 'Position', [100 100 1500 1000])
+    figure('Renderer', 'painters', 'Position', [100 100 1300 1000])
     grid_plot = plot(grid(:,1),grid(:,2),'Color',grid_color);
     grid_plot.LineWidth = grid_thickness;
     grid_plot.DisplayName = 'SOLEDGE3X-EIRENE mesh';

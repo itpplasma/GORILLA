@@ -44,7 +44,7 @@ poincare_xyz[:,1] = poincare_rphiz[:,0]*np.sin(poincare_rphiz[:,1])
 full_orbit_xyz=full_orbit_xyz[-1-n_show_points:-1,:]
 
 # Plot plasma boundaries
-fig = plt.figure()
+fig = plt.figure(figsize=(12, 9))
 ax = fig.add_subplot(111, projection='3d')
 
 
