@@ -4,14 +4,13 @@
 Created on Fri May 13 15:34:30 2022
 
 Example 6:
- * Compute collisionless guiding-center orbits with GORILLA for passing and trapped Deuterium particles (WEST geometry).
+ * Compute collisionless guiding-center orbits with GORILLA for passing and trapped Deuterium particles (WEST geometry). (Manually execute 'test_gorilla_main.x' in the corresponding example folder)
  * Construct a 3D extension of the Soledge3x-EIRENE 2D-mesh for an axisymmetric tokamak equilibrium (g-file)
  * Plot the 2D projection of the guiding-center orbits on the original Soledge3x-EIRENE grid for both particle types.
 
 @author: Georg Graßler
 """
 
-from cProfile import label
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -20,7 +19,7 @@ mpl.rcdefaults()
 
 # Names for particle calculation in plot
 particle_type = 'Passing'
-start_lambda = 0.9
+lambda_value = 0.9
 
 # Load full orbit data from example_6 in cylindrical coordinates (R,\varphi,Z)
 full_orbit_rphiz = np.genfromtxt('../EXAMPLES/example_6/full_orbit_plot_rphiz_passing.dat') 
@@ -89,6 +88,6 @@ start_pos_plot = ax.plot(start_pos[:,0],start_pos[:,2],'o',markerfacecolor = orb
 lh = ax.legend(loc = 'lower left')
 ax.set_xlabel('R [cm]')
 ax.set_ylabel('Z [cm]')
-ax.set_title(r'SOLEDGE3X-EIRENE: Toroidal projection ($\varphi=0$) of guiding-center orbits ($\lambda =$ ' + str(start_lambda) + ')')
+ax.set_title(r'SOLEDGE3X-EIRENE: Toroidal projection ($\varphi=0$) of guiding-center orbits ($\lambda =$ ' + str(lambda_value) + ')')
 
 plt.show()
