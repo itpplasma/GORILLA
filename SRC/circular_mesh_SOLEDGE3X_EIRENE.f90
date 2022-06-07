@@ -77,7 +77,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     integer :: file_id_triangles
     integer, dimension(2) :: shape_triangles
     character(70) :: filename_triangles
-    integer, dimension(:,:), allocatable :: triangle_type
+    integer, dimension(:,:), allocatable :: triangle_type, old_triangle_type
 !
     integer, dimension(4, 6) :: tetra_conf, mask_theta, mask_phi, mask_r
     integer, dimension(4, 3) :: slice_offset, ring_offset, cur_triangle_offset, no_offset
@@ -206,14 +206,18 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
 !
     end do !cur_triangles
 !
-    call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected)
+call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected)
 !
     ! checks for missmatched prims and tries to solve it by changing classification LOCALLY and reconnect
+    allocate(old_triangle_type(n_triangles,2))
+    old_triangle_type = triangle_type
     call repair(count_connected,triangle_type,mask_r,mask_phi,mask_theta,verts_per_slice,verts,neighbours,neighbour_faces)
 !
 if (.false.) then ! Check now if all prisms of the plane are properly connected (only at border of regime should be neighbours < 3)
     call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected_repaired)
-    call repair_report(count_connected,count_connected_repaired, triangle_type)
+    call repair_report(count_connected,count_connected_repaired, triangle_type,old_triangle_type)
+    print*, 'Finished repair-report!'
+    stop
 end if ! repair_report
 !
     ! for all the other slices we can calculate the verts by incrementing the
@@ -281,7 +285,7 @@ end if ! repair_report
     end do
     print *, "mesh consistency check ok"
 !
-    deallocate(triangles_SOLEDGE3X_EIRENE, triangle_type,count_connected)
+    deallocate(triangles_SOLEDGE3X_EIRENE, triangle_type,old_triangle_type,count_connected)
 !
 end subroutine calc_mesh_SOLEDGE3X_EIRENE
 !
@@ -441,7 +445,7 @@ end subroutine vector_potential_rz
         !$OMP PARALLEL DEFAULT(NONE) &
         !$OMP& SHARED(n_triangles,tetras_per_slice,neighbours,neighbour_faces,verts,count_connected) &
         !$OMP& PRIVATE(prism_i,tetra_idx,prism_j,match)
-        !$OMP DO
+        !$OMP DO SCHEDULE(DYNAMIC)
         do prism_i = 1, n_triangles
 !
                 ! connect with prisms in neighbouring slices
@@ -694,13 +698,23 @@ end subroutine vector_potential_rz
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine repair_report(count_connected,count_connected_repaired, triangle_type)
+    subroutine repair_report(count_connected,count_connected_repaired, triangle_type, old_triangle_type)
         integer, dimension(:), intent(in) :: count_connected,count_connected_repaired
-        integer, dimension(:,:), intent(in) :: triangle_type
+        integer, dimension(:,:), intent(in) :: triangle_type, old_triangle_type
 !
         integer :: cur_triangle
 !
-        open(123, file='./MESH_CHECK/border_triangles_error.dat')
+        open(123, file='./MESH_CHECK/error_triangles.dat')
+        do cur_triangle = 1, n_triangles
+            if ((count_connected(cur_triangle) < 3)) then
+                if((count_connected_repaired(cur_triangle) == 3)) then
+                    write(123,*) cur_triangle
+                end if
+            end if
+        end do
+        close(123)
+!
+        open(123, file='./MESH_CHECK/error_triangles_vertices.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected(cur_triangle) < 3)) then
                 if((count_connected_repaired(cur_triangle) == 3)) then
@@ -713,22 +727,28 @@ end subroutine vector_potential_rz
         open(123, file='./MESH_CHECK/border_triangles.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected_repaired(cur_triangle) < 3)) then
+                write(123,*) cur_triangle
+            end if
+        end do
+        close(123)
+!
+        open(123, file='./MESH_CHECK/border_triangles_vertices.dat')
+        do cur_triangle = 1, n_triangles
+            if ((count_connected_repaired(cur_triangle) < 3)) then
                 write(123,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
             end if
         end do
         close(123)
 !
-        open(123, file='./MESH_CHECK/border_triangles_types.dat')
+        open(123, file='./MESH_CHECK/old_triangle_type.dat')
         do cur_triangle = 1, n_triangles
-            if ((count_connected_repaired(cur_triangle) < 3)) then
-                write(123,*) triangle_type(cur_triangle,1)
-            end if
+            write(123,*) old_triangle_type(cur_triangle,:)
         end do
         close(123)
 !
-        open(123, file='./MESH_CHECK/triangles_types.dat')
+        open(123, file='./MESH_CHECK/triangle_type.dat')
         do cur_triangle = 1, n_triangles
-            write(123,*) triangle_type(cur_triangle,1)
+            write(123,*) triangle_type(cur_triangle,:)
         end do
         close(123)
 !
