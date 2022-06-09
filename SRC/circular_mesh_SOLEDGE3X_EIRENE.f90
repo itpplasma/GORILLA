@@ -80,10 +80,10 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     integer, dimension(:,:), allocatable :: triangle_type, old_triangle_type
 !
     integer, dimension(4, 6) :: tetra_conf, mask_theta, mask_phi, mask_r
-    integer, dimension(4, 3) :: slice_offset, ring_offset, cur_triangle_offset, no_offset
+    integer, dimension(4, 3) :: slice_offset, base_a_mask, base_b_mask, free_mask
     integer :: n_verts, mask_idx,prism_orientation, slice,&
                 & cur_triangle, cur_stand_alone_vertex, tetra_idx, tetras_per_slice, &
-                vertex_I, vertex_II, vertex_III
+                free_index, base_a_index, base_b_index
     integer, dimension(:), allocatable :: count_connected, count_connected_repaired
 !         
     !Compute A_phi (psif) for every vertex in 2d-plane
@@ -182,27 +182,25 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
         prism_orientation = triangle_type(cur_triangle,1)
         cur_stand_alone_vertex = triangle_type(cur_triangle,2)
 !
-        vertex_I = triangles_SOLEDGE3X_EIRENE(cur_triangle,cur_stand_alone_vertex)
-        vertex_II = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex ,3) + 1)
-        vertex_III = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex + 1,3) + 1)
+        free_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,cur_stand_alone_vertex)
+        base_a_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex ,3) + 1)
+        base_b_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex + 1,3) + 1)
 !      
         ! --- get the correct offset masks for up- or down facing prism ---
         mask_idx = 1 + prism_orientation * 3
 !
+        free_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) &
+                    & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1) 
+        base_a_mask = abs(mask_r(:, mask_idx:mask_idx + 2)-prism_orientation) &
+                    & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) 
+        base_b_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - prism_orientation) &
+                    & *abs(mask_theta(:, mask_idx:mask_idx + 2)-prism_orientation) 
         slice_offset = mask_phi(:, mask_idx:mask_idx + 2) * verts_per_slice
-        ring_offset = abs(mask_r(:, mask_idx:mask_idx + 2)-prism_orientation) &
-                    & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) &
-                    & *vertex_II
-        cur_triangle_offset = abs(mask_r(:, mask_idx:mask_idx + 2) - prism_orientation) &
-                    & *abs(mask_theta(:, mask_idx:mask_idx + 2)-prism_orientation) &
-                    & *vertex_III
-        no_offset = abs(mask_r(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) &
-                    & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1) &
-                    & *vertex_I
 !
 ! --- with offset masks calculate verts ---
         tetra_idx = (cur_triangle - 1) * 3 + 1
-        verts(:, tetra_idx:tetra_idx + 2) = no_offset + slice_offset + ring_offset + cur_triangle_offset
+        verts(:, tetra_idx:tetra_idx + 2) = free_mask*free_index + base_a_mask*base_a_index + base_b_mask*base_b_index &
+                                            & + slice_offset
 !
     end do !cur_triangles
 !
@@ -573,32 +571,31 @@ end subroutine vector_potential_rz
         integer, dimension(:,:), intent(in) :: mask_r, mask_phi, mask_theta
         integer, dimension(:,:), intent(inout) :: verts
 !
-        integer :: prism_orientation, cur_stand_alone_vertex, vertex_I, vertex_II, vertex_III, mask_idx, tetra_idx
-        integer, dimension(4, 3) :: slice_offset, ring_offset, cur_triangle_offset, no_offset
+        integer :: prism_orientation, cur_stand_alone_vertex, free_index, base_a_index, base_b_index, mask_idx, tetra_idx
+        integer, dimension(4, 3) :: slice_offset, base_a_mask, base_b_mask, free_mask
 !
             prism_orientation = triangle_type(cur_triangle,1)
             cur_stand_alone_vertex = triangle_type(cur_triangle,2)
 !
-            vertex_I = triangles_SOLEDGE3X_EIRENE(cur_triangle,cur_stand_alone_vertex)
-            vertex_II = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex ,3) + 1)
-            vertex_III = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex + 1,3) + 1)
+            free_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,cur_stand_alone_vertex)
+            base_a_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex ,3) + 1)
+            base_b_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex + 1,3) + 1)
 !      
             ! --- get the correct offset masks for up- or down facing prism ---
             mask_idx = 1 + prism_orientation * 3
 !
+            free_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) &
+                        & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1) 
+            base_a_mask = abs(mask_r(:, mask_idx:mask_idx + 2)-prism_orientation) &
+                        & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) 
+            base_b_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - prism_orientation) &
+                        & *abs(mask_theta(:, mask_idx:mask_idx + 2)-prism_orientation) 
             slice_offset = mask_phi(:, mask_idx:mask_idx + 2) * verts_per_slice
-            ring_offset = abs(mask_r(:, mask_idx:mask_idx + 2)-prism_orientation) &
-                        & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) &
-                        & *vertex_II
-            cur_triangle_offset = abs(mask_r(:, mask_idx:mask_idx + 2) - prism_orientation) &
-                        & *abs(mask_theta(:, mask_idx:mask_idx + 2)-prism_orientation) &
-                        & *vertex_III
-            no_offset = abs(mask_r(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) &
-                        & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1) &
-                        & *vertex_I
+!
             ! --- with offset masks calculate verts ---
             tetra_idx = (cur_triangle - 1) * 3 + 1
-            verts(:, tetra_idx:tetra_idx + 2) = no_offset + slice_offset + ring_offset + cur_triangle_offset
+            verts(:, tetra_idx:tetra_idx + 2) = free_mask*free_index + base_a_mask*base_a_index + base_b_mask*base_b_index &
+                                                & + slice_offset
 !
     end subroutine change_verts
 !
