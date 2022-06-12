@@ -303,6 +303,7 @@ subroutine extrude_points(verts_per_slice, n_slices,phi_position,  points)
         points(:, vert_idx:vert_idx + verts_per_slice - 1) = points(:, 1:verts_per_slice)
         points(phi_position, vert_idx:vert_idx + verts_per_slice - 1) = phi
     end do
+!
 end subroutine
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -484,10 +485,19 @@ end subroutine vector_potential_rz
         integer, intent(in) :: triangle_idx
         logical :: is_not_border
 !
+        is_not_border = (number_of_neighbours(triangle_idx) == 3)
+!
+    end function is_not_border
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function number_of_neighbours(triangle_idx)
+        integer, intent(in) :: triangle_idx
+        integer :: number_of_neighbours
+!
         integer :: n_neighbours
         integer :: i
 !
-        is_not_border = .false.
         n_neighbours = 0
 !
         do i = 1, n_triangles
@@ -496,13 +506,14 @@ end subroutine vector_potential_rz
             if(are_neighbours(triangle_idx,i)) n_neighbours = n_neighbours + 1
 !
             if (n_neighbours == 3) then
-                is_not_border = .true.
                 exit
             end if
 !
         end do !n_triangle
 !
-    end function is_not_border
+        number_of_neighbours = n_neighbours
+!
+    end function number_of_neighbours
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -625,7 +636,7 @@ end subroutine vector_potential_rz
         n_error = 0
         do k = 1, n_triangles
             if((count_connected(k)<3)) then
-                if(is_not_border(k)) then
+                if(number_of_neighbours(k) /= count_connected(k)) then
                     n_error = n_error + 1
                     auxillary_array(n_error,1) = k
                     auxillary_array(n_error,2:4) = find_neighbour_triangles(k)
@@ -652,6 +663,7 @@ end subroutine vector_potential_rz
             old_neighbours(:,1:3) = neighbours(:,tetra_idx:tetra_idx+2)
             old_neighbour_faces(:,1:3) = neighbour_faces(:,tetra_idx:tetra_idx+2)
             do q = 1,3
+                if (cur_neighbours(q) == -1) cycle
                 tetra_idx = (cur_neighbours(q)-1)*3 + 1
                 old_neighbours(:,q*3+1:q*3+3) = neighbours(:,tetra_idx:tetra_idx+2)
                 old_neighbour_faces(:,q*3+1:q*3+3) = neighbour_faces(:,tetra_idx:tetra_idx+2)
@@ -667,7 +679,16 @@ end subroutine vector_potential_rz
                 triangle_type(error_triangles(k),2) = modulo(triangle_type(error_triangles(k),2), 3) + 1
 !
                 call change_verts(cur_triangle,triangle_type,mask_r,mask_phi,mask_theta,verts_per_slice,verts)
+!
+                !Severing all old connections of the tetrahedra in the current trial prism (avoid artifacts in border-connections)
+                tetra_idx = (cur_triangle-1)*3 + 1
+                neighbour_faces(:,tetra_idx:tetra_idx+2) = -1
+                neighbour_faces(4, tetra_idx) = 1
+                neighbour_faces(1, tetra_idx + 2) = 4
+                call connect_prisms_SOLEDGE3X_EIRENE(cur_triangle,cur_triangle,verts,neighbours,neighbour_faces,match)
+!
                     CHILD: do n = 1, 3
+                        if (cur_neighbours(n) == -1) cycle CHILD
                         call connect_prisms_SOLEDGE3X_EIRENE(cur_triangle,cur_neighbours(n),verts,neighbours,neighbour_faces,match)
                         if (.not. match) cycle ROTATE
                     end do CHILD
@@ -683,6 +704,7 @@ end subroutine vector_potential_rz
             neighbours(:,tetra_idx:tetra_idx+2) = old_neighbours(:,1:3)
             neighbour_faces(:,tetra_idx:tetra_idx+2) = old_neighbour_faces(:,1:3)
             do q = 1,3
+                if (cur_neighbours(q) == -1) cycle
                 tetra_idx = (cur_neighbours(q)-1)*3 + 1
                 neighbours(:,tetra_idx:tetra_idx+2) = old_neighbours(:,q*3+1:q*3+3)
                 neighbour_faces(:,tetra_idx:tetra_idx+2) = old_neighbour_faces(:,q*3+1:q*3+3)
@@ -704,7 +726,7 @@ end subroutine vector_potential_rz
         open(123, file='./MESH_CHECK/error_triangles.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected(cur_triangle) < 3)) then
-                if((count_connected_repaired(cur_triangle) == 3)) then
+                if(number_of_neighbours(cur_triangle) /= count_connected(cur_triangle)) then
                     write(123,*) cur_triangle
                 end if
             end if
@@ -714,7 +736,7 @@ end subroutine vector_potential_rz
         open(123, file='./MESH_CHECK/error_triangles_vertices.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected(cur_triangle) < 3)) then
-                if((count_connected_repaired(cur_triangle) == 3)) then
+                if(number_of_neighbours(cur_triangle) /= count_connected(cur_triangle)) then
                     write(123,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
                 end if
             end if
