@@ -13,7 +13,6 @@ Example 2:
 @author: Michael Eder
 """
 
-from tracemalloc import stop
 import f90nml
 import os
 import numpy as np
@@ -200,7 +199,7 @@ elif os.path.exists(path_main + '/BUILD/SRC/test_gorilla_main.x'):
   os.system('ln -s ../../../BUILD/SRC/test_gorilla_main.x  .') 
 else:
   print('GORILLA not built, exiting the PYTHON script')
-  stop
+  raise SystemExit(0)
 
 os.system('ln -s ../../../MHD_EQUILIBRIA .')
 os.system('ln -s ../../../INPUT/field_divB0.inp .')
