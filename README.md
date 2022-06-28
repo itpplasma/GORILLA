@@ -11,8 +11,9 @@ GORILLA computes guiding-center orbits for charged particles of given mass, char
 
 ### Summary
 The guiding-center orbits are traced via a quasi-geometric integration method described in Ref. [1].
-There, high order interpolation of electromagnetic fields in space is replaced by a special linear interpolation, leading to locally linear Hamiltonian equations of motion with piecewise constant coefficients. The underlying formulation treats the motion in the piecewise linear fields exactly. This further leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity.
-Guiding-center orbits are computed without taking collisions into account.
+There, high order interpolation of electromagnetic fields in space is replaced by a special linear interpolation, leading to locally linear Hamiltonian equations of motion with piecewise constant coefficients. The underlying formulation treats the motion in the piecewise linear fields exactly. This further leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity. Guiding-center orbits are computed without taking collisions into account.
+
+Due to its formulation in general curvilinear coordinates, GORILLA is not limited by the field topology. That means that the computation domain of GORILLA covers both the closed field line region (i.e. the plasma core) and the open field line region (i.e. the scrape-off layer).
 
 For various simulations in magnetic confinement fusion, direct modeling of guiding-center particle orbits is utilized, e.g. global kinetic computations of quasi-steady plasma parameters or fast alpha particle loss estimation for stellarator optimization. In such complex simulations a simple interface for the guiding-center orbit integration part is needed. Namely, the initial condition in five-dimensional phase space is provided (i.e. guiding-center position, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure “orbit time step routine” acting as an interface with a plasma physics simulation is provided (`orbit_timestep_gorilla`).
 However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincaré plots is at disposal as well (`gorilla_plot`).
@@ -27,6 +28,7 @@ The magnetic field can be provided by magnetohydrodynamics (MHD) equilibria with
 For both equilibria formats, test files for the limited purpose of computing guiding-center orbits are provided.
 The g-file test equilibrium (`g_file_for_test`) was provided by the ASDEX Upgrade Team for testing purposes and corresponds to the axisymmetric tokamak field configuration of ASDEX Upgrade (shot 26884 at 4300 ms) described in Ref. [3].
 The VMEC NetCDF test equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [4], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m.
+The g-file test equilibrium in WEST geometry (`g_file_for_test_WEST`) was provided by the Soledge3x-EIRENE TEAM for testing purposes and corresponds to the axisymmetric tokamak field configuration of Soledge3x-EIRENE described in Ref. [5].
 
 ## Documentation
 A detailed description of the working principle of GORILLA can be found in `DOCUMENTATION/GORILLA_DOC.pdf`.
@@ -123,7 +125,14 @@ As an input it takes ....
 
 ... and the MHD equilibrium files which can be found in the folder `MHD_EQUILIBRIA/`
 * `netcdf_file_for_test.nc`: VMEC NetCDF equlibrium (File name can be specified in `tetra_grid.inp`.)
-* `g_file_for_test`: g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
+* `g_file_for_test` or `g_file_for_test_WEST`: g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
+
+For compability with WEST geometry of Soledge3X-EIRENE, additional input files describing the original 2D mesh are needed. Those can be found in `MHD_EQUILIBRIA/MESH_SOLEDGE3X_EIRENE`
+
+* `knots_for_test.dat`: coordinates ($R$, $Z$) of the vertices making up the 2D grid (File name can be specified in `tetra_grid.inp`.)
+* `triangles_for_test.dat`: association of above mentioned vertices to triangles (triples of vertices) covering the 2D plane (File name can be specified in `tetra_grid.inp`.)
+
+To produce these files (including the g-file equilibrium) oneself from files provided by Soledge3x-EIRENE, a set of prepocessing MATLAB scripts are at disposal in `REPROCESSING/SOLEDGE3X_EIRENE/MESH` and `REPROCESSING/SOLEDGE3X_EIRENE/MHD_EQUILIBRIUM` respectively.
 
 ## Tutorial
 
@@ -133,11 +142,18 @@ A tutorial for running GORILLA and plotting Poincaré cuts, full guiding-center 
 * MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal in `MATLAB` as a step-by-step tutorial for all plotting features of GORILLA.
 
 ### Step-by-step plotting tutorial in Python
-* Jupyter Notebook with the name `plotting_tutorial.ipynb` is at disposal in `PYTHON` as a step-by-step tutorial for all plotting features of GORILLA.
+* Jupyter Notebook with the name `plotting_tutorial.ipynb` is at disposal in `PYTHON` as a step-by-step tutorial for all plotting features of GORILLA. 
+
+For the Jupyter Notebook as well as the Python scripts used for the examples, some Python packages are needed, including the fortran namelist package [f90nml](https://github.com/marshallward/f90nml). To install the necessary packages use for example [pip](https://pip.pypa.io/en/stable/).
+```
+python -m pip install --upgrade pip
+pip install f90nml numpy matplotlib
+```
+However, GORILLA itself can be run without these packages. They are only used to incorporate GORILLA properly into Python scripts.
 
 ## Examples
 
-Five examples for plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_5`. There, the necessary soft links are already created and the input files are given, and runs are started with
+Five examples for plotting Poincaré cuts, full guiding-center orbits (in plasma core or edge regions) and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_6`. There, the necessary soft links are already created and the input files are given, and runs are started with
 ```
 ./test_gorilla_main.x   #if the build was done with make
 ```
@@ -148,8 +164,8 @@ or
 To avoid hyperthreading issues, it is beneficial to limit the number of threads to
 the number of actual CPU cores via the environment variable `$OMP_NUM_THREADS`.
 Detailed descriptions of the respective input files can be found in `INPUT`.
-After appropriate compilation of GORILLA, the code can be executed in all of these 5 example folders, respectively.
-For the visualization of the output of these five examples, appropriate plotting methods for Python 3 are at disposal at. `PYTHON/plot_example_1.py` - `PYTHON/plot_example_5.py`.
+After appropriate compilation of GORILLA, the code can be executed in all of these 6 example folders, respectively.
+For the visualization of the output of these five examples, appropriate plotting methods for Python 3 are at disposal at `PYTHON/plot_example_1.py` - `PYTHON/plot_example_6.py`.
 
 ### Example 1
 * Compute a collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle.
@@ -178,13 +194,19 @@ For the visualization of the output of these five examples, appropriate plotting
 * Create a figure with the Poincaré plots ($\varphi = 0$) in cylindrical and symmetry flux coordinates.
 
 ### Example 5
-* Compute collisionless guiding-center orbits with GORILLA for a passing and a trapped Deuterium particle.
+* Compute collisionless guiding-center orbits with GORILLA for a trapped Deuterium particle.
 * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file).
-* Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot ($\varphi = 0$) for both orbits.
+* Plot the plasma boundary, the guiding-center orbits, and the resulting Poincare plot ($\varphi = 0$).
+
+### Example 6:
+ * Compute collisionless guiding-center orbits with GORILLA for passing Deuterium particles in scrape-off layer (WEST geometry).
+ * Construct a 3D extension of the Soledge3x-EIRENE 2D-mesh for an axisymmetric tokamak equilibrium (g-file).
+ * Plot the 2D projection of the guiding-center orbits on the original Soledge3x-EIRENE grid.
+
 
 ### Generation of input files and plotting in MATLAB and Python
-A detailed explanation of all examples (1-5) including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN` and `EXAMPLES/PYTHON_RUN`) and plotting of the results with MATLAB and Python can be found in the folders `MATLAB` and `PYTHON`, respectively.
-Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge-Kutta 4 are compared.
+A detailed explanation of all examples (1-6) including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN` and `EXAMPLES/PYTHON_RUN`) and plotting of the results with MATLAB and Python can be found in the folders `MATLAB` and `PYTHON`, respectively.
+Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge-Kutta 4 are compared in case of examples 1-3. For examples 5-6 orbits for both trapped and passing particles are calculated.
 
 
 ## Tests and coverage

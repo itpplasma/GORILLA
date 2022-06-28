@@ -237,7 +237,6 @@ gorilla.write(path_RUN + '/gorilla.inp', force = True)
 gorilla_plot.write(path_RUN + '/gorilla_plot.inp', force = True)
 os.system('./test_gorilla_main.x')
 
-
 # Create plots of generated data
 # -----------------------------------------------------------------------------------------------------------------------
 
@@ -274,7 +273,6 @@ fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
 fig.set_size_inches(18.5,10.5)
 fig.suptitle('Stellarator: Poincaré sections and parallel adiabatic invariant of trapped particle')
 
-
 ax1.plot(poincare_rphiz_order2[:,0],poincare_rphiz_order2[:,2],'s',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
 ax1.plot(poincare_rphiz_order3[:,0],poincare_rphiz_order3[:,2],'d',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
 ax1.plot(poincare_rphiz_order4[:,0],poincare_rphiz_order4[:,2],'v',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
@@ -284,7 +282,6 @@ ax1.set_ylabel('$Z$ [cm]')
 ax1.legend(['GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4'])
 ax1.set_title('Poincaré $v_{\parallel} = 0$')
 
-
 ax2.plot(poincare_sthetaphi_order2[:,1],poincare_sthetaphi_order2[:,0],'s',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
 ax2.plot(poincare_sthetaphi_order3[:,1],poincare_sthetaphi_order3[:,0],'d',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
 ax2.plot(poincare_sthetaphi_order4[:,1],poincare_sthetaphi_order4[:,0],'v',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
@@ -293,7 +290,6 @@ ax2.set_xlabel(r'$\vartheta$')
 ax2.set_ylabel('$s$')
 ax2.legend(['GORILLA Poly2','GORILLA Poly3','GORILLA Poly4','GORILLA RK4'])
 ax2.set_title('Poincaré $v_{\parallel} = 0$')
-
 
 ax3.plot(np.abs(J_par_order2[:,0]),J_par_order2[:,1],'s',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
 ax3.plot(np.abs(J_par_order3[:,0]),J_par_order3[:,1],'d',markersize=3,markeredgewidth=0.5,markerfacecolor="None")
