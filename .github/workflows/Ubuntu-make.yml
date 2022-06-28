@@ -46,3 +46,7 @@ jobs:
           ./test_gorilla_main.x
           cd ../../EXAMPLES/example_4
           ./test_gorilla_main.x
+          cd ../../EXAMPLES/example_5
+          ./test_gorilla_main.x
+          cd ../../EXAMPLES/example_6
+          ./test_gorilla_main.x
