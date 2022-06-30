@@ -133,6 +133,10 @@ jobs:
           pip install f90nml numpy matplotlib jupyter jupyterlab
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      # Essential so that plt.show() does not get stuck in an infinit loop ("window stays open")
+      - name: Set matplotlib backend
+        run: echo "MPLBACKEND=Agg" >> $GITHUB_ENV
+
       - name: Run PYTHON scripts
         run: |
           cd PYTHON
