@@ -29,7 +29,7 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
     file_id_knots = 501
     filename_knots = knots_SOLEDGE3X_EIRENE_filename
 !
-    !Load knots
+    !Load knots -> no internal grid generation in 2D needed
     open(unit=file_id_knots, file=filename_knots, status='unknown')
     read(file_id_knots,*) shape_knots
     allocate(knots_SOLEDGE3X_EIRENE(shape_knots(1),shape_knots(2)))
@@ -45,20 +45,22 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
     n_verts = verts_per_slice*n_slices
 !
     if (allocated(points_rphiz)) deallocate(points_rphiz)
-!
     allocate(points_rphiz(3, n_verts))
 !    
     !Fill first slice of point matrix with 2d-SOLEDGE3X_EIRENE-knots
     points_rphiz(1, :verts_per_slice) = knots_SOLEDGE3X_EIRENE(:,1)
     points_rphiz(2, :verts_per_slice) = 0.d0
     points_rphiz(3, :verts_per_slice) = knots_SOLEDGE3X_EIRENE(:,2)
-!      
+!     
+    !Extruding the 2D grid into toroidal direction by simply copying coordinates and changing phi value 
     phi_position = 2 !In coordinate system (R,Phi,Z) --> Phi is at second position
     call extrude_points(verts_per_slice, n_slices,phi_position, points_rphiz)
 !
     deallocate(knots_SOLEDGE3X_EIRENE)
 !
 end subroutine create_points_SOLEDGE3X_EIRENE
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
 subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n_tetras, & 
                      verts, neighbours, neighbour_faces, perbou_phi)
@@ -72,7 +74,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     integer :: i,j,f
     integer, dimension(:, :), allocatable, intent(out) :: verts, neighbours, neighbour_faces, perbou_phi
 !
-    double precision, DIMENSION(verts_per_slice) :: A_phi_vec
+    double precision, dimension(verts_per_slice) :: A_phi_vec
 !
     integer :: file_id_triangles
     integer, dimension(2) :: shape_triangles
@@ -94,7 +96,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     file_id_triangles = 502
     filename_triangles = triangles_SOLEDGE3X_EIRENE_filename
 !
-    !Load triangles
+    !Load triangles (triples of vertex indices)
     open(unit=file_id_triangles, file=filename_triangles, status='unknown')
     read(file_id_triangles,*) shape_triangles
     allocate(triangles_SOLEDGE3X_EIRENE(shape_triangles(1),shape_triangles(2)))
@@ -126,7 +128,8 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     end if
 !
     tetras_per_slice = n_tetras / n_slices
-
+!
+    !Initialize the temporary storage matrices of mesh logic
     if (allocated(verts)) deallocate(verts)
     if (allocated(neighbours)) deallocate(neighbours)
     if (allocated(neighbour_faces)) deallocate(neighbour_faces)
@@ -177,6 +180,9 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     ! first slice
     tetra_idx = 1
 
+    ! For each triangle/prism use info of triangle type and "stand-alone" vertex to determine the vertices of base
+    ! and make complementary masks of the three edges in toroidal direction out of original coordinate masks
+    ! DEPENDING on the triangle type and "stand-alone" vertex -> then multiplication with globale indices and adding together
     do cur_triangle = 1, n_triangles
 !
         prism_orientation = triangle_type(cur_triangle,1)
@@ -186,7 +192,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
         base_a_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex ,3) + 1)
         base_b_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex + 1,3) + 1)
 !      
-        ! --- get the correct offset masks for up- or down facing prism ---
+        ! Creation of new masks depending on triangle configuration
         mask_idx = 1 + prism_orientation * 3
 !
         free_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) &
@@ -195,23 +201,26 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
                     & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) 
         base_b_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - prism_orientation) &
                     & *abs(mask_theta(:, mask_idx:mask_idx + 2)-prism_orientation) 
-        slice_offset = mask_phi(:, mask_idx:mask_idx + 2) * verts_per_slice
+        slice_offset = mask_phi(:, mask_idx:mask_idx + 2) 
 !
-! --- with offset masks calculate verts ---
+        ! Adding together the masks with index multiplication
+        ! Note that the slice_offset mask is still the same as the original -> still just adding verts_per_slice to next slice twin
         tetra_idx = (cur_triangle - 1) * 3 + 1
         verts(:, tetra_idx:tetra_idx + 2) = free_mask*free_index + base_a_mask*base_a_index + base_b_mask*base_b_index &
-                                            & + slice_offset
+                                            & + slice_offset * verts_per_slice
 !
     end do !cur_triangles
 !
-call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected)
+    ! The brute-force connecting of all prism (specifically their internal tetrahedra) with appropriate neighbours
+    call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected)
 !
     ! checks for missmatched prims and tries to solve it by changing classification LOCALLY and reconnect
     allocate(old_triangle_type(n_triangles,2))
     old_triangle_type = triangle_type
     call repair(count_connected,triangle_type,mask_r,mask_phi,mask_theta,verts_per_slice,verts,neighbours,neighbour_faces)
 !
-if (.false.) then ! Check now if all prisms of the plane are properly connected (only at border of regime should be neighbours < 3)
+! Optional Diagnostics: Check if all prisms of the plane are now properly connected after repair and save report of results
+if (.false.) then 
     call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected_repaired)
     call repair_report(count_connected,count_connected_repaired, triangle_type,old_triangle_type)
     print*, 'Finished repair-report!'
@@ -222,7 +231,6 @@ end if ! repair_report
     ! vert indices of the first(idx = 0) slice by slice * verts_per_slice
     ! and the neighbours by incrementing the neighbours of the first slice by slice * tetras_per_slice
     ! neighbour_faces and perbou_theta can just be copied
-
     do slice = 1, n_slices - 1 ! slice is the 0-based index of the slice
         tetra_idx = 1 + slice * tetras_per_slice
 !
@@ -267,6 +275,7 @@ end if ! repair_report
     perbou_phi(4, :tetras_per_slice:3) = -1
     perbou_phi(1, n_tetras - tetras_per_slice + 3::3) = 1
 
+    ! Consistency check: if A is connected to B, B also has to be connected to A over the same shared face
     do i = 1, n_tetras
         do f = 1, 4
             if (.not. (neighbours(f, i) == -1 .and. neighbour_faces(f, i) == -1)) then
@@ -287,6 +296,8 @@ end if ! repair_report
 !
 end subroutine calc_mesh_SOLEDGE3X_EIRENE
 !
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
 subroutine extrude_points(verts_per_slice, n_slices,phi_position,  points)
 !
     use tetra_grid_settings_mod, only: n_field_periods
@@ -296,7 +307,7 @@ subroutine extrude_points(verts_per_slice, n_slices,phi_position,  points)
 !
     integer :: slice, vert_idx
     double precision :: phi
-    ! copy and rotate slice
+    ! copy and rotate slice, i.e. change only the phi value
     do slice = 2, n_slices
         vert_idx = (slice- 1) * verts_per_slice + 1
         phi = (2.d0 * pi / n_field_periods * (slice - 1)) / n_slices
@@ -320,11 +331,16 @@ subroutine vector_potential_rz(r,z,A_phi)
     double precision :: B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                         ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
 !
+    ! In the first slice
     phi = 0.d0
 !
+    ! For a specific point (r,z) in this plane use the by MHD equilibria provided data 
+    ! to interpolate psif value at requested point
+    ! rest of input of field(...,B_r,B_p,...) is required for subroutine syntax, but not needed in the following
     call field(r,phi,z,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ  &
                 ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
+    ! In chosen gauge
     A_phi=psif
 !
 end subroutine vector_potential_rz
@@ -336,37 +352,42 @@ end subroutine vector_potential_rz
         double precision, dimension(:), intent(in) :: A_phi_vec
         integer, dimension(n_triangles,2), intent(out) :: triangle_type
         double precision, dimension(3) :: diff_Aphi_vec
-        integer :: i, i_min_diff, vertex_1, vertex_2, vertex_3
+        integer :: i, i_min_diff, vertex_I, vertex_II, vertex_III
 !
+        ! Classify each triangle by the fluxlabel at the vertices
         do i = 1, n_triangles
 !
-            vertex_1 = triangles_SOLEDGE3X_EIRENE(i,1)
-            vertex_2 = triangles_SOLEDGE3X_EIRENE(i,2)
-            vertex_3 = triangles_SOLEDGE3X_EIRENE(i,3)
+            vertex_I = triangles_SOLEDGE3X_EIRENE(i,1)
+            vertex_II = triangles_SOLEDGE3X_EIRENE(i,2)
+            vertex_III = triangles_SOLEDGE3X_EIRENE(i,3)
 !
-            diff_Aphi_vec(1) = abs(A_phi_vec(vertex_1)-A_phi_vec(vertex_2))
-            diff_Aphi_vec(2) = abs(A_phi_vec(vertex_2)-A_phi_vec(vertex_3))
-            diff_Aphi_vec(3) = abs(A_phi_vec(vertex_3)-A_phi_vec(vertex_1))
+            diff_Aphi_vec(1) = abs(A_phi_vec(vertex_I)-A_phi_vec(vertex_II))
+            diff_Aphi_vec(2) = abs(A_phi_vec(vertex_II)-A_phi_vec(vertex_III))
+            diff_Aphi_vec(3) = abs(A_phi_vec(vertex_III)-A_phi_vec(vertex_I))
 !
             i_min_diff = minloc(diff_Aphi_vec,1)
 !
+            ! After identifying the vertices of the base of the triangle above (i.e. lowest difference in terms of the flux label)
+            ! now checking if top or bottome (i.e. label of bases bigger or smaller than of loose vertex)
+            ! no matter the type classification, the loose vertex is already given by the base case
+            ! e.g. case(1) has I and II being base -> III is loose vertex
             select case(i_min_diff)
                 case(1)
-                    if( (A_phi_vec(vertex_1)).gt.(A_phi_vec(vertex_3))) then
+                    if( (A_phi_vec(vertex_I)).gt.(A_phi_vec(vertex_III))) then
                         triangle_type(i,1) = 0
                     else
                         triangle_type(i,1) = 1
                     endif
                     triangle_type(i,2) = 3
                 case(2)
-                    if( (A_phi_vec(vertex_2)).gt.(A_phi_vec(vertex_1))) then
+                    if( (A_phi_vec(vertex_II)).gt.(A_phi_vec(vertex_I))) then
                         triangle_type(i,1) = 0
                     else
                         triangle_type(i,1) = 1
                     endif
                     triangle_type(i,2) = 1
                 case(3)
-                    if( (A_phi_vec(vertex_3)).gt.(A_phi_vec(vertex_2))) then
+                    if( (A_phi_vec(vertex_III)).gt.(A_phi_vec(vertex_II))) then
                         triangle_type(i,1) = 0
                     else
                         triangle_type(i,1) = 1
@@ -391,13 +412,18 @@ end subroutine vector_potential_rz
 !   
         logical, dimension(4) :: same_vert_1, same_vert_2
 !
+        ! Stays false if no connection between tried prism is found
         match = .false.
 !
+        ! Usual trafo between prism/triangle index and first tetrahedron index (a prism contains three tetrahedra)
         tetra_1_base = (prism_1_idx - 1) * 3 + 1
         tetra_2_base = (prism_2_idx - 1) * 3 + 1
 !
+        ! Going over the tetrahedra of the first prism
         do tetra_1_off = 0, 2
             tetra_1_idx = tetra_1_base + tetra_1_off
+!
+            !Going over the tetrahedra of the second prism
             do tetra_2_off = 0, 2
                 tetra_2_idx = tetra_2_base + tetra_2_off
 !
@@ -408,6 +434,8 @@ end subroutine vector_potential_rz
                     same_vert_2(i) = any(verts(i, tetra_2_idx) == verts(:, tetra_1_idx))
                 end do
 !
+                ! Two tetrahedra are connected if they share exactly three vertices
+                ! If that's the case -> the repective prism are connected over these tetrahdra faces -> match
                 if (count(same_vert_1) == 3) then
                     tetra_1_face = minloc(abs(transfer(same_vert_1 , 1, size=4)), dim=1)
                     tetra_2_face = minloc(abs(transfer(same_vert_2 , 1, size=4)), dim=1)
@@ -437,10 +465,12 @@ end subroutine vector_potential_rz
         integer :: prism_i, tetra_idx, prism_j
         logical :: match
 !
+        ! Initialize control quantity which counts the number of succesfully connected neighbour triangles/prism
         if (allocated(count_connected)) deallocate(count_connected)
         allocate(count_connected(n_triangles))
         count_connected = 0
 !
+        ! Parallized loop over all triangles/prism to connect tetrahedra (brute-force checking all possible candidates)
         !$OMP PARALLEL DEFAULT(NONE) &
         !$OMP& SHARED(n_triangles,tetras_per_slice,neighbours,neighbour_faces,verts,count_connected) &
         !$OMP& PRIVATE(prism_i,tetra_idx,prism_j,match)
@@ -454,6 +484,9 @@ end subroutine vector_potential_rz
                 neighbours(1, tetra_idx + 2) = tetra_idx + tetras_per_slice
                 neighbour_faces(1, tetra_idx + 2) = 4
 !
+                ! Only need to check candidates with equal or higher index than current triangle/prism
+                ! Cause if A has already established connection with B, B does not need to try connect to A again
+                ! This was already taken care of in the respective subrioutine connect_prisms_SOLEDGE3X_EIRENE()
                 do prism_j = prism_i, n_triangles
 !
                     ! --- connect neighbouring tetras  ---
@@ -530,6 +563,7 @@ end subroutine vector_potential_rz
         triangle_1 = triangles_SOLEDGE3X_EIRENE(triangle_1_idx,:)
         triangle_2 = triangles_SOLEDGE3X_EIRENE(triangle_2_idx,:)
 !
+        ! Comparing the by triangle.dat provided vertex triples of two triangles with each other
         do j = 1, 3  
 !           
             do k = 1,3
@@ -539,6 +573,7 @@ end subroutine vector_potential_rz
                 end if
             end do !triangle_2 vertices
 !
+            ! If they have two common vertex indices -> they are direct neighbours sharing an edge between these two vertices
             if (n_common_vertices == 2) then
                 are_neighbours = .true.
                 exit
@@ -566,6 +601,7 @@ end subroutine vector_potential_rz
                 find_neighbour_triangles(n_neighbours) = i
             end if !are_neighbours
 !
+            ! A triangle/prism can only have at max three neighbours -> can stop search for neighbours if already found three
             if (n_neighbours == 3) then
                 exit
             end if
@@ -585,28 +621,32 @@ end subroutine vector_potential_rz
         integer :: prism_orientation, cur_stand_alone_vertex, free_index, base_a_index, base_b_index, mask_idx, tetra_idx
         integer, dimension(4, 3) :: slice_offset, base_a_mask, base_b_mask, free_mask
 !
-            prism_orientation = triangle_type(cur_triangle,1)
-            cur_stand_alone_vertex = triangle_type(cur_triangle,2)
+        ! For current triangle/prism use info of triangle type and "stand-alone" vertex to determine the vertices of base
+        ! and make complementary masks of the three edges in toroidal direction out of original coordinate masks
+        ! Logic is the same as in the higher level rountine, but a modulation of the procedure for the repair proofed to be handy
+        prism_orientation = triangle_type(cur_triangle,1)
+        cur_stand_alone_vertex = triangle_type(cur_triangle,2)
 !
-            free_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,cur_stand_alone_vertex)
-            base_a_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex ,3) + 1)
-            base_b_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex + 1,3) + 1)
+        free_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,cur_stand_alone_vertex)
+        base_a_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex ,3) + 1)
+        base_b_index = triangles_SOLEDGE3X_EIRENE(cur_triangle,mod(cur_stand_alone_vertex + 1,3) + 1)
 !      
-            ! --- get the correct offset masks for up- or down facing prism ---
-            mask_idx = 1 + prism_orientation * 3
+        ! Creation of new masks depending on triangle configuration
+        mask_idx = 1 + prism_orientation * 3
 !
-            free_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) &
-                        & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1) 
-            base_a_mask = abs(mask_r(:, mask_idx:mask_idx + 2)-prism_orientation) &
-                        & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) 
-            base_b_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - prism_orientation) &
-                        & *abs(mask_theta(:, mask_idx:mask_idx + 2)-prism_orientation) 
-            slice_offset = mask_phi(:, mask_idx:mask_idx + 2) * verts_per_slice
+        free_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) &
+                    & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1) 
+        base_a_mask = abs(mask_r(:, mask_idx:mask_idx + 2)-prism_orientation) &
+                    & *abs(mask_theta(:, mask_idx:mask_idx + 2) - 1 + prism_orientation) 
+        base_b_mask = abs(mask_r(:, mask_idx:mask_idx + 2) - prism_orientation) &
+                    & *abs(mask_theta(:, mask_idx:mask_idx + 2)-prism_orientation) 
+        slice_offset = mask_phi(:, mask_idx:mask_idx + 2) * verts_per_slice
 !
-            ! --- with offset masks calculate verts ---
-            tetra_idx = (cur_triangle - 1) * 3 + 1
-            verts(:, tetra_idx:tetra_idx + 2) = free_mask*free_index + base_a_mask*base_a_index + base_b_mask*base_b_index &
-                                                & + slice_offset
+        ! Adding together the masks with index multiplication
+        ! Note that the slice_offset mask is still the same as the original -> still just adding verts_per_slice to next slice twin
+        tetra_idx = (cur_triangle - 1) * 3 + 1
+        verts(:, tetra_idx:tetra_idx + 2) = free_mask*free_index + base_a_mask*base_a_index + base_b_mask*base_b_index &
+                                            & + slice_offset
 !
     end subroutine change_verts
 !
@@ -628,8 +668,8 @@ end subroutine vector_potential_rz
 !
         print*, 'Start repair routine!'
 !
-        !Not pretty but faster workaround, to not have to determine n_error twice (allocation size of error_triangles -> then fill)
-        !n_error can only be maximal the number of not fully connected triangles (so including the proper borders as well)
+        ! Not pretty but faster workaround, to not have to determine n_error twice (allocation size of error_triangles -> then fill)
+        ! n_error can only be maximal the number of not fully connected triangles (so including the proper borders as well)
         n_error = count(count_connected<3)
         allocate(auxillary_array(n_error,4))
 !
@@ -644,7 +684,7 @@ end subroutine vector_potential_rz
             end if
         end do !n_error
 !       
-        !the actual arrays storing the problem triangles and its neighbours -> deallocate the auxillary array after filling them
+        ! The ACTUAL arrays storing the problem triangles and its neighbours -> deallocate the auxillary array after filling them
         if (allocated(error_triangles)) deallocate(error_triangles)
         if (allocated(neighbour_triangles)) deallocate(neighbour_triangles)
         allocate(error_triangles(n_error),neighbour_triangles(n_error,3))
@@ -652,13 +692,13 @@ end subroutine vector_potential_rz
         neighbour_triangles = auxillary_array(:n_error,2:4)
         deallocate(auxillary_array)
 !
-        !We go over all problem triangles seperatly and try to fix them LOCALLY
+        ! We go over all problem triangles seperatly (PARENT LOOP) and try to fix them LOCALLY
         n_repair = 0
         PARENT: do k = 1, n_error
             cur_triangle = error_triangles(k)
             cur_neighbours = neighbour_triangles(k,:)
 !           
-            !save original state of triangle and neighbours just in case the repair DOES fail
+            ! Save original state of triangle and neighbours just in case the repair DOES fail
             tetra_idx = (cur_triangle-1)*3 + 1
             old_neighbours(:,1:3) = neighbours(:,tetra_idx:tetra_idx+2)
             old_neighbour_faces(:,1:3) = neighbour_faces(:,tetra_idx:tetra_idx+2)
@@ -669,24 +709,30 @@ end subroutine vector_potential_rz
                 old_neighbour_faces(:,q*3+1:q*3+3) = neighbour_faces(:,tetra_idx:tetra_idx+2)
             end do
 !
-            !Here all possible flip (topface-bottomface) and rotation (change of loose vertex) combinations are tried:
-            !By the nature of the prism-cuts there is ALWAYS at least one (rotated) cutting of the prism, that connects with
-            !three surrounding (arbitrally cut) surfaces properly (see the figure 2.10 in Bauer et al.)
+            ! Here all possible flip (topface-bottomface) and rotation (change of loose vertex) combinations are tried:
+            ! Flips between top and bottom facing typification of triangle and back if not sucess in fitting it (FLIP LOOP)
             FLIP: do l = 0,1
                 triangle_type(cur_triangle,1) = modulo(triangle_type(cur_triangle,1)+1,2)
 !
+                ! Permuts through the lose vertex of the triangle and back if no sucess in fitting it (ROTATE LOOP)
                 ROTATE: do m = 1, 3
                 triangle_type(error_triangles(k),2) = modulo(triangle_type(error_triangles(k),2), 3) + 1
 !
+                ! With the new typification -> redo the vertex assignment i.e. the cutting up of the prism into three tetrahedra
                 call change_verts(cur_triangle,triangle_type,mask_r,mask_phi,mask_theta,verts_per_slice,verts)
 !
-                !Severing all old connections of the tetrahedra in the current trial prism (avoid artifacts in border-connections)
+                ! Severing old in-plane-connections of the tetrahedra in the current trial prism (avoid artifacts)
+                ! Need to however retain the prism connections to the other planes 
+                ! i.e front face of first tetrahedron with previous slice and back face of third tetrahedron with next slice
                 tetra_idx = (cur_triangle-1)*3 + 1
                 neighbour_faces(:,tetra_idx:tetra_idx+2) = -1
                 neighbour_faces(4, tetra_idx) = 1
                 neighbour_faces(1, tetra_idx + 2) = 4
+!
+                ! Reset internal connections first
                 call connect_prisms_SOLEDGE3X_EIRENE(cur_triangle,cur_triangle,verts,neighbours,neighbour_faces,match)
 !
+                    ! With the current trial configuration, try to achieve PROPER NUMBER of connections to designated neighbours
                     CHILD: do n = 1, 3
                         if (cur_neighbours(n) == -1) cycle CHILD
                         call connect_prisms_SOLEDGE3X_EIRENE(cur_triangle,cur_neighbours(n),verts,neighbours,neighbour_faces,match)
@@ -694,12 +740,12 @@ end subroutine vector_potential_rz
                     end do CHILD
 !
                 n_repair = n_repair + 1
-                cycle PARENT !if all match checks were past -> now it sits right -> go for next problem triangle
+                cycle PARENT ! if all match checks were past -> now it sits right -> go for next problem triangle
 !                
-                end do ROTATE !permuts through the lose vertex of the triangle and back if no sucess in fitting it
-            end do FLIP !flips between top and bottom face and back if not sucess in fitting it
+                end do ROTATE 
+            end do FLIP 
 !
-            !If repair failed on that triangle (e.g. never hit cycle PARENT) -> reset original state
+            ! If repair failed on that triangle (e.g. never hit cycle PARENT) -> reset original state
             tetra_idx = (cur_triangle-1)*3 + 1
             neighbours(:,tetra_idx:tetra_idx+2) = old_neighbours(:,1:3)
             neighbour_faces(:,tetra_idx:tetra_idx+2) = old_neighbour_faces(:,1:3)
@@ -723,6 +769,7 @@ end subroutine vector_potential_rz
 !
         integer :: cur_triangle
 !
+        ! Lists all triangles/prism whose number of connections were, pre-repair, not equal to their expected number of neighbours
         open(123, file='./MESH_CHECK/error_triangles.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected(cur_triangle) < 3)) then
@@ -733,6 +780,7 @@ end subroutine vector_potential_rz
         end do
         close(123)
 !
+        ! Lists vertices of these initially faulty triangles from above (triple of vertex indices)
         open(123, file='./MESH_CHECK/error_triangles_vertices.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected(cur_triangle) < 3)) then
@@ -743,6 +791,7 @@ end subroutine vector_potential_rz
         end do
         close(123)
 !
+        ! Lists triangles/prism with less than three neighbours after repair -> should only include triangles on border
         open(123, file='./MESH_CHECK/border_triangles.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected_repaired(cur_triangle) < 3)) then
@@ -751,6 +800,7 @@ end subroutine vector_potential_rz
         end do
         close(123)
 !
+        ! Lists vertices of these hopefully only true border triangles (triple of vertex indices)
         open(123, file='./MESH_CHECK/border_triangles_vertices.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected_repaired(cur_triangle) < 3)) then
@@ -759,12 +809,16 @@ end subroutine vector_potential_rz
         end do
         close(123)
 !
+        ! Saves the triangle/prism types (top or bottom) and which of they vertices are the loose vertex of the knot triple
+        ! BEFORE the repair attempt
         open(123, file='./MESH_CHECK/old_triangle_type.dat')
         do cur_triangle = 1, n_triangles
             write(123,*) old_triangle_type(cur_triangle,:)
         end do
         close(123)
 !
+        ! Saves the triangle/prism types (top or bottom) and which of they vertices are the loose vertex of the knot triple
+        ! AFTER the repair attempt
         open(123, file='./MESH_CHECK/triangle_type.dat')
         do cur_triangle = 1, n_triangles
             write(123,*) triangle_type(cur_triangle,:)
