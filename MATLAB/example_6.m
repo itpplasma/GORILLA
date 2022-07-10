@@ -313,7 +313,7 @@ for i=1:2
     title(['SOLEDGE3X-EIRENE: Toroidal projection ($\varphi=0$) of guiding-center orbits ($\lambda =$ ',num2str(lambda(i)),')'],'Interpreter','latex');
 
     %Save figure as Matlab-file and as png
-    savefig([path_data_plots,'/orbit_projections_',guiding_center_type{i},'.fig']);
+    %savefig([path_data_plots,'/orbit_projections_',guiding_center_type{i},'.fig']);
     saveas(gcf,[path_data_plots,'/orbit_projections_',guiding_center_type{i},'.png']);
     
 end

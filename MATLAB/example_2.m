@@ -293,8 +293,8 @@ title('Stellarator: Normalized total energy','Interpreter','latex')
 hold off
 
 %Save figure as Matlab-file and as png
-% savefig([path_data_plots,'/poincare_plot.fig']);
-% saveas(gcf,[path_data_plots,'/poincare_plot.png']);
+%savefig([path_data_plots,'/poincare_plot.fig']);
+saveas(gcf,[path_data_plots,'/poincare_plot.png']);
 
 %Go back to path of Matlab script
 cd(path_script);

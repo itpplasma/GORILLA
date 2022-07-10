@@ -343,8 +343,8 @@ for i=1:2
     hold off
 
     %Save figure as Matlab-file and as png
-%     savefig([path_data_plots,'/poincare_plot_',particle_type{i},'.fig']);
-%     saveas(gcf,[path_data_plots,'/poincare_plot_',particle_type{i},'.png']);
+    %savefig([path_data_plots,'/orbit_plot_',particle_type{i},'.fig']);
+    saveas(gcf,[path_data_plots,'/orbit_plot_',particle_type{i},'.png']);
 end
 
 %Go back to path of Matlab script

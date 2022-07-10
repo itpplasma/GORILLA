@@ -294,8 +294,8 @@ title('Stellarator: Normalized parallel adiabatic invariant','Interpreter','late
 hold off
 
 %Save figure as Matlab-file and as png
-% savefig([path_data_plots,'/poincare_section.fig']);
-% saveas(gcf,[path_data_plots,'/poincare_section.png']);
+%savefig([path_data_plots,'/poincare_section.fig']);
+saveas(gcf,[path_data_plots,'/poincare_section.png']);
 
 %Go back to path of Matlab script
 cd(path_script);

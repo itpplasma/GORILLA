@@ -117,6 +117,12 @@ jobs:
           command: |
             cd MATLAB
             plotting_tutorial
+
+      - name: Archive MATLAB results
+        uses: actions/upload-artifact@v3
+        with:
+          name: MATLAB-RESULTS
+          path: MATLAB/data_plots
         
       - name: Set up Python 3.9
         uses: actions/setup-python@v3
@@ -154,5 +160,11 @@ jobs:
           cd PYTHON
           jupyter nbconvert --to script plotting_tutorial.ipynb
           python3.9 plotting_tutorial.py
+
+      - name: Archive PYTHON results
+        uses: actions/upload-artifact@v3
+        with:
+          name: PYTHON-RESULTS
+          path: PYTHON/data_plots
 
           
