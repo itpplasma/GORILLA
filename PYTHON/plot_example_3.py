@@ -2,14 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Mar  9 11:32:20 2021
-
 Example 3:
  * Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle. (Manually execute ''test_gorilla_main.x'')
  * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
  * Load the results of GORILLA with polynominal order 3.
  * Create a figure with the Poincaré plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
  * Compute the normalized toroidal angular momentum as a function of toroidal mappings.
-
 @author: Michael Eder
 """
 

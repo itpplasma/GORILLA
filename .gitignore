@@ -49,6 +49,10 @@ out.*
 *.asv
 EXAMPLES/MATLAB_RUN
 
+# PYTHON
+JUPYTER
+EXAMPLES/PYTHON_RUN
+
 # Latex
 *.aux
 *.lof
@@ -77,6 +81,7 @@ EXAMPLES/MATLAB_RUN
 *.synctex.gz(busy)
 *.pdfsync
 
-#Folders
+# Folders
 /build
 /BUILD
+/RUN

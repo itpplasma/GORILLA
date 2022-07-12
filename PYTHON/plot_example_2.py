@@ -2,14 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Mar  9 11:09:29 2021
-
 Example 2:
  * Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle. (Manually execute ''test_gorilla_main.x'')
  * Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
  * Load the results of GORILLA with Runge-Kutta 4.
  * Create a figure with the Poincaré plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
  * Compute the normalized total energy as a function of toroidal mappings. 
-
 @author: Michael Eder
 """
 

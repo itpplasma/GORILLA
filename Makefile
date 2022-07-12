@@ -37,6 +37,7 @@ SOURCES = SetWorkingPrecision.f90\
 	magdata_in_symfluxcoord.f90 \
 	points_2d.f90\
 	circular_mesh.f90\
+	circular_mesh_SOLEDGE3X_EIRENE.f90\
 	tetra_grid_mod.f90 \
 	make_grid_rect.f90 \
 	bdivfree.f90 \

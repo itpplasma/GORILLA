@@ -109,6 +109,7 @@ tetra_grid.read();
         %1 ... rectangular grid for axisymmetric EFIT data
         %2 ... field-aligned grid for axisymmetric EFIT data
         %3 ... field-aligned grid for non-axisymmetric VMEC
+        %4 ... SOLEDGE3X_EIRENE grid
         tetra_grid.TETRA_GRID_NML.grid_kind = 3;
 
     %Switch for selecting number of field periods automatically or manually
@@ -293,8 +294,8 @@ title('Stellarator: Normalized parallel adiabatic invariant','Interpreter','late
 hold off
 
 %Save figure as Matlab-file and as png
-% savefig([path_data_plots,'/poincare_section.fig']);
-% saveas(gcf,[path_data_plots,'/poincare_section.png']);
+%savefig([path_data_plots,'/poincare_section.fig']);
+saveas(gcf,[path_data_plots,'/poincare_section.png']);
 
 %Go back to path of Matlab script
 cd(path_script);

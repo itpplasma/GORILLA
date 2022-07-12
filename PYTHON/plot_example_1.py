@@ -2,14 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Mar  9 09:18:31 2021
-
 Example 1:
  * Compute a collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle. (Manually execute ''test_gorilla_main.x'')
  * Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
  * Load the results of GORILLA with polynominal order 4.
  * Create a figure with the Poincaré sections (v_\parallel = 0) in cylindrical and symmetry flux coordinates.
  * Compute the normalized parallel adiabatic invariant as a function of banana bounces.
-
 @author: Michael Eder
 """
 

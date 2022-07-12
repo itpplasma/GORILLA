@@ -109,6 +109,7 @@ tetra_grid.read();
         %1 ... rectangular grid for axisymmetric EFIT data
         %2 ... field-aligned grid for axisymmetric EFIT data
         %3 ... field-aligned grid for non-axisymmetric VMEC
+        %4 ... SOLEDGE3X_EIRENE grid
         tetra_grid.TETRA_GRID_NML.grid_kind = 2;
 
     %Switch for selecting number of field periods automatically or manually
@@ -299,8 +300,8 @@ title('Normalized toroidal angular momentum','Interpreter','latex')
 hold off
 
 %Save figure as Matlab-file and as png
-% savefig([path_data_plots,'/poincare_plot.fig']);
-% saveas(gcf,[path_data_plots,'/poincare_plot.png']);
+%savefig([path_data_plots,'/poincare_plot.fig']);
+saveas(gcf,[path_data_plots,'/poincare_plot.png']);
 
 %Go back to path of Matlab script
 cd(path_script);

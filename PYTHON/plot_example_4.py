@@ -2,12 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Mar  9 11:48:16 2021
-
 Example 4:
  * Compute collisionless guiding-center orbits with GORILLA for two passing and one trapped Deuterium particle.
  * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
  * Create a figure with the Poincaré plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
-
 @author: Michael Eder
 """
 
