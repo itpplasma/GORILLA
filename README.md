@@ -28,7 +28,7 @@ The magnetic field can be provided by magnetohydrodynamics (MHD) equilibria with
 For both equilibria formats, test files for the limited purpose of computing guiding-center orbits are provided.
 The g-file test equilibrium (`g_file_for_test`) was provided by the ASDEX Upgrade Team for testing purposes and corresponds to the axisymmetric tokamak field configuration of ASDEX Upgrade (shot 26884 at 4300 ms) described in Ref. [3].
 The VMEC NetCDF test equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [4], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m.
-The g-file test equilibrium in WEST geometry (`g_file_for_test_WEST`) was provided by the Soledge3x-EIRENE TEAM for testing purposes and corresponds to the axisymmetric tokamak field configuration of Soledge3x-EIRENE described in Ref. [5].
+The g-file test equilibrium in WEST geometry (`g_file_for_test_WEST`) was provided by the SOLEDGE3X-EIRENE Team for testing purposes and corresponds to the axisymmetric tokamak field configuration of WEST for the code SOLEDGE3X-EIRENE (shot 54903 at 8 s) described in Ref. [5].
 
 ## Documentation
 A detailed description of the working principle of GORILLA can be found in `DOCUMENTATION/GORILLA_DOC.pdf`.
@@ -127,12 +127,12 @@ As an input it takes ....
 * `netcdf_file_for_test.nc`: VMEC NetCDF equlibrium (File name can be specified in `tetra_grid.inp`.)
 * `g_file_for_test` or `g_file_for_test_WEST`: g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
 
-For compability with WEST geometry of Soledge3X-EIRENE, additional input files describing the original 2D mesh are needed. Those can be found in `MHD_EQUILIBRIA/MESH_SOLEDGE3X_EIRENE`
+For compability with WEST geometry of SOLEDGE3X-EIRENE, additional input files describing the original 2D mesh are needed. Those can be found in `MHD_EQUILIBRIA/MESH_SOLEDGE3X_EIRENE`
 
 * `knots_for_test.dat`: coordinates ($R$, $Z$) of the vertices making up the 2D grid (File name can be specified in `tetra_grid.inp`.)
 * `triangles_for_test.dat`: association of above mentioned vertices to triangles (triples of vertices) covering the 2D plane (File name can be specified in `tetra_grid.inp`.)
 
-To produce these files (including the g-file equilibrium) oneself from files provided by Soledge3x-EIRENE, a set of prepocessing MATLAB scripts are at disposal in `REPROCESSING/SOLEDGE3X_EIRENE/MESH` and `REPROCESSING/SOLEDGE3X_EIRENE/MHD_EQUILIBRIUM` respectively.
+To produce these files (including the g-file equilibrium) oneself from files provided by SOLEDGE3X-EIRENE, a set of prepocessing MATLAB scripts are at disposal in `REPROCESSING/SOLEDGE3X_EIRENE/MESH` and `REPROCESSING/SOLEDGE3X_EIRENE/MHD_EQUILIBRIUM` respectively.
 
 ## Tutorial
 
@@ -200,8 +200,8 @@ For the visualization of the output of these five examples, appropriate plotting
 
 ### Example 6:
  * Compute collisionless guiding-center orbits with GORILLA for passing Deuterium particles in scrape-off layer (WEST geometry).
- * Construct a 3D extension of the Soledge3x-EIRENE 2D-mesh for an axisymmetric tokamak equilibrium (g-file).
- * Plot the 2D projection of the guiding-center orbits on the original Soledge3x-EIRENE grid.
+ * Construct a 3D extension of the SOLEDGE3X-EIRENE 2D-mesh for an axisymmetric tokamak equilibrium (g-file).
+ * Plot the 2D projection of the guiding-center orbits on the original SOLEDGE3X-EIRENE grid.
 
 
 ### Generation of input files and plotting in MATLAB and Python
@@ -254,7 +254,7 @@ Akademicheskaya str. 1, 61108 Kharkov, Ukraine
 
 
 ## Acknowledgments
-The authors would like to thank Michael Drevlak and the ASDEX Upgrade Team for providing the stellarator field configuration and the ASDEX Upgrade MHD equilibrium for shot 26884 at 4300 ms.
+The authors would like to thank Michael Drevlak, the ASDEX Upgrade Team and the SOLEDGE3X-EIRENE Team for respectively providing the stellarator field configuration, the ASDEX Upgrade MHD equilibrium for shot 26884 at 4300 ms and the WEST MHD equilibrium for shot 54903 at 8 s.
 Further thanks to Martin Heyn, Philipp Ulbl, Rico Buchholz, Patrick Lainer, and Markus Richter for useful discussions.
 This work has been carried out within the framework of the EUROfusion Consortium, funded by the European Union via the Euratom Research and Training Programme (Grant Agreement No 101052200 — EUROfusion). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Commission. Neither the European Union nor the European Commission can be held responsible for them.
 
@@ -268,7 +268,7 @@ Physics of Plasmas 27, 122508 (2020)
 <https://doi.org/10.1063/5.0022117>
 Preprint: <https://arxiv.org/abs/2007.08151>
 
-[2] M. Eder, C.G. Albert, L.M.P. Bauer, S.V. Kasilov, W. Kernbichler, M. Meisterhofer and M.Scheidt
+[2] M. Eder, C.G. Albert, L.M.P. Bauer, Georg S. Graßler, S.V. Kasilov, W. Kernbichler, M. Meisterhofer and M.Scheidt
 “GORILLA: Guiding-center ORbit Integration with Local Linearization Approach”
 submitted to Journal of Open Source Software
 Preprint: <https://github.com/openjournals/joss-papers/blob/joss.03116/joss.03116/10.21105.joss.03116.pdf>
@@ -284,3 +284,8 @@ Nucl. Fusion 54, 064005 (2014).
 “Quasi-Isodynamic Configuration with Improved Confinement”
 41st EPS Conference on Plasma Physics ECA (2014), Vol. 38F, p. P1.070.
 <http://ocs.ciemat.es/EPS2014PAP/pdf/P1.070.pdf>
+
+[5] H. Bufferand et *al*
+“Progress in edge plasma turbulence modelling—hierarchy of models from 2D transport application to 3D fluid simulations in realistic tokamak geometry”
+Nucl. Fusion 61, 116052 (2021)
+<https://doi.org/10.1088/1741-4326/ac2873>
