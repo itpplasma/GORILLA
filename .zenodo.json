@@ -1,0 +1,75 @@
+{
+    "description": "<p>GORILLA: Guiding-center ORbit Integration with Local Linearization Approach</p>\n\n<p>GORILLA computes guiding-center orbits for charged particles of given mass, charge and energy in toroidal fusion devices with three-dimensional field geometry. This guiding-center orbit code is designed to be used in scientific plasma physics simulations in the field of magnetic confinement fusion.</p>\n\n<p>The guiding-center orbits are traced via a quasi-geometric integration method described in Ref. [1].&nbsp;There, high order interpolation of electromagnetic fields in space is replaced by a special linear interpolation, leading to locally linear Hamiltonian equations of motion with piecewise constant coefficients. The underlying formulation treats the motion in the piecewise linear fields exactly. This further leads to conservation of total energy, magnetic moment and phase space volume. Furthermore, the approach reduces computational effort and noise sensitivity.&nbsp;Guiding-center orbits are computed without taking collisions into account.</p>\n\n<p>For various simulations in magnetic confinement fusion, direct modeling of guiding-center particle orbits is utilized, e.g. global kinetic computations of quasi-steady plasma parameters or fast alpha particle loss estimation for stellarator optimization. In such complex simulations a simple interface for the guiding-center orbit integration part is needed. Namely, the initial condition in five-dimensional phase space is provided (e.g. guiding-center position, parallel and perpendicular velocity) and the main interest is in the condition after a prescribed time step while the integration process itself is irrelevant. Such a pure &ldquo;orbit time step routine&rdquo; acting as an interface with a plasma physics simulation is provided (`orbit_timestep_gorilla`).</p>\n\n<p>However, the integration process itself can be of high interest as well, thus, a program allowing the detailed analysis of guiding-center orbits, the time evolution of their respective invariants of motion and Poincar&eacute; plots is at disposal as well (`gorilla_plot`).</p>\n\n<p>Both applications are realized for demonstration in the program (`test_gorilla_main`).</p>\n\n<p>&nbsp;</p>\n\n<p>References:</p>\n\n<p>[1] M. Eder, C.G. Albert, L.M.P. Bauer, S.V. Kasilov and W. Kernbichler<br>\n&ldquo;Quasi-geometric integration of guiding-center orbits in piecewise linear toroidal fields&rdquo;<br>\nPhysics of Plasmas 27, 122508 (2020)<br>\n&lt;https://doi.org/10.1063/5.0022117&gt;<br>\nPreprint: &lt;https://arxiv.org/abs/2007.08151&gt;</p>", 
+    "license": "MIT", 
+    "title": "GORILLA: Guiding-center ORbit Integration with Local Linearization Approach v1.0",
+    "upload_type": "software", 
+    "keywords": [
+        "Fortran", 
+        "Theoretical physics", 
+        "Computational physics", 
+        "Plasma physics", 
+        "Plasma dynamics", 
+        "Numerical integration", 
+        "Hamiltonian mechanics", 
+        "Kinetic theory", 
+        "Magnetic confinement fusion", 
+        "Fusion reactors", 
+        "Tokamaks", 
+        "Stellarators"
+    ],
+    "creators": [
+        {
+            "orcid": "0000-0002-1392-1664", 
+            "affiliation": "Technische Universit\u00e4t Graz", 
+            "name": "Michael Eder"
+        }, 
+        {
+            "orcid": "0000-0003-4773-416X", 
+            "affiliation": "Max-Planck-Institut f\u00fcr Plasmaphysik", 
+            "name": "Christopher G. Albert"
+        }, 
+        {
+            "orcid": "0000-0003-3341-4085", 
+            "affiliation": "Technische Universit\u00e4t Graz", 
+            "name": "Lukas M. P. Bauer"
+        },
+        {
+            "affiliation": "Technische Universit\u00e4t Graz",
+            "name": "Georg S. Graßler"
+        },
+        {
+            "affiliation": "Technische Universit\u00e4t Graz",
+            "name": "Daniel Forstenlechner"
+        },
+        {
+            "affiliation": "Kharkov Institute of Physics and Technology", 
+            "name": "Sergei V. Kasilov"
+        }, 
+        {
+            "affiliation": "Technische Universit\u00e4t Graz", 
+            "name": "Winfried Kernbichler"
+        }, 
+        {
+            "affiliation": "Technische Universit\u00e4t Graz", 
+            "name": "Markus Meisterhofer"
+        },
+        {
+            "affiliation": "Technische Universit\u00e4t Graz",
+            "name": "Michael Scheidt"
+        }
+    ], 
+    "access_right": "open", 
+    "related_identifiers": [
+        {
+            "scheme": "url", 
+            "identifier": "https://aip.scitation.org/doi/10.1063/5.0022117", 
+            "relation": "cites", 
+            "resource_type": "publication-article"
+        }, 
+        {
+            "scheme": "doi", 
+            "identifier": "10.5281/zenodo.4593661", 
+            "relation": "isVersionOf"
+        }
+    ]
+}
