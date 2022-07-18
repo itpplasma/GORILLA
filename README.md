@@ -1,6 +1,7 @@
 [![DOI](https://zenodo.org/badge/343767192.svg)](https://zenodo.org/badge/latestdoi/343767192)
 [![](https://img.shields.io/github/workflow/status/itpplasma/GORILLA/CI)](https://github.com/itpplasma/GORILLA/actions/workflows/build.yml)
 [![GitHub](https://img.shields.io/github/license/itpplasma/GORILLA?style=flat)](https://github.com/itpplasma/GORILLA/blob/master/LICENCE)
+[![status](https://joss.theoj.org/papers/842b83a430e4c2985d202c79ed626587/status.svg)](https://joss.theoj.org/papers/842b83a430e4c2985d202c79ed626587)
 
 # GORILLA
 **G**uiding-center **OR**bit **I**ntegration with **L**ocal **L**inearization **A**pproach
