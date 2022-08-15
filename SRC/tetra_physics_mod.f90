@@ -14,7 +14,9 @@
       !Field properties
       double precision, dimension(3)   :: curlA  ! $\epsilon^{ijk}\difp{A_k}{x^j}$ = vector a_4^i ("curl A")
       double precision :: bmod1                  ! module of B in the first vertex
+      double precision :: Atheta1                ! theta-component of the vector potential A in the first vertex
       double precision :: Aphi1                  ! phi-component of the vector potential A in the first vertex
+      double precision :: h1_1                   ! 1st component of the unit vector h in the first vertex
       double precision :: h2_1                   ! 2nd component of the unit vector h in the first vertex
       double precision :: h3_1                   ! 3rd component of the unit vector h in the first vertex
       double precision :: Phi1                   ! electrostatic potential in the first vertex
@@ -40,6 +42,7 @@
       double precision, dimension(3)   :: gR     ! gradient of R (major radius)
       double precision, dimension(3)   :: gZ     ! gradient of Z
       double precision, dimension(3)   :: gsqg   ! gradient of square root g (metric determinant) (ONLY for grid_kind = 3)
+      double precision, dimension(3)   :: gAtheta! gradient of theta-component of the vector potential A
       double precision, dimension(3)   :: gAphi  ! gradient of phi-component of the vector potential A
       double precision, dimension(3)   :: gh1    ! gradient of the 1st component of the unit vector h
       double precision, dimension(3)   :: gh2    ! gradient of the 2nd component of the unit vector h
@@ -69,6 +72,21 @@
     end type tetrahedron_skew_coord
 !
     type(tetrahedron_skew_coord), dimension(:),   allocatable, public, protected :: tetra_skew_coord
+!
+!---------------------------------------------------------------------------------------------------------
+!
+    type hamiltonian_time_type
+        sequence
+!
+        double precision                :: h1_in_curlA               !Scalar product of $\bh$ in the first vertex with curl of $\bA$ - $(h_i)_0 \epsilon^{ijk}\difp{A_k}{x^j}$
+        double precision                :: h1_in_curlh               !Scalar product of $\bh$ in the first vertex with curl of $\bh$ - $(h_i)_0 \epsilon^{ijk}\difp{A_k}{x^j}$
+        double precision, dimension(3)  :: vec_mismatch_der          !Mismatch vector: $\difp{h_i}{x^l} \epsilon^{ijk} \difp{A_k}{x^j}
+        double precision, dimension(3)  :: vec_parcurr_der           !Parallel current derivative vector: $\difp{h_i}{x^l} \epsilon^{ijk} \difp{h_k}{x^j}
+        double precision :: dt_dtau_const_save                       ! Factor dt_dtau averaged of the four vertices
+!
+    end type hamiltonian_time_type
+!
+    type(hamiltonian_time_type), dimension(:), allocatable, public, protected :: hamiltonian_time
 !
 !---------------------------------------------------------------------------------------------------------
 !
@@ -113,11 +131,17 @@
       double precision :: dZ_dtheta,bmod1    
       double precision :: r_minor
 !
+      double precision, dimension(3) :: vec_h_1
+      double precision, dimension(3,3) :: mat_gh
+!
       !Allocation of quantities dependent on number of vertices
       allocate(tetra_physics(ntetr))
       allocate(A_x1(nvert),A_x2(nvert),A_x3(nvert))
       allocate(bmod(nvert),h_x1(nvert),h_x2(nvert),h_x3(nvert))
-      allocate(phi_elec(nvert))  
+      allocate(phi_elec(nvert))
+!
+      !Hamiltonian time quantities
+      allocate(hamiltonian_time(ntetr))
 !
       !Distinguish the Processing of particle handover to tetrahedron neighbour
       select case(handover_processing_kind)
@@ -278,12 +302,12 @@
   !$OMP PARALLEL &
   !$OMP& DO DEFAULT(NONE) &
   !$OMP& SHARED(ntetr,tetra_grid,coord_system,verts_rphiz,grid_kind,verts_sthetaphi, &
-  !$OMP& grid_size,A_x1,A_x2,A_x3,h_x1,h_x2,h_x3,Bmod,phi_elec,handover_processing_kind, &
+  !$OMP& grid_size,A_x1,A_x2,A_x3,h_x1,h_x2,h_x3,Bmod,phi_elec,handover_processing_kind,hamiltonian_time, &
   !$OMP& sqg,tetra_physics,tetra_skew_coord,navec,verts_xyz,mag_axis_R0,mag_axis_Z0,dR_ds,dZ_ds,n_field_periods) &
   !$OMP& PRIVATE(ind_tetr,i,j,k,l,iv,p_x1,p_x2,p_x3,A_phi,A_theta,dA_phi_ds, &
   !$OMP& dA_theta_ds,aiota,R,Z,alam,dR_ds1,dR_dt,dR_dp,dZ_ds1,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp, &
   !$OMP& avec,cur_comp1,cur_comp2,cur_comp3,curCoordi,davec_dx1,davec_dx2,davec_dx3,met_det, &
-  !$OMP& vertex_indices,ierr,r_minor)
+  !$OMP& vertex_indices,ierr,r_minor,mat_gh,vec_h_1)
 !
   do ind_tetr=1,ntetr
 !
@@ -417,8 +441,12 @@
         case(1)
             tetra_physics(ind_tetr)%Aphi1 = avec(1,2)
         case(2)
+            tetra_physics(ind_tetr)%Atheta1 = avec(1,2)
             tetra_physics(ind_tetr)%Aphi1 = avec(1,3)
     end select
+!
+! 1st component of the unit vector h in the first vertex
+    tetra_physics(ind_tetr)%h1_1 = avec(1,4)
 !
 ! 2nd component of the unit vector h in the first vertex
     tetra_physics(ind_tetr)%h2_1 = avec(1,5)
@@ -484,6 +512,9 @@
             tetra_physics(ind_tetr)%gAphi(2) = davec_dx2(2)
             tetra_physics(ind_tetr)%gAphi(3) = davec_dx3(2)
         case(2)
+            tetra_physics(ind_tetr)%gAtheta(1) = davec_dx1(2)
+            tetra_physics(ind_tetr)%gAtheta(2) = davec_dx2(2)
+            tetra_physics(ind_tetr)%gAtheta(3) = davec_dx3(2)
             tetra_physics(ind_tetr)%gAphi(1) = davec_dx1(3)
             tetra_physics(ind_tetr)%gAphi(2) = davec_dx2(3)
             tetra_physics(ind_tetr)%gAphi(3) = davec_dx3(3)
@@ -629,6 +660,26 @@
 
 ! Tetrahedron reference distance in the first vertex
     tetra_physics(ind_tetr)%tetra_dist_ref = 2.d0*pi/n_field_periods*tetra_physics(ind_tetr)%R1/grid_size(2)
+!
+!
+        !-------------------- Computation of tetrahedron-dependent constants for Hamiltonian time ------------------------------!
+!
+        !Vector $\bh$ in the first vertex
+        vec_h_1 = [tetra_physics(ind_tetr)%h1_1,tetra_physics(ind_tetr)%h2_1,tetra_physics(ind_tetr)%h3_1]
+!
+        !Matrix consisting of gradients of the components of h
+        mat_gh(:,1) = tetra_physics(ind_tetr)%gh1
+        mat_gh(:,2) = tetra_physics(ind_tetr)%gh2
+        mat_gh(:,3) = tetra_physics(ind_tetr)%gh3
+!
+        !See description in the allocation
+        hamiltonian_time(ind_tetr)%h1_in_curlA = sum(vec_h_1 * tetra_physics(ind_tetr)%curlA)
+!
+        hamiltonian_time(ind_tetr)%h1_in_curlh = sum(vec_h_1 * tetra_physics(ind_tetr)%curlh)
+!
+        hamiltonian_time(ind_tetr)%vec_mismatch_der = matmul(mat_gh,tetra_physics(ind_tetr)%curlA)
+!
+        hamiltonian_time(ind_tetr)%vec_parcurr_der = matmul(mat_gh,tetra_physics(ind_tetr)%curlh)
 !
 !
         !-------------- Precomputation of matrices for position exchange in between tetrahedra via Cartesian coorinates ---------!
@@ -1007,6 +1058,35 @@ enddo
         endif
 !        
       end subroutine check_tetra_overlaps
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+      subroutine get_dt_dtau_const_1(dt_dtau_const)
+!
+        implicit none
+!
+        double precision,intent(out),optional :: dt_dtau_const
+!
+        !Extract value of dt_dtau_const in the first tetrahedron
+        dt_dtau_const = tetra_physics(1)%dt_dtau_const
+!
+      end subroutine get_dt_dtau_const_1
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+      subroutine set_all_dt_dtau_const(dt_dtau_const_new)
+!
+        implicit none
+!
+        double precision,intent(in),optional :: dt_dtau_const_new
+!
+        !Save dt_dtau_const in hamiltonian_time_type
+        hamiltonian_time(:)%dt_dtau_const_save = tetra_physics(:)%dt_dtau_const
+!
+        !Set all dt_dtau_const values to new value
+        tetra_physics(:)%dt_dtau_const = dt_dtau_const_new
+!
+      end subroutine set_all_dt_dtau_const
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

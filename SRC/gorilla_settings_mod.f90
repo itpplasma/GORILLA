@@ -26,6 +26,8 @@
     double precision, public, protected :: rel_err_ode45
 !    
     logical, public, protected :: boole_dt_dtau
+    logical, public, protected :: boole_time_Hamiltonian
+    logical, public, protected :: boole_gyrophase
     logical, public, protected :: boole_newton_precalc
     integer, public, protected :: poly_order
     integer, public, protected :: i_precomp
@@ -54,7 +56,7 @@
                         & rel_err_ode45,boole_periodic_relocation,handover_processing_kind, boole_axi_noise_vector_pot, &
                         & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
                         & non_axi_noise_eps_A, boole_helical_pert, helical_pert_eps_Aphi, helical_pert_m_fourier, &
-                        & helical_pert_n_fourier
+                        & helical_pert_n_fourier, boole_time_Hamiltonian, boole_gyrophase
 !
     public :: load_gorilla_inp,set_eps_Phi
 !

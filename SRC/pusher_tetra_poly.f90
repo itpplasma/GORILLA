@@ -105,12 +105,12 @@ module pusher_tetra_poly_mod
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
         subroutine pusher_tetra_poly(poly_order,ind_tetr_inout,iface,x,vpar,z_save,t_remain_in,t_pass, &
-                                               & boole_t_finished,iper_phi)
+                                               & boole_t_finished,iper_phi,t_hamiltonian,gyrophase)
 !
             use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
             use gorilla_diag_mod,only: diag_pusher_tetry_poly
             use pusher_tetra_func_mod, only: pusher_handover2neighbour
-            use gorilla_settings_mod, only: i_precomp, boole_guess
+            use gorilla_settings_mod, only: i_precomp, boole_guess, boole_time_Hamiltonian, boole_gyrophase
 !
             implicit none
 !
@@ -123,6 +123,7 @@ module pusher_tetra_poly_mod
             double precision, intent(in)                        :: t_remain_in
             double precision, intent(out)                       :: t_pass
             logical, intent(out)                                :: boole_t_finished
+            double precision, intent(out),optional              :: t_hamiltonian,gyrophase
             logical, dimension(4)                               :: boole_faces
             integer                                             :: i,j,k
             double precision, dimension(4)                      :: z,operator_b_in_b,z_dummy
@@ -136,8 +137,31 @@ module pusher_tetra_poly_mod
 !
             !Initial computation values
             z = z_init
+!
+            !Hamiltonian time (Only Delta-value within one pushing is used for output)
+            if(boole_time_Hamiltonian) then
+                if(present(t_hamiltonian)) then
+                    t_hamiltonian = 0.d0
+                else
+                    print *, 'Error: Hamiltonian-time dynamics computation is on, but NOT used. ', &
+                             & 'Please, set boole_time_Hamiltonian to .false.'
+                    stop
+                endif
+            endif
+!
+            !Gyrophase (Only Delta-value within one pushing is used for output)
+            if(boole_gyrophase) then
+                if(present(gyrophase)) then
+                    gyrophase = 0.d0
+                else
+                    print *, 'Error: Gyrophyse computation is on, but NOT used. ', &
+                             & 'Please, set boole_gyrophase to .false.'
+                    stop
+                endif
+            endif
 ! 
 if(diag_pusher_tetry_poly) then
+    print *, 'z_init', z_init
     print *, 'iface init', iface_init
     print *, 'norm at start'
     do i = 1,4
@@ -240,7 +264,15 @@ if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: Analytic app
 !
             !Integrate trajectory analytically, if root exists
             if(boole_face_correct) then
-                call analytic_integration(poly_order,i_precomp,z,tau)
+                if(boole_time_Hamiltonian) then
+                    if(boole_gyrophase) then
+                        call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian,gyrophase)
+                    else
+                        call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian)
+                    endif !gyrophase
+                else
+                    call analytic_integration(poly_order,i_precomp,z,tau)
+                endif
 !
                 !Validation loop ('3-planes'-control)
                 three_planes_loop: do j=1,3                             !Just consider the planes without the "exit-plane"
@@ -284,7 +316,15 @@ if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: normal veloc
                         endif
 !                    
                         !Integrate trajectory analytically
-                        call analytic_integration(poly_order,i_precomp,z,tau)
+                        if(boole_time_Hamiltonian) then
+                            if(boole_gyrophase) then
+                                call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian,gyrophase)
+                            else
+                                call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian)
+                            endif !gyrophase
+                        else
+                            call analytic_integration(poly_order,i_precomp,z,tau)
+                        endif
 !
                         !Integration in two parts (Therefore time must be added)
                         tau = tau + tau_save
@@ -332,8 +372,14 @@ if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
 !
                 boole_faces = .true.    !Compute root for all 4 faces
                 iface_new = iface 
-                z = z_init 
-                  
+                z = z_init
+!
+                !Hamiltonian time
+                if(boole_time_Hamiltonian) t_hamiltonian = 0.d0
+!
+                !Gyrophase
+                if(boole_gyrophase) gyrophase = 0.d0
+!
                 !Analytical calculation of orbit parameter to pass tetrahdron
                 if(poly_order.eq.2) then
                     call analytic_approx(poly_order,i_precomp,boole_faces, &
@@ -352,14 +398,32 @@ if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
                 endif
 !
                 !Integrate trajectory analytically
-                call analytic_integration(poly_order,i_precomp,z,tau)
+                if(boole_time_Hamiltonian) then
+                    if(boole_gyrophase) then
+                        call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian,gyrophase)
+                    else
+                        call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian)
+                    endif ! gyrophase
+                else
+                    call analytic_integration(poly_order,i_precomp,z,tau)
+                endif
 !
                 !Higher order polynomial result for tau is out of safety boundary
                 if(poly_order.gt.2) then
                     if(tau.gt.tau_max) then
 !                       print *, 'Error: Tau is out of safety boundary (2)'
 if(diag_pusher_tetry_poly) print *, 'Trouble shooting (1)'
-                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                        if(boole_time_Hamiltonian) then
+                            if(boole_gyrophase) then
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                    & boole_trouble_shooting,t_hamiltonian,gyrophase)
+                            else
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                    & boole_trouble_shooting,t_hamiltonian)
+                            endif !gyrophase
+                        else
+                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                        endif
 !                       
                         if(.not.boole_trouble_shooting) then
                             print *, 'Error: Trouble shooting failed. Remove particle.'
@@ -377,7 +441,17 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting (1)'
 
                     if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
 if(diag_pusher_tetry_poly) print *, 'Trouble shooting (2)'
-                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)  
+                        if(boole_time_Hamiltonian) then
+                            if(boole_gyrophase) then
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                    & boole_trouble_shooting,t_hamiltonian,gyrophase)
+                            else
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                    & boole_trouble_shooting,t_hamiltonian)
+                            endif !gyrophase
+                        else
+                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                        endif
 !                       
                         if(.not.boole_trouble_shooting) then
                             print *, 'Error: Trouble shooting failed. Remove particle.'
@@ -393,7 +467,17 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting (2)'
                 if(abs(normal_distance_func(z(1:3),iface_new)).gt.1.d-11) then
 !                   print *, 'Error in accuracy'
 if(diag_pusher_tetry_poly) print *, 'Trouble shooting (3)'
-                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                    if(boole_time_Hamiltonian) then
+                        if(boole_gyrophase) then
+                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                & boole_trouble_shooting,t_hamiltonian,gyrophase)
+                        else
+                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                & boole_trouble_shooting,t_hamiltonian)
+                        endif !gyrophase
+                    else
+                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                    endif
 !                       
                     if(.not.boole_trouble_shooting) then
                         print *, 'Error: Trouble shooting failed. Remove particle.'
@@ -432,14 +516,32 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting (3)'
                     endif
 !                    
                     !Integrate trajectory analytically
-                    call analytic_integration(poly_order,i_precomp,z,tau)
+                    if(boole_time_Hamiltonian) then
+                        if(boole_gyrophase) then
+                            call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian,gyrophase)
+                        else
+                            call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian)
+                        endif !gyrophase
+                    else
+                        call analytic_integration(poly_order,i_precomp,z,tau)
+                    endif
 !
                     !Higher order polynomial result for tau is out of safety boundary
                     if(poly_order.gt.2) then
                         if(tau.gt.tau_max) then
 !                             print *, 'Error: Tau is out of safety boundary (3)'
 if(diag_pusher_tetry_poly) print *, 'Trouble shooting (4)'
-                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                            if(boole_time_Hamiltonian) then
+                                if(boole_gyrophase) then
+                                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                        & boole_trouble_shooting,t_hamiltonian,gyrophase)
+                                else
+                                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                        & boole_trouble_shooting,t_hamiltonian)
+                                endif !gyrophase
+                            else
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                            endif
 !                       
                             if(.not.boole_trouble_shooting) then
                                 print *, 'Error: Trouble shooting failed. Remove particle.'
@@ -459,7 +561,17 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting (4)'
                         k=modulo(iface_new+j-1,4)+1
                         if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
 if(diag_pusher_tetry_poly) print *, 'Trouble shooting (5)'
-                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                            if(boole_time_Hamiltonian) then
+                                if(boole_gyrophase) then
+                                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                        & boole_trouble_shooting,t_hamiltonian,gyrophase)
+                                else
+                                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                        & boole_trouble_shooting,t_hamiltonian)
+                                endif !gyrophase
+                            else
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                            endif
 !                       
                             if(.not.boole_trouble_shooting) then
                                 print *, 'Error: Trouble shooting failed. Remove particle.'
@@ -474,7 +586,17 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting (5)'
                     !Validation for vnorm
                     if(normal_velocity_func(z,iface_new).gt.0.d0) then
 if(diag_pusher_tetry_poly) print *, 'Trouble shooting (6)'
-                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                        if(boole_time_Hamiltonian) then
+                            if(boole_gyrophase) then
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                    & boole_trouble_shooting,t_hamiltonian,gyrophase)
+                            else
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                    & boole_trouble_shooting,t_hamiltonian)
+                            endif !gyrophase
+                        else
+                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                        endif
 !                       
                         if(.not.boole_trouble_shooting) then
                             print *, 'Error: Trouble shooting failed. Remove particle.'
@@ -488,7 +610,17 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting (6)'
                     !Accuracy on face
                     if(abs(normal_distance_func(z(1:3),iface_new)).gt.1.d-11) then
 if(diag_pusher_tetry_poly) print *, 'Trouble shooting (7)'
-                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                        if(boole_time_Hamiltonian) then
+                            if(boole_gyrophase) then
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                    & boole_trouble_shooting,t_hamiltonian,gyrophase)
+                            else
+                                call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                    & boole_trouble_shooting,t_hamiltonian)
+                            endif !gyrophase
+                        else
+                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                        endif
 !                       
                         if(.not.boole_trouble_shooting) then
                             print *, 'Error: Trouble shooting failed. Remove particle.'
@@ -523,7 +655,13 @@ if(diag_pusher_tetry_poly) print *, 'tau total',tau
 !
                 !Set z back to z_init
                 z = z_init
-!               
+!
+                !Hamiltonian time
+                if(boole_time_Hamiltonian) t_hamiltonian = 0.d0
+!
+                !Gyrophase
+                if(boole_gyrophase) gyrophase = 0.d0
+!
                 !If vnorm was corrected, coefficients need to be computed again.
                 if(boole_vnorm_correction) then
                     iface_new = iface_init
@@ -538,7 +676,15 @@ if(diag_pusher_tetry_poly) print *, 'tau total',tau
 if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
 !
                 !Integrate trajectory analytically from start until t_remain
-                call analytic_integration(poly_order,i_precomp,z,tau)
+                if(boole_time_Hamiltonian) then
+                    if(boole_gyrophase) then
+                        call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian,gyrophase)
+                    else
+                        call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian)
+                    endif !gyrophase
+                else
+                    call analytic_integration(poly_order,i_precomp,z,tau)
+                endif
 !
                 ind_tetr_inout = ind_tetr
                 iface = 0
@@ -567,7 +713,17 @@ if(diag_pusher_tetry_poly) then
         print *,i, 'norm', normal_distance_func(z(1:3),i) 
     enddo
 endif
-                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                    if(boole_time_Hamiltonian) then
+                        if(boole_gyrophase) then
+                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                & boole_trouble_shooting,t_hamiltonian,gyrophase)
+                        else
+                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                & boole_trouble_shooting,t_hamiltonian)
+                        endif !gyrophase
+                    else
+                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                    endif
 !                       
                     if(.not.boole_trouble_shooting) then
                         print *, 'Error: Trouble shooting failed. Remove particle.'
@@ -1353,18 +1509,19 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-        subroutine analytic_integration(poly_order,i_precomp,z,tau)
+        subroutine analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian,gyrophase)
 !
             implicit none
 !
-            integer, intent(in)                 :: poly_order,i_precomp
-            double precision, intent(in) :: tau
-            double precision, dimension(4),intent(inout) :: z
+            integer, intent(in)                             :: poly_order,i_precomp
+            double precision, intent(in)                    :: tau
+            double precision, dimension(4),intent(inout)    :: z
+            double precision, intent(inout),optional        :: t_hamiltonian,gyrophase
 !
             !Integrate trajectory analytically
             select case(i_precomp)
                 case(0)
-                    call analytic_integration_without_precomp(poly_order,z,tau)
+                    call analytic_integration_without_precomp(poly_order,z,tau,t_hamiltonian,gyrophase)
                 case(1,2)
                     call analytic_integration_with_precomp(poly_order,i_precomp,z,tau)
                 case(3)
@@ -1375,16 +1532,29 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-        subroutine analytic_integration_without_precomp(poly_order,z,tau)
+        subroutine analytic_integration_without_precomp(poly_order,z,tau,t_hamiltonian,gyrophase)
 !
             use poly_without_precomp_mod
+            use gorilla_settings_mod, only: boole_time_Hamiltonian, boole_gyrophase
+            use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
 !
             implicit none
 !
             integer, intent(in)                          :: poly_order
             double precision, intent(in)                 :: tau
             double precision, dimension(4),intent(inout) :: z
+            double precision, intent(inout),optional     :: t_hamiltonian,gyrophase
+            double precision                              :: delta_t_hamiltonian
             double precision                             :: tau2_half,tau3_sixth,tau4_twentyfourth
+!
+            double precision, dimension(3)                :: x0
+            double precision                              :: vpar0
+            double precision, dimension(:,:), allocatable :: x_coef,x_vpar_coef
+            double precision, dimension(:), allocatable   :: vpar_coef,res_poly_coef
+!
+            !Save coordinates before analytical integration
+            x0 = z(1:3)
+            vpar0 = z(4)
 !
             if(poly_order.ge.1) then
                 z = z + tau*(b+amat_in_z)
@@ -1404,6 +1574,64 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
                 tau4_twentyfourth = tau**4/24.d0
                 z = z + tau4_twentyfourth *(amat3_in_b + amat4_in_z)
             endif
+!
+            !Optional computation of Hamiltonian time
+            if(boole_time_Hamiltonian) then
+!
+                allocate(x_coef(3,poly_order+1))
+                allocate(vpar_coef(poly_order+1))
+                allocate(x_vpar_coef(3,poly_order+1))
+!
+                call x_series_coef(x_coef,poly_order,x0)
+                call vpar_series_coef(vpar_coef,poly_order,vpar0)
+!
+                call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
+                call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
+                call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
+!
+                delta_t_hamiltonian = hamiltonian_time(ind_tetr)%h1_in_curlA * tau + &
+                & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * vpar_integral_without_precomp(poly_order,tau,vpar_coef)+&
+                & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * x_integral_without_precomp(poly_order,tau,x_coef) ) + &
+                & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
+                & x_vpar_integral_without_precomp(poly_order,tau,x_vpar_coef))
+!
+                t_hamiltonian = t_hamiltonian + delta_t_hamiltonian
+!
+                !Optional computation of gyrophase
+                if(boole_gyrophase) then
+                    gyrophase = gyrophase - ( &
+!
+!                        !Version with dt_dtau_const
+!                        & 1.d0/cm_over_e * hamiltonian_time(ind_tetr)%dt_dtau_const_save * &
+!                        & ( tetra_physics(ind_tetr)%bmod1 * tau + &
+!                        & sum( tetra_physics(ind_tetr)%gb * x_integral_without_precomp(poly_order,tau,x_coef) ) ) &
+!
+!
+!
+                        !Zeroth term
+                        & 1.d0/cm_over_e * tetra_physics(ind_tetr)%bmod1 * delta_t_hamiltonian + &
+!
+                        !First term
+                        & 1.d0/cm_over_e * sum( tetra_physics(ind_tetr)%gb * x_integral_without_precomp(poly_order,tau,x_coef) ) * &
+                        & hamiltonian_time(ind_tetr)%h1_in_curlA + &
+!
+                        !Second term
+                        & sum(x_vpar_integral_without_precomp(poly_order,tau,x_vpar_coef) * tetra_physics(ind_tetr)%gb ) * &
+                        & hamiltonian_time(ind_tetr)%h1_in_curlh + &
+!
+                        !Third term
+                        & 1.d0/cm_over_e * sum( matmul( xx_integral_without_precomp(poly_order,tau,x_coef) , &
+                        & hamiltonian_time(ind_tetr)%vec_mismatch_der ) * tetra_physics(ind_tetr)%gb) + &
+!
+                        !Fourth term
+                        & sum( matmul( xxvpar_integral_without_precomp( poly_order,tau,x_coef,x_vpar_coef), &
+                        & hamiltonian_time(ind_tetr)%vec_parcurr_der ) *  tetra_physics(ind_tetr)%gb) &
+                    & )
+                endif ! gyrophase
+!
+                deallocate(x_coef,vpar_coef,x_vpar_coef)
+!
+            endif ! time_Hamiltonian
 !
         end subroutine analytic_integration_without_precomp
 !
@@ -1451,6 +1679,331 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             endif
 !
         end subroutine analytic_integration_without_precomp_stepwise
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine x_series_coef(x_coef,poly_order,x0)
+!
+        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
+        !Values in modules are used that need to be precomputed in that subroutine.
+!
+        use poly_without_precomp_mod, only: b, amat_in_z,amat2_in_z,amat3_in_z,amat_in_b,amat2_in_b, &
+                                            & amat4_in_z,amat3_in_b
+!
+        implicit none
+!
+        double precision, dimension(:,:),intent(out)    :: x_coef
+        integer, intent(in)                             :: poly_order
+        double precision, dimension(3), intent(in)      :: x0
+!
+        x_coef(:,1) = x0
+!
+        if(poly_order.ge.1) then
+            x_coef(:,2) = b(1:3) + amat_in_z(1:3)
+        endif
+!
+        if(poly_order.ge.2) then
+            x_coef(:,3) = 0.5d0 * (amat_in_b(1:3) + amat2_in_z(1:3))
+        endif
+!
+        if(poly_order.ge.3) then
+            x_coef(:,4) = 1.d0 / 6.d0 * (amat2_in_b(1:3) + amat3_in_z(1:3))
+        endif
+!
+        if(poly_order.ge.4) then
+            x_coef(:,5) = 1.d0 / 24.d0 * (amat3_in_b(1:3) + amat4_in_z(1:3))
+        endif
+!
+    end subroutine x_series_coef
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine vpar_series_coef(vpar_coef,poly_order,vpar0)
+!
+        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
+        !Values in modules are used that need to be precomputed in that subroutine.
+!
+        use poly_without_precomp_mod, only: amat,b
+!
+        implicit none
+!
+        double precision, dimension(:),intent(out)      :: vpar_coef
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: vpar0
+        double precision                                :: a44,b4
+!
+        a44 = amat(4,4)
+        b4 = b(4)
+!
+        vpar_coef(1) = vpar0
+!
+        if(poly_order.ge.1) then
+            vpar_coef(2) = vpar0*a44 + b4
+        endif
+!
+        if(poly_order.ge.2) then
+            vpar_coef(3) = 0.5d0 * (vpar0 * a44**2 + a44 * b4)
+        endif
+!
+        if(poly_order.ge.3) then
+            vpar_coef(4) = 1.d0 / 6.d0 * (vpar0 * a44**3 + a44**2 * b4)
+        endif
+!
+        if(poly_order.ge.4) then
+            vpar_coef(5) = 1.d0 / 24.d0 * (vpar0 * a44**4 + a44**3 * b4)
+        endif
+
+    end subroutine vpar_series_coef
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function x_integral_without_precomp(poly_order,tau,x_coef)
+!
+        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
+        !Values in modules are used that need to be precomputed in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(3)                  :: x_integral_without_precomp
+        double precision, dimension(:,:), intent(in)    :: x_coef
+!
+        if(poly_order.ge.1) then
+            x_integral_without_precomp = x_coef(:,1) * tau + x_coef(:,2) * 0.5d0 * tau**2
+        endif
+!
+        if(poly_order.ge.2) then
+            x_integral_without_precomp = x_integral_without_precomp + tau**3/3.d0 * x_coef(:,3)
+        endif
+!
+        if(poly_order.ge.3) then
+            x_integral_without_precomp = x_integral_without_precomp + tau**4/4.d0 * x_coef(:,4)
+        endif
+!
+        if(poly_order.ge.4) then
+            x_integral_without_precomp = x_integral_without_precomp + tau**5/5.d0 * x_coef(:,5)
+        endif
+
+    end function x_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function vpar_integral_without_precomp(poly_order,tau,vpar_coef)
+!
+        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
+        !Values in modules are used that need to be precomputed in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                         :: poly_order
+        double precision, intent(in)                :: tau
+        double precision, dimension(:),intent(in)   :: vpar_coef
+        double precision                            :: vpar_integral_without_precomp
+!
+        if(poly_order.ge.1) then
+            vpar_integral_without_precomp = vpar_coef(1)*tau + tau**2 * 0.5d0 * vpar_coef(2)
+        endif
+!
+        if(poly_order.ge.2) then
+            vpar_integral_without_precomp = vpar_integral_without_precomp + tau**3/3.d0 * vpar_coef(3)
+        endif
+!
+        if(poly_order.ge.3) then
+            vpar_integral_without_precomp = vpar_integral_without_precomp + tau**4/4.d0 * vpar_coef(4)
+        endif
+!
+        if(poly_order.ge.4) then
+            vpar_integral_without_precomp = vpar_integral_without_precomp + tau**5/5.d0 * vpar_coef(5)
+        endif
+!
+    end function vpar_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine poly_multiplication_coef(poly_coef_1,poly_coef_2,res_poly_coef)
+!
+        implicit none
+!
+        double precision, dimension(:),intent(in) :: poly_coef_1,poly_coef_2
+        double precision, dimension(:),intent(out) :: res_poly_coef
+        integer :: max_order,i,j,k,sz_1,sz_2,cur_order
+        integer,dimension(:),allocatable :: poly_order_vec_1,poly_order_vec_2
+!
+        sz_1 = size(poly_coef_1)
+        sz_2 = size(poly_coef_2)
+!
+        !Maximum order of the two polynomials - No higher order than that will be computed
+        max_order = maxval([sz_1,sz_2])
+!
+        allocate(poly_order_vec_1(sz_1),poly_order_vec_2(sz_2))
+!
+        poly_order_vec_1 = [(i, i = 0,sz_1-1,1)]
+        poly_order_vec_2 = [(i, i = 0,sz_2-1,1)]
+!
+        !Initialize coefficient result vector
+        res_poly_coef = 0.d0
+!
+        !Loop over coefficients of first polynomial
+        do j = 1,sz_1
+!
+            !Loop over coefficients of first polynomial
+            do k = 1,sz_2
+!
+                !Current order of term multiplication
+                cur_order = (poly_order_vec_1(j) + poly_order_vec_2(k))
+!
+                !Check order of the multiplied term, and exit if max order is exceeded
+                if( cur_order.gt.(max_order-1) ) exit
+!
+                res_poly_coef(cur_order+1) = res_poly_coef(cur_order+1) + &
+                    & poly_coef_1(j) * poly_coef_2(k)
+
+            enddo
+!
+        enddo
+!
+        deallocate(poly_order_vec_1,poly_order_vec_2)
+        
+    end subroutine poly_multiplication_coef
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function x_vpar_integral_without_precomp(poly_order,tau,x_vpar_coef)
+!
+        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
+        !Values in modules are used that need to be precomputed in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(3)                  :: x_vpar_integral_without_precomp
+        double precision, dimension(:,:), intent(in)    :: x_vpar_coef
+!
+        if(poly_order.ge.1) then
+            x_vpar_integral_without_precomp = x_vpar_coef(:,1) * tau + x_vpar_coef(:,2) * 0.5d0 * tau**2
+        endif
+!
+        if(poly_order.ge.2) then
+            x_vpar_integral_without_precomp = x_vpar_integral_without_precomp + tau**3/3.d0 * x_vpar_coef(:,3)
+        endif
+!
+        if(poly_order.ge.3) then
+            x_vpar_integral_without_precomp = x_vpar_integral_without_precomp + tau**4/4.d0 * x_vpar_coef(:,4)
+        endif
+!
+        if(poly_order.ge.4) then
+            x_vpar_integral_without_precomp = x_vpar_integral_without_precomp + tau**5/5.d0 * x_vpar_coef(:,5)
+        endif
+!
+    end function x_vpar_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function xx_integral_without_precomp(poly_order,tau,x_coef)
+!
+        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
+        !Values in modules are used that need to be precomputed in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(3,3)                :: xx_integral_without_precomp
+        double precision, dimension(:,:), intent(in)    :: x_coef
+        double precision, dimension(:), allocatable     :: xx_coef_component
+        integer :: j,k
+!
+        allocate(xx_coef_component(poly_order+1))
+!
+        do j = 1,3
+            do k = 1,3
+!
+                !Compute convolution of coefficient for one component
+                call poly_multiplication_coef(x_coef(j,:),x_coef(k,:),xx_coef_component)
+!
+                xx_integral_without_precomp(j,k) = tau * xx_coef_component(1)
+!
+                if(poly_order.ge.1) then
+                    xx_integral_without_precomp(j,k) = xx_integral_without_precomp(j,k) +  &
+                        & tau**2 * 0.5d0 * xx_coef_component(2)
+                endif
+!
+                if(poly_order.ge.2) then
+                    xx_integral_without_precomp(j,k) = xx_integral_without_precomp(j,k) + &
+                        & tau**3 / 3.d0 * xx_coef_component(3)
+                endif
+!
+                if(poly_order.ge.3) then
+                    xx_integral_without_precomp(j,k) = xx_integral_without_precomp(j,k) + &
+                        & tau**4 / 4.d0 * xx_coef_component(4)
+                endif
+!
+                if(poly_order.ge.4) then
+                    xx_integral_without_precomp(j,k) = xx_integral_without_precomp(j,k) + &
+                        & tau**5 / 5.d0 * xx_coef_component(5)
+                endif
+!
+            enddo
+        enddo
+!
+        deallocate(xx_coef_component)
+!
+    end function xx_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function xxvpar_integral_without_precomp(poly_order,tau,x_coef,x_vpar_coef)
+!
+        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
+        !Values in modules are used that need to be precomputed in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(3,3)                :: xxvpar_integral_without_precomp
+        double precision, dimension(:,:), intent(in)    :: x_coef,x_vpar_coef
+        double precision, dimension(:), allocatable     :: xxvpar_coef_component
+        integer :: j,k
+!
+        allocate(xxvpar_coef_component(poly_order+1))
+!
+        do j = 1,3
+            do k = 1,3
+!
+                !Compute convolution of coefficient for one component
+                call poly_multiplication_coef(x_vpar_coef(j,:),x_coef(k,:),xxvpar_coef_component)
+!
+                xxvpar_integral_without_precomp(j,k) = tau * xxvpar_coef_component(1)
+!
+                if(poly_order.ge.1) then
+                    xxvpar_integral_without_precomp(j,k) = xxvpar_integral_without_precomp(j,k) +  &
+                        & tau**2 * 0.5d0 * xxvpar_coef_component(2)
+                endif
+!
+                if(poly_order.ge.2) then
+                    xxvpar_integral_without_precomp(j,k) = xxvpar_integral_without_precomp(j,k) + &
+                        & tau**3 / 3.d0 * xxvpar_coef_component(3)
+                endif
+!
+                if(poly_order.ge.3) then
+                    xxvpar_integral_without_precomp(j,k) = xxvpar_integral_without_precomp(j,k) + &
+                        & tau**4 / 4.d0 * xxvpar_coef_component(4)
+                endif
+!
+                if(poly_order.ge.4) then
+                    xxvpar_integral_without_precomp(j,k) = xxvpar_integral_without_precomp(j,k) + &
+                        & tau**5 / 5.d0 * xxvpar_coef_component(5)
+                endif
+!
+            enddo
+        enddo
+!
+        deallocate(xxvpar_coef_component)
+!
+    end function xxvpar_integral_without_precomp
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -1758,15 +2311,18 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+    subroutine trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting,t_hamiltonian, &
+        & gyrophase)
 !
         use gorilla_diag_mod, only: diag_pusher_tetry_poly
+        use gorilla_settings_mod, only: boole_time_Hamiltonian,boole_gyrophase
 !
         implicit none
 !
         integer, intent(in)                                 :: poly_order,i_precomp
         integer, intent(out)                                :: iface_new
         logical, intent(out)                                :: boole_trouble_shooting
+        double precision, intent(out),optional              :: t_hamiltonian,gyrophase
         integer                                             :: j,k,i,poly_order_new
         integer                                             :: i_scaling
         double precision, dimension(4),intent(inout)        :: z
@@ -1806,7 +2362,14 @@ if(diag_pusher_tetry_poly) print *, 'quadratic tau',tau
             
             boole_faces = .true.    !Compute root for all 4 faces
             iface_new = iface_init
-            z = z_init   
+            z = z_init
+!
+            !Hamiltonian time
+            if(boole_time_Hamiltonian) t_hamiltonian = 0.d0
+!
+            !Gyrophase
+            if(boole_gyrophase) gyrophase = 0.d0
+!
             !Analytical calculation of orbit parameter to pass tetrahdron
             call analytic_approx(poly_order,i_precomp,boole_faces, &
                                 & i_scaling,z,iface_new,tau,boole_analytical_approx)
@@ -1819,7 +2382,15 @@ if(diag_pusher_tetry_poly) print *, 'quadratic tau',tau
             endif
 !
             !Integrate trajectory analytically
-            call analytic_integration(poly_order,i_precomp,z,tau)
+            if(boole_time_Hamiltonian) then
+                if(boole_gyrophase) then
+                    call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian,gyrophase)
+                else
+                    call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian)
+                endif !gyrophase
+            else
+                call analytic_integration(poly_order,i_precomp,z,tau)
+            endif
 !
             !Control section
             boole_face_correct = .true.
@@ -1867,7 +2438,13 @@ if(diag_pusher_tetry_poly) print *, 'scaling', i
 if(diag_pusher_tetry_poly) print *, 'Trouble shooting routine failed: Use 3rd order polynomial'
             boole_faces = .true.    !Compute root for all 4 faces
             iface_new = iface_init
-            z = z_init   
+            z = z_init
+!
+            !Hamiltonian time
+            if(boole_time_Hamiltonian) t_hamiltonian = 0.d0
+!
+            !Gyrophase
+            if(boole_gyrophase) gyrophase = 0.d0
 !
             select case(poly_order)
                 case(2)
@@ -1894,7 +2471,15 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting routine failed: Use 3rd or
             endif
 !
             !Integrate trajectory analytically
-            call analytic_integration(poly_order,i_precomp,z,tau)
+            if(boole_time_Hamiltonian) then
+                if(boole_gyrophase) then
+                    call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian,gyrophase)
+                else
+                    call analytic_integration(poly_order,i_precomp,z,tau,t_hamiltonian)
+                endif !gyrophase
+            else
+                call analytic_integration(poly_order,i_precomp,z,tau)
+            endif
             
             !Control section
             boole_face_correct = .true.

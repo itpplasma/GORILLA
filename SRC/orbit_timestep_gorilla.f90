@@ -7,11 +7,11 @@ module orbit_timestep_gorilla_mod
 !
     private
 !
-    public :: orbit_timestep_gorilla,initialize_gorilla,phi_elec_func,check_coordinate_domain
+    public :: orbit_timestep_gorilla,initialize_gorilla,phi_elec_func,check_coordinate_domain, bmod_func, vperp_func
 !    
     contains
 !
-        subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface)
+        subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface,t_remain_out)
 !
             use pusher_tetra_rk_mod, only: find_tetra,pusher_tetra_rk,initialize_const_motion_rk
             use pusher_tetra_poly_mod, only: pusher_tetra_poly,initialize_const_motion_poly
@@ -28,6 +28,7 @@ module orbit_timestep_gorilla_mod
             double precision, intent(in)                    :: t_step
             logical, intent(inout)                          :: boole_initialized
             integer, intent(inout)                          :: ind_tetr,iface
+            double precision, intent(out), optional         :: t_remain_out
             double precision, dimension(3)                  :: z_save
             double precision                                :: vperp2,t_remain,t_pass,vpar_save
             logical                                         :: boole_t_finished
@@ -89,6 +90,9 @@ module orbit_timestep_gorilla_mod
                 !Domain Boundary
                 if(ind_tetr.eq.-1) then
                     print *, 'WARNING: Particle lost.'
+                    if( present(t_remain_out)) then
+                        t_remain_out = t_remain
+                    endif
                     exit
                 endif
 !                
@@ -113,7 +117,10 @@ module orbit_timestep_gorilla_mod
                 t_remain = t_remain - t_pass
 !
                 !Orbit stops within cell, because "flight"-time t_step has finished
-                if(boole_t_finished) then              
+                if(boole_t_finished) then
+                    if( present(t_remain_out)) then
+                        t_remain_out = t_remain
+                    endif
                     exit
                 endif
 !
@@ -437,10 +444,6 @@ module orbit_timestep_gorilla_mod
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
 end module
-
-
-
-
 
 
 
