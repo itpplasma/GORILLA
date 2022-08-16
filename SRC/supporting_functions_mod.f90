@@ -59,7 +59,8 @@
         open(unit=31,file=cyl_filename,status='old',iostat=io_error)
         if(io_error.eq.0) close(unit=21,status='delete')
       else
-        print *,'Error: Could not open and delete existing file'
+        !print *,'Error: Could not open and delete existing file'
+        print *,'No existing file. Created new one to store data.'
       endif
       open(unit=31,file=cyl_filename,status='new',action='write', &
            & iostat=io_error)
