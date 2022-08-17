@@ -412,7 +412,7 @@ module gorilla_plot_mod
                                                  & counter_vpar_0_mappings, counter_tetrahedron_passes)
 !
             use pusher_tetra_rk_mod, only: find_tetra,pusher_tetra_rk,initialize_const_motion_rk
-            use pusher_tetra_poly_mod, only: pusher_tetra_poly,initialize_const_motion_poly
+            use pusher_tetra_poly_mod, only: pusher_tetra_poly,initialize_const_motion_poly,manage_intermediate_steps_arrays
             use tetra_physics_poly_precomp_mod , only: make_precomp_poly_perpinv, initialize_boole_precomp_poly_perpinv, &
                 &alloc_precomp_poly_perpinv
             use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
@@ -477,6 +477,7 @@ module gorilla_plot_mod
                     call initialize_const_motion_rk(perpinv,perpinv2)
                 case(2)
                     call initialize_const_motion_poly(perpinv,perpinv2)
+                    call manage_intermediate_steps_arrays()
             end select        
 !
 !             !NOT FULLY IMPLEMENTED YET: Precompute quatities dependent on perpinv
@@ -609,6 +610,9 @@ module gorilla_plot_mod
                 endif ! iper.ne.0
 !
             enddo !Loop for tetrahedron pushings
+!
+            !Deallocate intermediate_steps_arrays if pusher_poly was used
+            call manage_intermediate_steps_arrays()
 !
             !Compute vperp from position
             vperp = vperp_func(z_save,perpinv,ind_tetr_save)
