@@ -44,9 +44,8 @@ module pusher_tetra_poly_mod
     !Diagnostics for adaptive step scheme (only useable for one particle calculation)
     double precision, dimension(:,:), allocatable         :: total_fluctuation_report, single_step_fluctuation_report, &
                                                            & closure_fluctuation_report
-    integer                                               :: report_total_entry_index, report_single_step_entry_index, & 
-                                                            & report_entry_index
-    integer, parameter                                    :: max_n_report_entries = 1, minimum_partition_number = 9000
+    integer                                               :: report_entry_index, number_reports
+    integer, parameter                                    :: max_number_reports = 1, minimum_partition_number = 9000
     logical                                               :: boole_collect_data
 !
     !$OMP THREADPRIVATE(ind_tetr,iface_init,perpinv,perpinv2,dt_dtau_const,bmod0,t_remain,x_init,  &
@@ -92,28 +91,27 @@ module pusher_tetra_poly_mod
                     allocate(tau_steps_list(2),intermediate_z0_list(4,2))
                 endif
 if (report_pusher_tetry_poly_adaptive) then
-allocate(total_fluctuation_report(max_n_report_entries*(max_n_intermediate_steps+1),2), & 
-& single_step_fluctuation_report(max_n_report_entries*(max_n_intermediate_steps+1),3), &
-& closure_fluctuation_report(max_n_report_entries*(max_n_intermediate_steps+1),3))
-report_single_step_entry_index = 0
-report_total_entry_index = 0
+allocate(total_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),2), & 
+& single_step_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),3), &
+& closure_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),3))
 report_entry_index = 0
+number_reports = 0
 endif
             elseif(allocated(tau_steps_list).AND.allocated(intermediate_z0_list)) then
 !
 if (report_pusher_tetry_poly_adaptive) then
 open(123, file='./total_fluctuation_report.dat')
-do k = 1, report_total_entry_index
+do k = 1, report_entry_index
 write(123,*) total_fluctuation_report(k,:)
 end do
 close(123)
 open(123, file='./single_step_fluctuation_report.dat')
-do k = 1, report_single_step_entry_index
+do k = 1, report_entry_index
 write(123,*) single_step_fluctuation_report(k,:)
 end do
 close(123)
 open(123, file='./closure_fluctuation_report.dat')
-do k = 1, report_single_step_entry_index
+do k = 1, report_entry_index
 write(123,*) closure_fluctuation_report(k,:)
 end do
 close(123)
@@ -772,7 +770,7 @@ if(diag_pusher_tetry_poly) print*, 'Adaptive Stepsize equidistant was called'
         &  delta_energy_current, iface_out_adaptive, tau, z, boole_face_correct)
 !
         use gorilla_settings_mod, only: i_precomp, desired_delta_energy, max_n_intermediate_steps
-        use gorilla_diag_mod,only: diag_pusher_tetry_poly, diag_pusher_tetry_poly_adaptive, report_pusher_tetry_poly_adaptive
+        use gorilla_diag_mod,only: diag_pusher_tetry_poly_adaptive, report_pusher_tetry_poly_adaptive
 !
         implicit none
 !
@@ -788,88 +786,76 @@ if(diag_pusher_tetry_poly) print*, 'Adaptive Stepsize equidistant was called'
 !
         logical, dimension(4)                                 :: boole_faces
         double precision, dimension(4)                        :: z_start_adaptive
-        integer                                               :: i, k, n_intermediate_steps, limit, &
-                                                                & n_intermediate_steps_minimum
+        integer                                               :: i, k, eta, eta_extended, &
+                                                                & eta_minimum
         integer                                               :: iface_new_adaptive, number_of_integration_steps_start_adaptive
         logical                                               :: boole_analytical_approx, boole_exit_tetrahedron, & 
                                                                & boole_energy_check, boole_reached_minimum
-        double precision                                      :: energy_start_adaptive, energy_current, tau_prime, tau_collected, &
-                                                               & scale_factor, max_scale_factor, delta_energy_start, &
-                                                               & delta_energy_minimum
-        double precision, parameter                           :: freshhold = 1, min_step_error = 1E-15, additive_increase = 10!10,2,1
+        double precision                                      :: energy_start_adaptive, energy_current, &
+                                                               & delta_energy_start, delta_energy_minimum, & 
+                                                               & tau_prime, tau_collected, tau_exit
 !
-        !Set z back to current z0, step back in global integration counter and save
-if(diag_pusher_tetry_poly_adaptive) print *, 'integrated z', normal_distance_func(z(1:3),2)
-        z = intermediate_z0_list(:,number_of_integration_steps)
-if(diag_pusher_tetry_poly_adaptive) print *, 'previous z', normal_distance_func(z(1:3),2)
-        number_of_integration_steps = number_of_integration_steps - 1
-        number_of_integration_steps_start_adaptive = number_of_integration_steps
-        z_start_adaptive = z
+        !Save current z0 and stepped back global integration counter
+        z_start_adaptive = intermediate_z0_list(:,number_of_integration_steps)
+        number_of_integration_steps_start_adaptive = number_of_integration_steps - 1
+        energy_start_adaptive = energy_tot_func(z_start_adaptive)
 if(report_pusher_tetry_poly_adaptive) boole_collect_data = .false.
+if(diag_pusher_tetry_poly_adaptive) print*, '------------------------'
 !
         !Set up for Partition procedure
-        n_intermediate_steps = 1
+        eta = 1
         boole_reached_minimum = .false.
         delta_energy_start = delta_energy_current
         delta_energy_minimum = delta_energy_current
-        !A bit more than the maximal "desired" number of steps (need more/less 
-        !steps as stepwise integration changes path and total dwell time, escpecially in relevant cases)
-        limit = max_n_intermediate_steps*1.5d0
 !
-        !Loop over possible equidistant splittings with increasing number of steps
-        PARTITION: do while (n_intermediate_steps .lt. max_n_intermediate_steps)
+        !Loop over possible equidistant splittings (eta changing depending on the current energy error, with uppper limit a priori set)
+        PARTITION: do while (eta .lt. max_n_intermediate_steps)
 !
-            !If did not succeed (aka not leave the loop) -> try to increase number of steps
+            !If did not succeed (aka not left the loop) -> try to update number of steps
             !and try again, if not yet at maximal number of intermediate steps or passed minimum
-            scale_factor = (delta_energy_current/desired_delta_energy)**(1.0d0/poly_order)
-            max_scale_factor = (delta_energy_current/(min_step_error*n_intermediate_steps))**(1.0d0/(poly_order+1))
-if (diag_pusher_tetry_poly_adaptive) print*, 'scale factor', scale_factor
-if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_factor
-           if (max_scale_factor .gt. freshhold) then
-                scale_factor = min(scale_factor,max_scale_factor)
-                n_intermediate_steps = min(ceiling(n_intermediate_steps*scale_factor),max_n_intermediate_steps)
-            elseif (scale_factor .gt. freshhold) then
-                n_intermediate_steps = min(ceiling(n_intermediate_steps*scale_factor),max_n_intermediate_steps)
-            else
-                n_intermediate_steps = n_intermediate_steps + additive_increase
-            endif !Choice of next number of steps
+            call update_eta(poly_order,delta_energy_current,eta)
 !
             !Set up for redo of the minimum run
-            if (boole_reached_minimum) n_intermediate_steps = n_intermediate_steps_minimum
+            if (boole_reached_minimum) eta = eta_minimum
 !
 if (report_pusher_tetry_poly_adaptive) then
-if(.not.boole_collect_data.AND.(n_intermediate_steps.gt.minimum_partition_number)) then
-report_entry_index = report_entry_index + 1
+if(.not.boole_collect_data.AND.(eta.gt.minimum_partition_number)) then
 boole_collect_data = .true.
-n_intermediate_steps = 1
+number_reports = number_reports + 1
+report_entry_index = report_entry_index + 1
+eta = 1
 delta_energy_current = delta_energy_start
-report_single_step_entry_index = report_single_step_entry_index + 1
-report_total_entry_index = report_total_entry_index + 1
-single_step_fluctuation_report(report_single_step_entry_index,1) = n_intermediate_steps
-single_step_fluctuation_report(report_single_step_entry_index,2) = delta_energy_current
-single_step_fluctuation_report(report_single_step_entry_index,3) = tau
-total_fluctuation_report(report_total_entry_index,1) = n_intermediate_steps
-total_fluctuation_report(report_total_entry_index,2) = delta_energy_current
-closure_fluctuation_report(report_single_step_entry_index,1) = n_intermediate_steps
-closure_fluctuation_report(report_single_step_entry_index,2) = delta_energy_current
-closure_fluctuation_report(report_single_step_entry_index,3) = 1
+single_step_fluctuation_report(report_entry_index,1) = eta
+single_step_fluctuation_report(report_entry_index,2) = delta_energy_current
+single_step_fluctuation_report(report_entry_index,3) = tau
+total_fluctuation_report(report_entry_index,1) = eta
+total_fluctuation_report(report_entry_index,2) = delta_energy_current
+closure_fluctuation_report(report_entry_index,1) = eta
+closure_fluctuation_report(report_entry_index,2) = delta_energy_current
+closure_fluctuation_report(report_entry_index,3) = 1
 cycle PARTITION
 endif
 endif
 !
             !Set up for every partition trial; boole_face_correct can be set true here as adaptive is before the consistency checks
             z = z_start_adaptive
-            tau_prime = tau/n_intermediate_steps
-if(diag_pusher_tetry_poly_adaptive) print *, 'tau_prime', tau_prime
             number_of_integration_steps = number_of_integration_steps_start_adaptive
+            tau_prime = tau/eta
+if(diag_pusher_tetry_poly_adaptive) print*, 'eta', eta
+if(diag_pusher_tetry_poly_adaptive) print *, 'tau_prime', tau_prime
             tau_collected = 0
             boole_face_correct = .true.
             boole_exit_tetrahedron = .false.
             boole_energy_check = .false.
-            if (.not.boole_passing) limit = n_intermediate_steps
+            if (boole_passing) then
+                !As the intermediate steps change our orbit, we may need longer than the original tau -> more steps 
+                eta_extended = ceiling(max_n_intermediate_steps*1.1d0)
+            else
+                !We do not expect a passing
+                eta_extended = eta
+            endif !boole_passing for eta_extended
 !
-            STEPWISE: do i = 1, (limit -1) !used to be n_intermediate_steps
-!
+            STEPWISE: do i = 1, (eta_extended -1) !used to be 1,eta-1
                 !recalculate polynomial coefficients (tensors) as at every intermediate step the poly_coef change
                 call set_integration_coef_manually(poly_order,z)
                 call analytic_integration(poly_order,i_precomp,z,tau_prime)
@@ -877,21 +863,20 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'tau_prime', tau_prime
                 !GC must be still inside the tetrahedron
                 !If fail -> return to last step and close orbit then
                 CONTROL: do k = 1,4
-!
                     if(normal_distance_func(z(1:3),k).lt.0.d0) then
 if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive steps: Position left tetrahedron'
 if(diag_pusher_tetry_poly_adaptive) print *, k, 'norm', normal_distance_func(z(1:3),k)
-if(diag_pusher_tetry_poly_adaptive) print *, 'steps taken', i, '/' ,n_intermediate_steps
-                        z = intermediate_z0_list(:,number_of_integration_steps)
-                        !Exception: if the first step is already outside -> need smaller steps
+if(diag_pusher_tetry_poly_adaptive) print *, 'steps taken', i, '/' ,eta
+                        !Exception: if the first step is already outside (order-inconsistency if used guess) -> return failure
                         if (i .eq. 1) then
-if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: Position left tetrahedron in first step!'
-                            cycle PARTITION
+if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: Left tetrahedron in first step (order-inconsistency)!'
+                            boole_face_correct = .false.
+                            return
                         endif
+                        z = intermediate_z0_list(:,number_of_integration_steps)
                         boole_exit_tetrahedron = .true.
                         exit STEPWISE
                     endif
-!
                 end do CONTROL !Is the orbit still inside
 !
                 !If it was a valid step we add it to the total used time
@@ -900,48 +885,48 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: Position 
 if (report_pusher_tetry_poly_adaptive) then
 if (boole_collect_data ) then
 if (i.eq.1) then
-report_single_step_entry_index = report_single_step_entry_index + 1
-single_step_fluctuation_report(report_single_step_entry_index,1) = 0
-single_step_fluctuation_report(report_single_step_entry_index,2) = 0
-single_step_fluctuation_report(report_single_step_entry_index,3) = tau_prime
+report_entry_index = report_entry_index + 1
+single_step_fluctuation_report(report_entry_index,1) = 0
+single_step_fluctuation_report(report_entry_index,2) = 0
+single_step_fluctuation_report(report_entry_index,3) = tau_prime
 endif
-single_step_fluctuation_report(report_single_step_entry_index,2) = &
-& single_step_fluctuation_report(report_single_step_entry_index,2) + abs(1-energy_tot_func(z)/ & 
+single_step_fluctuation_report(report_entry_index,1) = & 
+& single_step_fluctuation_report(report_entry_index,1) + 1
+single_step_fluctuation_report(report_entry_index,2) = &
+& single_step_fluctuation_report(report_entry_index,2) + abs(1-energy_tot_func(z)/ & 
 & energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
-single_step_fluctuation_report(report_single_step_entry_index,1) = & 
-& single_step_fluctuation_report(report_single_step_entry_index,1) + 1
 endif
 endif
+!
+                !The only reason to not use the guessing scheme is to avoid nipping out of orbits (ensure order-consistency)
+                !For that we additionally need to check the remaining tau after each step when using the adaptive scheme
+                if(.not.boole_guess_adaptive) then
+                    iface_new_adaptive = 0
+                    call adaptive_time_steps_exit_time(poly_order,i_scaling,z,.false., & 
+                                                            & iface_new_adaptive,tau_exit,boole_analytical_approx)
+                    !Analytical result does not exist can therefore not close cell orbit
+                    ! -> "return" leaves orbit (falsely, therefore boole set to false) inside of tetrahedron
+                    if(.not.boole_analytical_approx) then
+                        if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: no analytical solution'
+                        boole_face_correct = .false.
+                        return
+                    endif
+                    if(tau_exit .le. tau_prime) then
+if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive step order-consistency: tau_exit',tau_exit,'smaller than tau_prime',tau_prime
+                        tau_prime = tau_exit
+                        exit STEPWISE !boole_exit_tetrahedron is still FALSE, as avoid leaving tetrahedron all together
+                    endif
+                endif !oberving remaining tau to avoid nipping out of orbits
 !
             end do STEPWISE ! stepwise integration
 !
-            !If orbit passes, the now remaining time (tau_prime) from the intermediate point to the exit face has to be recalculatet
+            !If orbit exited, the now remaining time (tau_prime) from the last intermediate point to the exit face has to be recalculated
             !Alternatively stepwise integration might reveal a not passing orbit to be a passing one, which also has to be closed
-            if (boole_passing .OR. boole_exit_tetrahedron) then
-!
-                !If not the first step brought us outside (else this part of the code is not reached), the orbit is now INSIDE
+            if (boole_exit_tetrahedron) then
+                !As we already preformed at least one step before leaving the tetrahedron, the orbit is now INSIDE
                 iface_new_adaptive = 0
-                boole_faces = .true.
-!
-                !use face prediction of second order for higher order computation in the adaptive scheme if wished
-                if (boole_guess_adaptive .and. (poly_order.gt.2)) then
-                    call analytic_approx(2,i_precomp,boole_faces, &
-                    & i_scaling,z,iface_new_adaptive,tau_prime,boole_analytical_approx)
-                    !Higher order polynomial root is computed only for previously predicted face in second order
-                    if(boole_analytical_approx) then               
-                        boole_faces = .false.                !Disable all 4 faces 
-                        boole_faces(iface_new_adaptive) = .true.      !Enable guessed face
-                    endif
-                    !Reset starting face (to INSIDE) for actual correct order calculation down below
-                    iface_new_adaptive = 0 
-                endif  
-                !calculate exit time and exit face in correct order
-                !if a successful guess was made above in second order, boole_faces only allows the guessed face 
-                call analytic_approx(poly_order,i_precomp,boole_faces, &
-                                    & i_scaling,z,iface_new_adaptive,tau_prime,boole_analytical_approx)   
-!
-if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive step closure: tau_prime', tau_prime
-!           
+                call adaptive_time_steps_exit_time(poly_order,i_scaling,z,boole_guess_adaptive, & 
+                                                        & iface_new_adaptive,tau_exit,boole_analytical_approx)           
                 !Analytical result does not exist can therefore not close cell orbit
                 ! -> "return" leaves orbit (falsely, therefore boole set to false) inside of tetrahedron
                 if(.not.boole_analytical_approx) then
@@ -949,57 +934,54 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: no analyt
                     boole_face_correct = .false.
                     return
                 endif
-!
-            !If the orbit does not pass, the same timestep as for the other intermediate steps is used
-            !Should it then end up outside, the higher level checks will detect it
-            !We however have to manually update again the new position in the coefficiants
+if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive step closure: tau_exit', tau_exit
+                tau_prime = tau_exit !The last step will close the orbit to the exit
             else
+                !If the orbit does not pass, the same timestep as for the other intermediate steps is used
+                !Should it then end up outside, the higher level checks will detect it
+                !We only have to manually update again the new position in the coefficiants, no new tau_prime needed
                 call set_integration_coef_manually(poly_order,z)
             end if !boole_passing
 !
             !Closing integration (either to the exit face or to the final position inside of tetrahedron)
             call analytic_integration(poly_order,i_precomp,z,tau_prime)
-            !Adding up the last step to the total
             tau_collected = tau_collected + tau_prime
 !
             !Check if energy fluctuation was successfully decreased
-            energy_start_adaptive = energy_tot_func(z_start_adaptive)
             energy_current = energy_tot_func(z)
             delta_energy_current = abs(1-energy_current/energy_start_adaptive)
 !
-if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_current', delta_energy_current
-if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energy_minimum
-if (diag_pusher_tetry_poly_adaptive) print*, 'n_intermediate_steps', n_intermediate_steps
-if (report_pusher_tetry_poly_adaptive) delta_energy_minimum = delta_energy_current*2 !Circumvent the minimum approach for more data
 if (report_pusher_tetry_poly_adaptive) then
+delta_energy_minimum = delta_energy_current*2 !Circumvent the minimum approach to collect more data
 if (boole_collect_data) then
-single_step_fluctuation_report(report_single_step_entry_index,2) = &
-& single_step_fluctuation_report(report_single_step_entry_index,2) + abs(1-energy_tot_func(z)/ & 
+single_step_fluctuation_report(report_entry_index,2) = &
+& single_step_fluctuation_report(report_entry_index,2) + abs(1-energy_tot_func(z)/ & 
 & energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
-single_step_fluctuation_report(report_single_step_entry_index,1) = & 
-& single_step_fluctuation_report(report_single_step_entry_index,1) + 1
+single_step_fluctuation_report(report_entry_index,1) = & 
+& single_step_fluctuation_report(report_entry_index,1) + 1
 !Forming the average of the single step error done in this partition  
-single_step_fluctuation_report(report_single_step_entry_index,2) = & 
-& single_step_fluctuation_report(report_single_step_entry_index,2) / & 
-& single_step_fluctuation_report(report_single_step_entry_index,1)
-report_total_entry_index = report_total_entry_index + 1
-total_fluctuation_report(report_total_entry_index,2) = delta_energy_current
-total_fluctuation_report(report_total_entry_index,1) = single_step_fluctuation_report(report_single_step_entry_index,1)
-closure_fluctuation_report(report_single_step_entry_index,1) = single_step_fluctuation_report(report_single_step_entry_index,1)
-closure_fluctuation_report(report_single_step_entry_index,2) = abs(1-energy_tot_func(z)/ & 
+single_step_fluctuation_report(report_entry_index,2) = & 
+& single_step_fluctuation_report(report_entry_index,2) / & 
+& single_step_fluctuation_report(report_entry_index,1)
+total_fluctuation_report(report_entry_index,2) = delta_energy_current
+total_fluctuation_report(report_entry_index,1) = single_step_fluctuation_report(report_entry_index,1)
+closure_fluctuation_report(report_entry_index,1) = single_step_fluctuation_report(report_entry_index,1)
+closure_fluctuation_report(report_entry_index,2) = abs(1-energy_tot_func(z)/ & 
 & energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
-closure_fluctuation_report(report_single_step_entry_index,3) = & 
-& tau_prime/single_step_fluctuation_report(report_single_step_entry_index,3)
+closure_fluctuation_report(report_entry_index,3) = & 
+& tau_prime/single_step_fluctuation_report(report_entry_index,3)
 endif
 endif
 !
             !There is an effective minimum that can be achieved by decreasing the timesteps
             !After that the error actually increases/osscilates -> we only use the monoton decrease
+if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_current', delta_energy_current
+if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energy_minimum
             if (boole_reached_minimum) then
                 exit PARTITION
             elseif (delta_energy_current.lt.delta_energy_minimum) then
                 delta_energy_minimum = delta_energy_current
-                n_intermediate_steps_minimum = n_intermediate_steps
+                eta_minimum = eta
                 if (delta_energy_current.le.desired_delta_energy) then
                     boole_energy_check = .true.
                     exit PARTITION
@@ -1012,35 +994,111 @@ endif
 !
         end do PARTITION
 !
+        iface_out_adaptive = iface_new_adaptive
+        tau = tau_collected
+!
+        !If could not satisfy energy conservation with scheme, notify user
+        if (.not.boole_energy_check) then
+            print *, 'Error in adaptive steps equidistant: energy conservation could not be fullfilled!'
+if(diag_pusher_tetry_poly_adaptive)print*, 'delta_energy_minimum', delta_energy_minimum
+if(diag_pusher_tetry_poly_adaptive) stop
+        endif 
+!
 if (report_pusher_tetry_poly_adaptive) then
 if (boole_collect_data) then
-if (report_entry_index.ge.max_n_report_entries) then
-if (diag_pusher_tetry_poly_adaptive) print*, n_intermediate_steps
+if (number_reports.ge.max_number_reports) then
+if (diag_pusher_tetry_poly_adaptive) print*, eta
 if (diag_pusher_tetry_poly_adaptive) print*, boole_exit_tetrahedron
 call manage_intermediate_steps_arrays()
 print *, 'Collected enough data for adaptive scheme report!'
 stop
 endif
-report_single_step_entry_index = report_single_step_entry_index + 1
-report_total_entry_index = report_total_entry_index + 1
-single_step_fluctuation_report(report_single_step_entry_index,:) = -1
-total_fluctuation_report(report_total_entry_index,:) = -1
-closure_fluctuation_report(report_single_step_entry_index,:) = -1
+report_entry_index = report_entry_index + 1
+single_step_fluctuation_report(report_entry_index,:) = -1
+total_fluctuation_report(report_entry_index,:) = -1
+closure_fluctuation_report(report_entry_index,:) = -1
 endif
 endif
-!
-        !If none of the partitions could fully satisfy the energy condition, failure is given back to the higher level routine
-        if (.not.boole_energy_check) then
-if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps equidistant: energy conservation could not be fullfilled!'
-            !boole_face_correct = .false.
-if(diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energy_minimum
-if(diag_pusher_tetry_poly_adaptive .AND. (delta_energy_minimum.gt.1.0d-10)) stop
-        endif !adaptive sucess check
-!
-        iface_out_adaptive = iface_new_adaptive
-        tau = tau_collected
 !
     end subroutine adaptive_time_steps_equidistant
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine update_eta(poly_order,delta_energy_current,eta)
+!
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
+        use gorilla_settings_mod, only: desired_delta_energy, max_n_intermediate_steps
+!
+        implicit none
+!
+        integer, intent(in)                         :: poly_order
+        double precision, intent(in)                :: delta_energy_current
+!
+        integer, intent(inout)                      :: eta
+!
+        double precision                            :: scale_factor, max_scale_factor
+        double precision, parameter                 :: freshhold = 1, min_step_error = 1E-15, additive_increase = 10 !default 1,1E-15,10
+!
+if (boole_collect_data)  then 
+    eta = eta + additive_increase
+    return
+endif
+        scale_factor = (delta_energy_current/desired_delta_energy)**(1.0d0/poly_order)
+        max_scale_factor = (delta_energy_current/(min_step_error*eta))**(1.0d0/(poly_order+1))
+if (diag_pusher_tetry_poly_adaptive) print*, 'scale factor', scale_factor
+if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_factor
+       if (max_scale_factor .gt. freshhold) then
+            scale_factor = min(scale_factor,max_scale_factor)
+            eta = min(ceiling(eta*scale_factor),max_n_intermediate_steps)
+        elseif (scale_factor .gt. freshhold) then
+            eta = min(ceiling(eta*scale_factor),max_n_intermediate_steps)
+        else
+            eta = eta + additive_increase
+        endif !Choice of next number of steps
+!
+    end subroutine update_eta
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!    
+    subroutine adaptive_time_steps_exit_time(poly_order,i_scaling,z,boole_guess_adaptive, & 
+                                                & iface_new_adaptive,tau_exit,boole_analytical_approx)
+!
+        use gorilla_settings_mod, only: i_precomp
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
+!
+        implicit none
+!
+        integer, intent(in)                                 :: poly_order,i_scaling
+        double precision, dimension(4),intent(in)           :: z
+        logical, intent(in)                                 :: boole_guess_adaptive
+!
+        integer,intent(inout)                               :: iface_new_adaptive
+!
+        double precision, intent(out)                       :: tau_exit
+        logical,intent(out)                                 :: boole_analytical_approx
+!
+        logical, dimension(4)                               :: boole_faces
+!
+        boole_faces = .true.
+!
+        !use face prediction of second order for higher order computation in the adaptive scheme if wished
+        if (boole_guess_adaptive .and. (poly_order.gt.2)) then
+            call analytic_approx(2,i_precomp,boole_faces, &
+            & i_scaling,z,iface_new_adaptive,tau_exit,boole_analytical_approx)
+            !Higher order polynomial root is computed only for previously predicted face in second order
+            if(boole_analytical_approx) then               
+                boole_faces = .false.                !Disable all 4 faces 
+                boole_faces(iface_new_adaptive) = .true.      !Enable guessed face
+            endif
+            !Reset starting face (to INSIDE) for actual correct order calculation down below
+            iface_new_adaptive = 0 
+        endif  
+        !calculate exit time and exit face in correct order
+        !if a successful guess was made above in second order, boole_faces only allows the guessed face 
+        call analytic_approx(poly_order,i_precomp,boole_faces, &
+                            & i_scaling,z,iface_new_adaptive,tau_exit,boole_analytical_approx)   
+!   
+    end subroutine adaptive_time_steps_exit_time
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -1924,10 +1982,6 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
         !recalculate polynomial coefficients (tensors) if more than one integration step was performed
         if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
-!
-        !Save coordinates before analytical integration
-        x0 = z0(1:3)
-        vpar0 = z0(4)
 
         !Optional computation of Hamiltonian time
         if(boole_time_Hamiltonian) then
@@ -1936,18 +1990,17 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             allocate(vpar_coef(poly_order+1))
             allocate(x_vpar_coef(3,poly_order+1))
 !
-            call x_series_coef(x_coef,poly_order,x0)
-            call vpar_series_coef(vpar_coef,poly_order,vpar0)
+            call z_series_coef(poly_order,z0,x_coef,vpar_coef)
 !
             call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
             call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
             call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
 !
             delta_t_hamiltonian = hamiltonian_time(ind_tetr)%h1_in_curlA * tau + &
-            & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * vpar_integral_without_precomp(poly_order,tau,vpar_coef)+&
-            & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * x_integral_without_precomp(poly_order,tau,x_coef) ) + &
+            & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * scalar_integral_without_precomp(poly_order,tau,vpar_coef)+&
+            & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * vector_integral_without_precomp(poly_order,tau,x_coef) ) + &
             & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
-            & x_vpar_integral_without_precomp(poly_order,tau,x_vpar_coef))
+            & vector_integral_without_precomp(poly_order,tau,x_vpar_coef))
 !
             optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + delta_t_hamiltonian
 !
@@ -1959,19 +2012,19 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
                     & 1.d0/cm_over_e * tetra_physics(ind_tetr)%bmod1 * delta_t_hamiltonian + &
 !
                     !First term
-                    & 1.d0/cm_over_e * sum( tetra_physics(ind_tetr)%gb * x_integral_without_precomp(poly_order,tau,x_coef) ) * &
+                    & 1.d0/cm_over_e * sum( tetra_physics(ind_tetr)%gb * vector_integral_without_precomp(poly_order,tau,x_coef) ) *&
                     & hamiltonian_time(ind_tetr)%h1_in_curlA + &
 !
                     !Second term
-                    & sum(x_vpar_integral_without_precomp(poly_order,tau,x_vpar_coef) * tetra_physics(ind_tetr)%gb ) * &
+                    & sum(vector_integral_without_precomp(poly_order,tau,x_vpar_coef) * tetra_physics(ind_tetr)%gb ) * &
                     & hamiltonian_time(ind_tetr)%h1_in_curlh + &
 !
                     !Third term
-                    & 1.d0/cm_over_e * sum( matmul( xx_integral_without_precomp(poly_order,tau,x_coef) , &
+                    & 1.d0/cm_over_e * sum( matmul( tensor_integral_without_precomp(poly_order,tau,x_coef,x_coef) , &
                     & hamiltonian_time(ind_tetr)%vec_mismatch_der ) * tetra_physics(ind_tetr)%gb) + &
 !
                     !Fourth term
-                    & sum( matmul( xxvpar_integral_without_precomp( poly_order,tau,x_coef,x_vpar_coef), &
+                    & sum( matmul( tensor_integral_without_precomp(poly_order,tau,x_coef,x_vpar_coef), &
                     & hamiltonian_time(ind_tetr)%vec_parcurr_der ) *  tetra_physics(ind_tetr)%gb) &
                 & )
 
@@ -1985,151 +2038,57 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine x_series_coef(x_coef,poly_order,x0)
+    subroutine z_series_coef(poly_order,z0,x_coef,vpar_coef)
 !
-        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
-        !Values in modules are used that need to be precomputed in that subroutine.
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
 !
         use poly_without_precomp_mod, only: b, amat_in_z,amat2_in_z,amat3_in_z,amat_in_b,amat2_in_b, &
                                             & amat4_in_z,amat3_in_b
 !
         implicit none
 !
-        double precision, dimension(:,:),intent(out)    :: x_coef
         integer, intent(in)                             :: poly_order
-        double precision, dimension(3), intent(in)      :: x0
+        double precision, dimension(4), intent(in)      :: z0
 !
-        x_coef(:,1) = x0
+        double precision, dimension(:,:),intent(out)    :: x_coef
+        double precision, dimension(:),intent(out)      :: vpar_coef
+!
+        x_coef(:,1) = z0(1:3)
+        vpar_coef(1) = z0(4)
 !
         if(poly_order.ge.1) then
             x_coef(:,2) = b(1:3) + amat_in_z(1:3)
+            vpar_coef(2) = b(4) + amat_in_z(4)
         endif
 !
         if(poly_order.ge.2) then
             x_coef(:,3) = 0.5d0 * (amat_in_b(1:3) + amat2_in_z(1:3))
+            vpar_coef(3) = 0.5d0 * (amat_in_b(4) + amat2_in_z(4))
         endif
 !
         if(poly_order.ge.3) then
             x_coef(:,4) = 1.d0 / 6.d0 * (amat2_in_b(1:3) + amat3_in_z(1:3))
+            vpar_coef(4) = 1.d0 / 6.d0 * (amat2_in_b(4) + amat3_in_z(4))
         endif
 !
         if(poly_order.ge.4) then
             x_coef(:,5) = 1.d0 / 24.d0 * (amat3_in_b(1:3) + amat4_in_z(1:3))
+            vpar_coef(5) = 1.d0 / 24.d0 * (amat3_in_b(4) + amat4_in_z(4))
         endif
 !
-    end subroutine x_series_coef
+    end subroutine z_series_coef
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine vpar_series_coef(vpar_coef,poly_order,vpar0)
-!
-        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
-        !Values in modules are used that need to be precomputed in that subroutine.
-!
-        use poly_without_precomp_mod, only: amat,b
-!
-        implicit none
-!
-        double precision, dimension(:),intent(out)      :: vpar_coef
-        integer, intent(in)                             :: poly_order
-        double precision, intent(in)                    :: vpar0
-        double precision                                :: a44,b4
-!
-        a44 = amat(4,4)
-        b4 = b(4)
-!
-        vpar_coef(1) = vpar0
-!
-        if(poly_order.ge.1) then
-            vpar_coef(2) = vpar0*a44 + b4
-        endif
-!
-        if(poly_order.ge.2) then
-            vpar_coef(3) = 0.5d0 * (vpar0 * a44**2 + a44 * b4)
-        endif
-!
-        if(poly_order.ge.3) then
-            vpar_coef(4) = 1.d0 / 6.d0 * (vpar0 * a44**3 + a44**2 * b4)
-        endif
-!
-        if(poly_order.ge.4) then
-            vpar_coef(5) = 1.d0 / 24.d0 * (vpar0 * a44**4 + a44**3 * b4)
-        endif
-
-    end subroutine vpar_series_coef
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    function x_integral_without_precomp(poly_order,tau,x_coef)
-!
-        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
-        !Values in modules are used that need to be precomputed in that subroutine.
-!
-        implicit none
-!
-        integer, intent(in)                             :: poly_order
-        double precision, intent(in)                    :: tau
-        double precision, dimension(3)                  :: x_integral_without_precomp
-        double precision, dimension(:,:), intent(in)    :: x_coef
-!
-        if(poly_order.ge.1) then
-            x_integral_without_precomp = x_coef(:,1) * tau + x_coef(:,2) * 0.5d0 * tau**2
-        endif
-!
-        if(poly_order.ge.2) then
-            x_integral_without_precomp = x_integral_without_precomp + tau**3/3.d0 * x_coef(:,3)
-        endif
-!
-        if(poly_order.ge.3) then
-            x_integral_without_precomp = x_integral_without_precomp + tau**4/4.d0 * x_coef(:,4)
-        endif
-!
-        if(poly_order.ge.4) then
-            x_integral_without_precomp = x_integral_without_precomp + tau**5/5.d0 * x_coef(:,5)
-        endif
-
-    end function x_integral_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    function vpar_integral_without_precomp(poly_order,tau,vpar_coef)
-!
-        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
-        !Values in modules are used that need to be precomputed in that subroutine.
-!
-        implicit none
-!
-        integer, intent(in)                         :: poly_order
-        double precision, intent(in)                :: tau
-        double precision, dimension(:),intent(in)   :: vpar_coef
-        double precision                            :: vpar_integral_without_precomp
-!
-        if(poly_order.ge.1) then
-            vpar_integral_without_precomp = vpar_coef(1)*tau + tau**2 * 0.5d0 * vpar_coef(2)
-        endif
-!
-        if(poly_order.ge.2) then
-            vpar_integral_without_precomp = vpar_integral_without_precomp + tau**3/3.d0 * vpar_coef(3)
-        endif
-!
-        if(poly_order.ge.3) then
-            vpar_integral_without_precomp = vpar_integral_without_precomp + tau**4/4.d0 * vpar_coef(4)
-        endif
-!
-        if(poly_order.ge.4) then
-            vpar_integral_without_precomp = vpar_integral_without_precomp + tau**5/5.d0 * vpar_coef(5)
-        endif
-!
-    end function vpar_integral_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    subroutine poly_multiplication_coef(poly_coef_1,poly_coef_2,res_poly_coef)
+    pure subroutine poly_multiplication_coef(poly_coef_1,poly_coef_2,res_poly_coef)
 !
         implicit none
 !
         double precision, dimension(:),intent(in) :: poly_coef_1,poly_coef_2
+!
         double precision, dimension(:),intent(out) :: res_poly_coef
+!
         integer :: max_order,i,j,k,sz_1,sz_2,cur_order
         integer,dimension(:),allocatable :: poly_order_vec_1,poly_order_vec_2
 !
@@ -2172,141 +2131,91 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    function x_vpar_integral_without_precomp(poly_order,tau,x_vpar_coef)
+    pure function scalar_integral_without_precomp(poly_order,tau,scalar_coef)
 !
-        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
-        !Values in modules are used that need to be precomputed in that subroutine.
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
 !
         implicit none
 !
         integer, intent(in)                             :: poly_order
         double precision, intent(in)                    :: tau
-        double precision, dimension(3)                  :: x_vpar_integral_without_precomp
-        double precision, dimension(:,:), intent(in)    :: x_vpar_coef
+        double precision, dimension(:), intent(in)      :: scalar_coef
+!
+        double precision                                :: scalar_integral_without_precomp
 !
         if(poly_order.ge.1) then
-            x_vpar_integral_without_precomp = x_vpar_coef(:,1) * tau + x_vpar_coef(:,2) * 0.5d0 * tau**2
+            scalar_integral_without_precomp = scalar_coef(1)*tau + tau**2 * 0.5d0 * scalar_coef(2)
         endif
 !
         if(poly_order.ge.2) then
-            x_vpar_integral_without_precomp = x_vpar_integral_without_precomp + tau**3/3.d0 * x_vpar_coef(:,3)
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**3/3.d0 * scalar_coef(3)
         endif
 !
         if(poly_order.ge.3) then
-            x_vpar_integral_without_precomp = x_vpar_integral_without_precomp + tau**4/4.d0 * x_vpar_coef(:,4)
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**4/4.d0 * scalar_coef(4)
         endif
 !
         if(poly_order.ge.4) then
-            x_vpar_integral_without_precomp = x_vpar_integral_without_precomp + tau**5/5.d0 * x_vpar_coef(:,5)
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**5/5.d0 * scalar_coef(5)
         endif
 !
-    end function x_vpar_integral_without_precomp
+    end function scalar_integral_without_precomp
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    function xx_integral_without_precomp(poly_order,tau,x_coef)
+    pure function vector_integral_without_precomp(poly_order,tau,vector_coef)
 !
-        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
-        !Values in modules are used that need to be precomputed in that subroutine.
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
 !
         implicit none
 !
         integer, intent(in)                             :: poly_order
         double precision, intent(in)                    :: tau
-        double precision, dimension(3,3)                :: xx_integral_without_precomp
-        double precision, dimension(:,:), intent(in)    :: x_coef
-        double precision, dimension(:), allocatable     :: xx_coef_component
-        integer :: j,k
+        double precision, dimension(:,:), intent(in)    :: vector_coef
 !
-        allocate(xx_coef_component(poly_order+1))
+        double precision, dimension(3)                  :: vector_integral_without_precomp
 !
-        do j = 1,3
-            do k = 1,3
+        integer                                         :: i
 !
-                !Compute convolution of coefficient for one component
-                call poly_multiplication_coef(x_coef(j,:),x_coef(k,:),xx_coef_component)
+        forall(i = 1:3) vector_integral_without_precomp(i) = scalar_integral_without_precomp(poly_order,tau,vector_coef(i,:))
 !
-                xx_integral_without_precomp(j,k) = tau * xx_coef_component(1)
-!
-                if(poly_order.ge.1) then
-                    xx_integral_without_precomp(j,k) = xx_integral_without_precomp(j,k) +  &
-                        & tau**2 * 0.5d0 * xx_coef_component(2)
-                endif
-!
-                if(poly_order.ge.2) then
-                    xx_integral_without_precomp(j,k) = xx_integral_without_precomp(j,k) + &
-                        & tau**3 / 3.d0 * xx_coef_component(3)
-                endif
-!
-                if(poly_order.ge.3) then
-                    xx_integral_without_precomp(j,k) = xx_integral_without_precomp(j,k) + &
-                        & tau**4 / 4.d0 * xx_coef_component(4)
-                endif
-!
-                if(poly_order.ge.4) then
-                    xx_integral_without_precomp(j,k) = xx_integral_without_precomp(j,k) + &
-                        & tau**5 / 5.d0 * xx_coef_component(5)
-                endif
-!
-            enddo
-        enddo
-!
-        deallocate(xx_coef_component)
-!
-    end function xx_integral_without_precomp
+    end function vector_integral_without_precomp
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    function xxvpar_integral_without_precomp(poly_order,tau,x_coef,x_vpar_coef)
+    pure function tensor_integral_without_precomp(poly_order,tau,vector_coef_1,vector_coef_2)
 !
-        !This function shall only be called within the subroutine "analytic_integration_without_precomp"
-        !Values in modules are used that need to be precomputed in that subroutine.
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
 !
         implicit none
 !
         integer, intent(in)                             :: poly_order
         double precision, intent(in)                    :: tau
-        double precision, dimension(3,3)                :: xxvpar_integral_without_precomp
-        double precision, dimension(:,:), intent(in)    :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable     :: xxvpar_coef_component
+        double precision, dimension(:,:), intent(in)    :: vector_coef_1,vector_coef_2
+!
+        double precision, dimension(3,3)                :: tensor_integral_without_precomp
+        double precision, dimension(:), allocatable     :: tensor_component_coef
         integer :: j,k
 !
-        allocate(xxvpar_coef_component(poly_order+1))
+        allocate(tensor_component_coef(poly_order+1))
 !
         do j = 1,3
             do k = 1,3
 !
                 !Compute convolution of coefficient for one component
-                call poly_multiplication_coef(x_vpar_coef(j,:),x_coef(k,:),xxvpar_coef_component)
+                call poly_multiplication_coef(vector_coef_1(j,:),vector_coef_2(k,:),tensor_component_coef)
 !
-                xxvpar_integral_without_precomp(j,k) = tau * xxvpar_coef_component(1)
-!
-                if(poly_order.ge.1) then
-                    xxvpar_integral_without_precomp(j,k) = xxvpar_integral_without_precomp(j,k) +  &
-                        & tau**2 * 0.5d0 * xxvpar_coef_component(2)
-                endif
-!
-                if(poly_order.ge.2) then
-                    xxvpar_integral_without_precomp(j,k) = xxvpar_integral_without_precomp(j,k) + &
-                        & tau**3 / 3.d0 * xxvpar_coef_component(3)
-                endif
-!
-                if(poly_order.ge.3) then
-                    xxvpar_integral_without_precomp(j,k) = xxvpar_integral_without_precomp(j,k) + &
-                        & tau**4 / 4.d0 * xxvpar_coef_component(4)
-                endif
-!
-                if(poly_order.ge.4) then
-                    xxvpar_integral_without_precomp(j,k) = xxvpar_integral_without_precomp(j,k) + &
-                        & tau**5 / 5.d0 * xxvpar_coef_component(5)
-                endif
+                tensor_integral_without_precomp(j,k) = scalar_integral_without_precomp(poly_order,tau,tensor_component_coef)
 !
             enddo
         enddo
 !
-        deallocate(xxvpar_coef_component)
+        deallocate(tensor_component_coef)
 !
-    end function xxvpar_integral_without_precomp
+    end function tensor_integral_without_precomp
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

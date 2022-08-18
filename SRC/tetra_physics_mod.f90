@@ -918,7 +918,10 @@ enddo
                         Bcovar_r,Bcovar_vartheta,Bcovar_varphi)
 !
         !Squareroot(g) is for some reason a negative quantity ???
-        sqg = abs(sqg)
+        sqg = abs(sqg) ! <-- Only needed for underlying problem, that in vmec_field() sqg = J instead of sqg = ABS(J), 
+                       ! This respects the fact that depending on the coordinate system, the actual integration might go 
+                       ! backwards in time (orbitparameter ~ -physical time), but this is inpracticable with the pusher routine, 
+                       ! which always assumes positive tau and positive integration time -> may lead to issues with t-uneven moments
 
         !Physical component of B-Field
         bmod = sqrt(Bctrvr_vartheta*Bcovar_vartheta + Bctrvr_varphi*Bcovar_varphi)*bmod_multiplier
