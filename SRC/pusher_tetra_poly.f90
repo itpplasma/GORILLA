@@ -786,14 +786,14 @@ if(diag_pusher_tetry_poly) print*, 'Adaptive Stepsize equidistant was called'
 !
         logical, dimension(4)                                 :: boole_faces
         double precision, dimension(4)                        :: z_start_adaptive
-        integer                                               :: i, k, eta, eta_extended, &
-                                                                & eta_minimum
+        integer                                               :: i, k, eta, eta_extended, eta_limit,&
+                                                                & eta_minimum, eta_buffer
         integer                                               :: iface_new_adaptive, number_of_integration_steps_start_adaptive
         logical                                               :: boole_analytical_approx, boole_exit_tetrahedron, & 
                                                                & boole_energy_check, boole_reached_minimum
         double precision                                      :: energy_start_adaptive, energy_current, &
                                                                & delta_energy_start, delta_energy_minimum, & 
-                                                               & tau_prime, tau_collected, tau_exit
+                                                               & tau_prime, tau_collected, tau_exit, tau_minimum, tau_buffer
 !
         !Save current z0 and stepped back global integration counter
         z_start_adaptive = intermediate_z0_list(:,number_of_integration_steps)
@@ -804,6 +804,7 @@ if(diag_pusher_tetry_poly_adaptive) print*, '------------------------'
 !
         !Set up for Partition procedure
         eta = 1
+        eta_extended = 1
         boole_reached_minimum = .false.
         delta_energy_start = delta_energy_current
         delta_energy_minimum = delta_energy_current
@@ -816,7 +817,10 @@ if(diag_pusher_tetry_poly_adaptive) print*, '------------------------'
             call update_eta(poly_order,delta_energy_current,eta)
 !
             !Set up for redo of the minimum run
-            if (boole_reached_minimum) eta = eta_minimum
+            if (boole_reached_minimum) then
+                eta = eta_minimum
+                tau = tau_minimum
+            endif
 !
 if (report_pusher_tetry_poly_adaptive) then
 if(.not.boole_collect_data.AND.(eta.gt.minimum_partition_number)) then
@@ -849,13 +853,13 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'tau_prime', tau_prime
             boole_energy_check = .false.
             if (boole_passing) then
                 !As the intermediate steps change our orbit, we may need longer than the original tau -> more steps 
-                eta_extended = ceiling(max_n_intermediate_steps*1.1d0)
+                eta_limit = ceiling(max_n_intermediate_steps*1.1d0)
             else
                 !We do not expect a passing
-                eta_extended = eta
-            endif !boole_passing for eta_extended
+                eta_limit = eta
+            endif !boole_passing for eta_limit
 !
-            STEPWISE: do i = 1, (eta_extended -1) !used to be 1,eta-1
+            STEPWISE: do i = 1, (eta_limit -1) !used to be 1,eta-1
                 !recalculate polynomial coefficients (tensors) as at every intermediate step the poly_coef change
                 call set_integration_coef_manually(poly_order,z)
                 call analytic_integration(poly_order,i_precomp,z,tau_prime)
@@ -881,6 +885,7 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: Left tetr
 !
                 !If it was a valid step we add it to the total used time
                 tau_collected = tau_collected + tau_prime
+                eta_extended = i
 !
 if (report_pusher_tetry_poly_adaptive) then
 if (boole_collect_data ) then
@@ -973,6 +978,13 @@ closure_fluctuation_report(report_entry_index,3) = &
 endif
 endif
 !
+            !Update tau/eta actually needed to travers tetrahedron (for final result or for better approx in another iteration)
+            !The buffer variables are used to 1:1 save the minimum run, as it was achieved now (even if the tau/eta was off, only the result matters not how we got to it!)
+            eta_buffer = eta
+            tau_buffer = tau
+            eta = eta_extended + 1
+            tau = tau_collected
+!
             !There is an effective minimum that can be achieved by decreasing the timesteps
             !After that the error actually increases/osscilates -> we only use the monoton decrease
 if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_current', delta_energy_current
@@ -981,7 +993,8 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energ
                 exit PARTITION
             elseif (delta_energy_current.lt.delta_energy_minimum) then
                 delta_energy_minimum = delta_energy_current
-                eta_minimum = eta
+                eta_minimum = eta_buffer
+                tau_minimum = tau_buffer
                 if (delta_energy_current.le.desired_delta_energy) then
                     boole_energy_check = .true.
                     exit PARTITION
@@ -995,7 +1008,6 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energ
         end do PARTITION
 !
         iface_out_adaptive = iface_new_adaptive
-        tau = tau_collected
 !
         !If could not satisfy energy conservation with scheme, notify user
         if (.not.boole_energy_check) then
@@ -1037,20 +1049,20 @@ endif
         integer, intent(inout)                      :: eta
 !
         double precision                            :: scale_factor, max_scale_factor
-        double precision, parameter                 :: freshhold = 1, min_step_error = 1E-15, additive_increase = 10 !default 1,1E-15,10
+        double precision, parameter                 :: threshold = 1.d0, min_step_error = 1E-15, additive_increase = 1 !default 1,1E-15,10
 !
 if (boole_collect_data)  then 
-    eta = eta + additive_increase
+    eta = eta + 100
     return
 endif
         scale_factor = (delta_energy_current/desired_delta_energy)**(1.0d0/poly_order)
         max_scale_factor = (delta_energy_current/(min_step_error*eta))**(1.0d0/(poly_order+1))
 if (diag_pusher_tetry_poly_adaptive) print*, 'scale factor', scale_factor
 if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_factor
-       if (max_scale_factor .gt. freshhold) then
+       if ((scale_factor .gt. threshold) .AND. (max_scale_factor .gt. threshold)) then
             scale_factor = min(scale_factor,max_scale_factor)
             eta = min(ceiling(eta*scale_factor),max_n_intermediate_steps)
-        elseif (scale_factor .gt. freshhold) then
+        elseif (scale_factor .gt. threshold) then
             eta = min(ceiling(eta*scale_factor),max_n_intermediate_steps)
         else
             eta = eta + additive_increase
