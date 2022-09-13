@@ -51,7 +51,7 @@ module pusher_tetra_poly_mod
     !$OMP THREADPRIVATE(ind_tetr,iface_init,perpinv,perpinv2,dt_dtau_const,bmod0,t_remain,x_init,  &
     !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps)
 !
-    public :: pusher_tetra_poly,initialize_const_motion_poly, manage_intermediate_steps_arrays, &
+    public :: pusher_tetra_poly,initialize_const_motion_poly, &
         & Quadratic_Solver2, Cubic_Solver, Quartic_Solver,analytic_integration_without_precomp,energy_tot_func
 !   
     contains
@@ -71,16 +71,18 @@ module pusher_tetra_poly_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-        subroutine manage_intermediate_steps_arrays()
+        subroutine manage_intermediate_steps_arrays(option)
 !
             use gorilla_settings_mod, only: max_n_intermediate_steps, boole_adaptive_time_steps
             use gorilla_diag_mod, only: report_pusher_tetry_poly_adaptive
 !
             implicit none
 !            
+            integer, intent(in) :: option
+!
             integer             :: max_entries, k
 !
-            if (.not.(allocated(tau_steps_list).OR.allocated(intermediate_z0_list))) then
+            if (option .eq. 0) then
                 !From one face to another there are max_n_intermediate_steps 
                 !and that all possible two times as trajectory can be prolonged to a third face (turning on face) + buffer
                 if (boole_adaptive_time_steps) then
@@ -97,7 +99,7 @@ allocate(total_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1
 report_entry_index = 0
 number_reports = 0
 endif
-            elseif(allocated(tau_steps_list).AND.allocated(intermediate_z0_list)) then
+            elseif(option .eq. 1) then
 !
 if (report_pusher_tetry_poly_adaptive) then
 open(123, file='./total_fluctuation_report.dat')
@@ -204,6 +206,8 @@ endif
             double precision, dimension(4,4)                      :: operator_b,operator_z_init
 !         
             call initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
+            !In case of first call of orbit integration -> inialize the intermediate_steps_array
+            if (.not.(allocated(tau_steps_list).OR.allocated(intermediate_z0_list))) call manage_intermediate_steps_arrays(0)
 !
             !initialise the module variables number_of_integration_steps, tau_steps_list and intermediate_z0_list
             ! max_entries = 2*(max_n_intermediate_steps)
@@ -360,6 +364,7 @@ if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
                     print *, 'Error: No analytical solution exists.'
                     ind_tetr_inout = -1
                     iface = -1
+                    call manage_intermediate_steps_arrays(1)
                     return
                 endif
 !
@@ -413,6 +418,7 @@ if(diag_pusher_tetry_poly) print*, 'Called Troubleshooting'
                         print *, 'Error: Trouble shooting failed. Remove particle.'
                         ind_tetr_inout = -1
                         iface = -1
+                        call manage_intermediate_steps_arrays(1)
                         return
                     endif
                 endif
@@ -514,6 +520,7 @@ endif
                         print *, 'Error: Trouble shooting failed. Remove particle.'
                         ind_tetr_inout = -1
                         iface = -1
+                        call manage_intermediate_steps_arrays(1)
                         return
                     endif
 !
@@ -551,7 +558,8 @@ endif
                     call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
                 enddo
             endif
-            ! deallocate(tau_steps_list,intermediate_z0_list)
+            !If finished particle integration, deallocate the intermediate_steps_array (get also deallocated in previous instances if lost particle)
+            if(boole_t_finished) call manage_intermediate_steps_arrays(1)
 !
         end subroutine pusher_tetra_poly
 !
@@ -681,6 +689,7 @@ if(diag_pusher_tetry_poly)  print *, 'Error: Tau is out of safety boundary'
             print *, 'Error in prolonged trajectory: No analytical solution exists.'
             ind_tetr_inout = -1
             iface = -1
+            call manage_intermediate_steps_arrays(1)
             return
         endif
 !                    
@@ -1021,7 +1030,7 @@ if (boole_collect_data) then
 if (number_reports.ge.max_number_reports) then
 if (diag_pusher_tetry_poly_adaptive) print*, eta
 if (diag_pusher_tetry_poly_adaptive) print*, boole_exit_tetrahedron
-call manage_intermediate_steps_arrays()
+call manage_intermediate_steps_arrays(1)
 print *, 'Collected enough data for adaptive scheme report!'
 stop
 endif
