@@ -26,9 +26,6 @@
 *.a
 *.lib
 
-# External libraries
-SRC/contrib/Polynomial234RootSolvers.f90
-
 # Executables
 *.exe
 *.out
