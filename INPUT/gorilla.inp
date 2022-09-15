@@ -127,15 +127,17 @@
  !Dividing orbit integration into intermediate steps (adaptive) to reduce error made by finit polynomial
  !Only for ipusher = 2 (polynomial pusher)
 !
- !boole adapative time steps
+ !Switch for adaptive time step scheme
+ !false ... no adaptive scheme
+ !true ... adaptive scheme to ensure energy conservation up to specified fluctuation
  boole_adaptive_time_steps = .false. ,
 !
- !allowed relative fluctuation of energy during orbit integration
- !must not be smaller or equal zero
+ !Allowed relative fluctuation of energy between entry and exit of a tetrahedron
+ !Must not be smaller or equal zero!
  desired_delta_energy = 1.E-10
 !
- !maximum number of intermediate steps allowed (while traveling from one face to another)
- !Minimum of 1 intermediate step (the full step is divided into two steps)
+ !Maximum number of intermediate steps allowed for splitting up an orbit section
+ !Should not go much beyond 10000 steps.
  max_n_intermediate_steps = 10000 ,
 !
 !------------------------------------------------------------------------------------------------------------!
