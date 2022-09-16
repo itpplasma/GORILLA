@@ -495,7 +495,7 @@ module gorilla_plot_mod
 !
                 !Domain Boundary
                 if(ind_tetr.eq.-1) then
-                    print *, 'WARNING: Particle lost at s = ',x(1)
+                    print *, 'WARNING: Particle lost at x(1) = ',x(1), 'x(2)',x(2),'x(3)',x(3)
                     exit
                 endif
 !                

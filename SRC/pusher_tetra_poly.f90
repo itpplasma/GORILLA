@@ -36,8 +36,20 @@ module pusher_tetra_poly_mod
                                0.d0, 0.d0, 1.d0, 0.d0, &
                                0.d0, 0.d0, 0.d0, 1.d0 ], [4,4])
 !
+    !change those for adaptive step sizes, probably allocatable
+    double precision, dimension(:), allocatable           :: tau_steps_list
+    double precision, dimension(:,:), allocatable         :: intermediate_z0_list
+    integer                                               :: number_of_integration_steps
+!
+    !Diagnostics for adaptive step scheme (only useable for one particle calculation)
+    double precision, dimension(:,:), allocatable         :: total_fluctuation_report, single_step_fluctuation_report, &
+                                                           & closure_fluctuation_report
+    integer                                               :: report_entry_index, number_reports
+    integer, parameter                                    :: max_number_reports = 1, minimum_partition_number = 9000
+    logical                                               :: boole_collect_data
+!
     !$OMP THREADPRIVATE(ind_tetr,iface_init,perpinv,perpinv2,dt_dtau_const,bmod0,t_remain,x_init,  &
-    !$OMP& z_init,k1,k3,vmod0)
+    !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps)
 !
     public :: pusher_tetra_poly,initialize_const_motion_poly, &
         & Quadratic_Solver2, Cubic_Solver, Quartic_Solver,analytic_integration_without_precomp,energy_tot_func
@@ -56,6 +68,62 @@ module pusher_tetra_poly_mod
             perpinv2 = perpinv2_in
 !            
         end subroutine initialize_const_motion_poly
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine manage_intermediate_steps_arrays(option)
+!
+            use gorilla_settings_mod, only: max_n_intermediate_steps, boole_adaptive_time_steps
+            use gorilla_diag_mod, only: report_pusher_tetry_poly_adaptive
+!
+            implicit none
+!            
+            integer, intent(in) :: option
+!
+            integer             :: max_entries, k
+!
+            if (option .eq. 0) then
+                !From one face to another there are max_n_intermediate_steps 
+                !and that all possible two times as trajectory can be prolonged to a third face (turning on face) + buffer
+                if (boole_adaptive_time_steps) then
+                    max_entries = 3*(max_n_intermediate_steps)
+                    allocate(tau_steps_list(max_entries),intermediate_z0_list(4,max_entries))
+                else
+                    !if no adaptive scheme -> just two steps in total
+                    allocate(tau_steps_list(2),intermediate_z0_list(4,2))
+                endif
+if (report_pusher_tetry_poly_adaptive) then
+allocate(total_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),2), & 
+& single_step_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),3), &
+& closure_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),3))
+report_entry_index = 0
+number_reports = 0
+endif
+            elseif(option .eq. 1) then
+!
+if (report_pusher_tetry_poly_adaptive) then
+open(123, file='./total_fluctuation_report.dat')
+do k = 1, report_entry_index
+write(123,*) total_fluctuation_report(k,:)
+end do
+close(123)
+open(123, file='./single_step_fluctuation_report.dat')
+do k = 1, report_entry_index
+write(123,*) single_step_fluctuation_report(k,:)
+end do
+close(123)
+open(123, file='./closure_fluctuation_report.dat')
+do k = 1, report_entry_index
+write(123,*) closure_fluctuation_report(k,:)
+end do
+close(123)
+deallocate(total_fluctuation_report,single_step_fluctuation_report,closure_fluctuation_report)
+endif
+!
+                deallocate(tau_steps_list,intermediate_z0_list)
+            endif
+!            
+        end subroutine manage_intermediate_steps_arrays
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -105,39 +173,54 @@ module pusher_tetra_poly_mod
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
         subroutine pusher_tetra_poly(poly_order,ind_tetr_inout,iface,x,vpar,z_save,t_remain_in,t_pass, &
-                                               & boole_t_finished,iper_phi)
+                        & boole_t_finished,iper_phi,optional_quantities)
 !
             use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
             use gorilla_diag_mod,only: diag_pusher_tetry_poly
             use pusher_tetra_func_mod, only: pusher_handover2neighbour
-            use gorilla_settings_mod, only: i_precomp, boole_guess
+            use gorilla_settings_mod, only: i_precomp, boole_guess, optional_quantities_type, boole_array_optional_quantities, &
+                                    &  boole_adaptive_time_steps
 !
             implicit none
 !
-            integer                                             :: poly_order
-            integer,intent(inout)                               :: ind_tetr_inout,iface
-            integer,intent(out)                                 :: iper_phi
-            double precision, dimension(3), intent(inout)       :: x
-            double precision, intent(inout)                     :: vpar
-            double precision, dimension(3), intent(out)         :: z_save
-            double precision, intent(in)                        :: t_remain_in
-            double precision, intent(out)                       :: t_pass
-            logical, intent(out)                                :: boole_t_finished
-            logical, dimension(4)                               :: boole_faces
-            integer                                             :: i,j,k
-            double precision, dimension(4)                      :: z,operator_b_in_b,z_dummy
-            integer                                             :: iface_new,i_scaling
-            double precision                                    :: tau,vperp2,tau_save,tau_est,tau_max
-            logical                                             :: boole_analytical_approx,boole_face_correct,boole_vnorm_correction
-            logical                                             :: boole_trouble_shooting
-            double precision,dimension(4,4)                     :: operator_b,operator_z_init
+            integer, intent(in)                                   :: poly_order
+            double precision, intent(in)                          :: t_remain_in
+!
+            integer,intent(inout)                                 :: ind_tetr_inout,iface
+            double precision, dimension(3), intent(inout)         :: x
+            double precision, intent(inout)                       :: vpar
+!
+            double precision, dimension(3), intent(out)           :: z_save
+            double precision, intent(out)                         :: t_pass
+            logical, intent(out)                                  :: boole_t_finished
+            integer,intent(out)                                   :: iper_phi
+            type(optional_quantities_type), intent(out),optional  :: optional_quantities
+!
+            logical, dimension(4)                                 :: boole_faces
+            integer                                               :: i,j,k
+            double precision, dimension(4)                        :: z,operator_b_in_b,z_dummy
+            integer                                               :: iface_new,i_scaling, max_entries
+            double precision                                      :: tau,vperp2,tau_save,tau_est,tau_max, energy_init,energy_current
+            logical                                               :: boole_analytical_approx,boole_face_correct
+            logical                                               :: boole_trouble_shooting
+            double precision, dimension(4,4)                      :: operator_b,operator_z_init
 !         
             call initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
+            !In case of first call of orbit integration -> inialize the intermediate_steps_array
+            if (.not.(allocated(tau_steps_list).OR.allocated(intermediate_z0_list))) call manage_intermediate_steps_arrays(0)
+!
+            !initialise the module variables number_of_integration_steps, tau_steps_list and intermediate_z0_list
+            ! max_entries = 2*(max_n_intermediate_steps)
+            ! allocate(tau_steps_list(max_entries),intermediate_z0_list(4,max_entries))
+            number_of_integration_steps = 0
+!
+            if (any(boole_array_optional_quantities)) call initialise_optional_quantities(optional_quantities)
 !
             !Initial computation values
             z = z_init
 ! 
 if(diag_pusher_tetry_poly) then
+    print *, 'z_init', z_init
     print *, 'iface init', iface_init
     print *, 'norm at start'
     do i = 1,4
@@ -153,9 +236,6 @@ endif
             !Initialize iper_phi (for the case that handover2neighbour does not set this value)
             iper_phi = 0
 !
-            !Initialize vnorm correction (Particle turns exactly at the face)
-            boole_vnorm_correction = .false.
-!
             !Initialize scaling for quartic solver
             i_scaling = 0
 !
@@ -166,66 +246,45 @@ endif
             boole_trouble_shooting = .true.
 !
             !Set iface_new start value for polynomial approximation
-            iface_new = iface
+            iface_new = iface_init !instead of iface_new = iface
 !
             !boole_faces ... Boolean array for switching on/off root computation for individual face
             !Initialize boole_faces, such that roots for all 4 faces are computed
             boole_faces = .true.
 !
-            !Low order polynomial face prediction
-            if(boole_guess) then
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!!!!!FIRST ATTEMPT WITH SECOND ORDER GUESS!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-                !Analytical calculation of orbit parameter to guess exit face
-                call analytic_approx(2,i_precomp,boole_faces, &
-                                    & i_scaling,z,iface_new,tau,boole_analytical_approx)
+            !Analytical calculation of orbit parameter to guess exit face and estimate of tau
+            call analytic_approx(2,i_precomp,boole_faces, &
+            & i_scaling,z,iface_new,tau,boole_analytical_approx)
 !
-                !Define boundary for tau_max
-                tau_max = tau*eps_tau
-                                    
+            !Define boundary for tau_max
+            tau_max = tau*eps_tau
+!
 if(diag_pusher_tetry_poly) print *, 'boole_analytical_approx',boole_analytical_approx
-!               
-                !Higher order polynomial root is computed only for quadratically predicted face
-                if(poly_order.gt.2) then
-!    
-                    if(boole_analytical_approx) then
-                        boole_faces = .false.                !Disable all 4 faces 
-                        boole_faces(iface_new) = .true.      !Enable guessed face
-                        iface_new = iface                    !Set iface_new to entering iface
-!                    
-                        !Analytical calculation of orbit parameter to pass tetrahdron
-                        call analytic_approx(poly_order,i_precomp,boole_faces, &
-                                            & i_scaling,z,iface_new,tau,boole_analytical_approx)
-! 
+!
+            !use face prediction of second order for higher order computation (unneccessary if poly_order = 2)
+            if(boole_guess .and. boole_analytical_approx .and. (poly_order.gt.2)) then               
+                !Higher order polynomial root is computed only for previously predicted face in second order
+                boole_faces = .false.                !Disable all 4 faces 
+                boole_faces(iface_new) = .true.      !Enable guessed face
+!
 if(diag_pusher_tetry_poly) print *, 'tau',tau
 if(diag_pusher_tetry_poly) print *, 'iface guess', iface_new
 !
-                    else !No analytical approximation exists
-                        iface_new = iface   
-! 
-                        !Analytical calculation of orbit parameter to pass tetrahdron
-                        call analytic_approx(poly_order,i_precomp,boole_faces, &
-                                            & i_scaling,z,iface_new,tau,boole_analytical_approx)                  
-                    endif
+            endif   
+!           
+            !calculate exit time and exit face in higher order
+            !if a successful guess was made in second order, boole_faces only allows the guessed face 
+            if(poly_order.gt.2) then
+                iface_new = iface_init !instead of iface_new = iface 
 !                
-                endif
-!    
-            !No face guessing, instead roots are solved for all 4 faces
-            else
-                !Analytical calculation of orbit parameter for safety boundary
-                call analytic_approx(2,i_precomp,boole_faces, &
-                                    & i_scaling,z,iface_new,tau,boole_analytical_approx)
-!
-                !Define boundary for tau_max
-                tau_max = tau*eps_tau  
-                
-                if(poly_order.gt.2) then
-                    iface_new = iface  
-!                
-                    !Analytical calculation of orbit parameter to pass tetrahdron
-                    call analytic_approx(poly_order,i_precomp,boole_faces, &
-                                        & i_scaling,z,iface_new,tau,boole_analytical_approx)   
-                endif
-            endif        
+                !Analytical calculation of orbit parameter to pass tetrahdron
+                call analytic_approx(poly_order,i_precomp,boole_faces, &
+                                    & i_scaling,z,iface_new,tau,boole_analytical_approx)   
+            endif
 !
             !Initialize face error recognition procedure
             boole_face_correct = .true.
@@ -242,98 +301,55 @@ if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: Analytic app
             if(boole_face_correct) then
                 call analytic_integration(poly_order,i_precomp,z,tau)
 !
-                !Validation loop ('3-planes'-control)
-                three_planes_loop: do j=1,3                             !Just consider the planes without the "exit-plane"
-                    k=modulo(iface_new+j-1,4)+1
-                    if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
-                        boole_face_correct = .false.
-if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: three planes'
-                    endif        
-                enddo three_planes_loop
+                if (boole_adaptive_time_steps) then 
+                    call overhead_adaptive_time_steps(poly_order, i_scaling, boole_guess, .true., &
+                                                        &  iface_new, tau, z, boole_face_correct)
+                endif !adaptive steps scheme
 !
-                !Accuracy on face
-                if(abs(normal_distance_func(z(1:3),iface_new)).gt.1.d-11) then
-                    boole_face_correct = .false.
-if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: distance'
-                endif
+                call check_three_planes(z,iface_new,boole_face_correct)
+                call check_face_convergence(z,iface_new,boole_face_correct)
+                call check_exit_time(tau,tau_max,boole_face_correct,poly_order)
 !                
-                !Validation for vnorm
-                if(normal_velocity_func(z,iface_new).gt.0.d0) then
+                !If previous checks were fine, check for velocity and potentially prolong trajectory (only for 2nd order here)
+                if (boole_face_correct) then
+                    !Validation for vnorm
+                    if(normal_velocity_func(z,iface_new).gt.0.d0) then
 if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: normal velocity'
-                    if(poly_order.gt.2) then
-                        boole_face_correct = .false.
-!                        
-                    else !Error handling (only for quadratic solver): Particle turns 'exactly' on the face
-!                   
-                        boole_vnorm_correction = .true.
+                        if(poly_order.gt.2) then
+                            boole_face_correct = .false.                       
+                        else
 !
-                        !Particle orbit turns exactly at the face. Find next exit point of same tetrahedron.
-                        boole_faces = .true.
-                        tau_save = tau
-!                    
-                        !Analytical calculation of orbit parameter for safety boundary
-                        call analytic_approx(poly_order,i_precomp,boole_faces, &
-                                            & i_scaling,z,iface_new,tau,boole_analytical_approx)
-!                                                  
-                        !Analytical result does not exist.
-                        if(.not.boole_analytical_approx) then
-                            print *, 'Error: No analytical solution exists.'
-                            ind_tetr_inout = -1
-                            iface = -1
-                            return
+                            call prolonged_trajectory(poly_order,i_scaling,z,tau,ind_tetr_inout,iface, iface_new, &
+                            & boole_face_correct, boole_analytical_approx) 
+                            if(.not.boole_analytical_approx) return
                         endif
-!                    
-                        !Integrate trajectory analytically
-                        call analytic_integration(poly_order,i_precomp,z,tau)
-!
-                        !Integration in two parts (Therefore time must be added)
-                        tau = tau + tau_save
-!
-                        !Validation loop ('3-planes'-control)
-                        do j=1,3                             !Just consider the planes without the "exit-plane"
-                            k=modulo(iface_new+j-1,4)+1
-                            if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
-                                boole_face_correct = .false.
-                            endif        
-                        enddo
-!                    
-                        !Accuracy on face
-                        if(abs(normal_distance_func(z(1:3),iface_new)).gt.1.d-11) then
-                            boole_face_correct = .false.
-                        endif
-!                        
-                        !Validation for vnorm
-                        if(normal_velocity_func(z,iface_new).gt.0.d0) then
-                            boole_face_correct = .false.
-                        endif
-!       
-                    endif !vnorm is positive
-                endif
-!                
-                !Higher order polynomial result for tau is out of safety boundary
-                if(poly_order.gt.2) then
-                    if(tau.gt.tau_max) then
-if(diag_pusher_tetry_poly)                        print *, 'Error: Tau is out of safety boundary (1)'
-                        boole_face_correct = .false.
-                    endif
-                endif               
+                    endif !Normal velocity is positive at exit point   
+                endif             
 !
             endif !boole face correct
+!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!END OF FIRST ATTEMPT WITH SECOND ORDER GUESS!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
+!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!SECOND ATTEMPT WITHOUT GUESSES PLUS RESCALE!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
 
             !If error is detected, repeat orbit pushing but without low order polynomial guessing
             if(.not.boole_face_correct) then
 !
-!                if(poly_order.eq.2) then
-!                    print *, 'Error: Wrong orbit pushing in quadratic order'
-!                    stop
-!                endif
-!
                 boole_faces = .true.    !Compute root for all 4 faces
-                iface_new = iface 
-                z = z_init 
-                  
+                boole_face_correct = .true. !allow for consistency checks to set boole_face_correct .false. again
+                iface_new = iface_init !instead of iface_new = iface
+                z = z_init
+                number_of_integration_steps = 0 !we only reset number_of_integration_steps, even though the other step quantities
+                                        !contain wrong data (they will afterwards potentially be overwritten or else never read out)
+!
                 !Analytical calculation of orbit parameter to pass tetrahdron
                 if(poly_order.eq.2) then
                     call analytic_approx(poly_order,i_precomp,boole_faces, &
@@ -348,159 +364,70 @@ if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
                     print *, 'Error: No analytical solution exists.'
                     ind_tetr_inout = -1
                     iface = -1
+                    call manage_intermediate_steps_arrays(1)
                     return
                 endif
 !
                 !Integrate trajectory analytically
                 call analytic_integration(poly_order,i_precomp,z,tau)
 !
-                !Higher order polynomial result for tau is out of safety boundary
-                if(poly_order.gt.2) then
-                    if(tau.gt.tau_max) then
-!                       print *, 'Error: Tau is out of safety boundary (2)'
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting (1)'
-                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
-!                       
-                        if(.not.boole_trouble_shooting) then
-                            print *, 'Error: Trouble shooting failed. Remove particle.'
-                            ind_tetr_inout = -1
-                            iface = -1
-                            return
-                        endif
-!
+                if (boole_adaptive_time_steps) then
+                    !For this section the starting face is the initial face and recaling for second order
+                    if (poly_order.eq.2) then  
+                        call overhead_adaptive_time_steps(poly_order, 1, .false., .true., &
+                                                        &  iface_new, tau, z, boole_face_correct)
+                    else
+                        call overhead_adaptive_time_steps(poly_order, i_scaling, .false., .true., &
+                                                        &  iface_new, tau, z, boole_face_correct)
                     endif
+                endif !adaptive steps scheme
+!
+                !call consistency checks for potential trouble shooting              
+                call check_exit_time(tau,tau_max,boole_face_correct,poly_order) 
+                call check_three_planes(z,iface_new,boole_face_correct)
+                call check_face_convergence(z,iface_new,boole_face_correct)
+!
+                !If previous checks were fine, check for velocity and potentially prolong trajectory (here for all orders)
+                if (boole_face_correct) then
+                    !Validation for vnorm
+                    if(normal_velocity_func(z,iface_new).gt.0.d0) then
+!
+if(diag_pusher_tetry_poly) print *, 'prolonged trajectory was called in second attempt'
+!
+                        call prolonged_trajectory(poly_order,i_scaling,z,tau,ind_tetr_inout,iface, iface_new, boole_face_correct, &
+                        & boole_analytical_approx) 
+                        if(.not.boole_analytical_approx) return
+                    endif !Normal velocity is positive at exit point   
                 endif
 !
-                !Validation loop ('3-planes'-control)
-                do j=1,3                             !Just consider the planes without the "exit-plane"
-                    k=modulo(iface_new+j-1,4)+1
-
-                    if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting (2)'
-                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)  
-!                       
-                        if(.not.boole_trouble_shooting) then
-                            print *, 'Error: Trouble shooting failed. Remove particle.'
-                            ind_tetr_inout = -1
-                            iface = -1
-                            return
-                        endif
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!END OF SECOND ATTEMPT WITHOUT GUESSES PLUS RESCALE!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-                    endif        
-                enddo
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!THIRD ATTEMPT WITH RESCALE + ORDERREDUCTION (TROUBLESHOOTING)!!!!!!!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-                !Accuracy on face
-                if(abs(normal_distance_func(z(1:3),iface_new)).gt.1.d-11) then
-!                   print *, 'Error in accuracy'
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting (3)'
-                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+                !If any of the previous tests did not work (including those within prolonged trajectory), call trouble shooting
+                if (.not.boole_face_correct) then
+if(diag_pusher_tetry_poly) print*, 'Called Troubleshooting'
+                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                & boole_trouble_shooting)
 !                       
                     if(.not.boole_trouble_shooting) then
                         print *, 'Error: Trouble shooting failed. Remove particle.'
                         ind_tetr_inout = -1
                         iface = -1
+                        call manage_intermediate_steps_arrays(1)
                         return
                     endif
-!
                 endif
 !
-                !Validation for vnorm
-                if(normal_velocity_func(z,iface_new).gt.0.d0) then
-!                   
-                    boole_vnorm_correction = .true.
-!
-                    !Particle orbit turns exactly at the face. Find next exit point of same tetrahedron.
-                    boole_faces = .true.
-                    tau_save = tau
-!                    
-                    !Analytical calculation of orbit parameter for safety boundary
-                    call analytic_approx(2,i_precomp,boole_faces, &
-                                        & i_scaling,z,iface_new,tau,boole_analytical_approx)
-!
-                    !Define boundary for tau_max
-                    tau_max = tau*eps_tau     
-!                    
-                    call analytic_approx(poly_order,i_precomp,boole_faces, &
-                                        & i_scaling,z,iface_new,tau,boole_analytical_approx)                                   
-!                    
-                    !Analytical result does not exist.
-                    if(.not.boole_analytical_approx) then
-                        print *, 'Error: No analytical solution exists.'
-                        ind_tetr_inout = -1
-                        iface = -1
-                        return
-                    endif
-!                    
-                    !Integrate trajectory analytically
-                    call analytic_integration(poly_order,i_precomp,z,tau)
-!
-                    !Higher order polynomial result for tau is out of safety boundary
-                    if(poly_order.gt.2) then
-                        if(tau.gt.tau_max) then
-!                             print *, 'Error: Tau is out of safety boundary (3)'
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting (4)'
-                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
-!                       
-                            if(.not.boole_trouble_shooting) then
-                                print *, 'Error: Trouble shooting failed. Remove particle.'
-                                ind_tetr_inout = -1
-                                iface = -1
-                                return
-                            endif
-!
-                        endif
-                    endif  
-!
-                    !Integration in two parts (Therefore time must be added)
-                    tau = tau + tau_save
-!
-                    !Validation loop ('3-planes'-control)
-                    do j=1,3                             !Just consider the planes without the "exit-plane"
-                        k=modulo(iface_new+j-1,4)+1
-                        if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting (5)'
-                            call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
-!                       
-                            if(.not.boole_trouble_shooting) then
-                                print *, 'Error: Trouble shooting failed. Remove particle.'
-                                ind_tetr_inout = -1
-                                iface = -1
-                                return
-                            endif
-!
-                        endif        
-                    enddo
-!                    
-                    !Validation for vnorm
-                    if(normal_velocity_func(z,iface_new).gt.0.d0) then
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting (6)'
-                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
-!                       
-                        if(.not.boole_trouble_shooting) then
-                            print *, 'Error: Trouble shooting failed. Remove particle.'
-                            ind_tetr_inout = -1
-                            iface = -1
-                            return
-                        endif
-!
-                    endif
-!
-                    !Accuracy on face
-                    if(abs(normal_distance_func(z(1:3),iface_new)).gt.1.d-11) then
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting (7)'
-                        call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
-!                       
-                        if(.not.boole_trouble_shooting) then
-                            print *, 'Error: Trouble shooting failed. Remove particle.'
-                            ind_tetr_inout = -1
-                            iface = -1
-                            return
-                        endif
-!
-                    endif
-                endif !Normal velocity is positive at exit point
-
             endif !.not. boole_face_correct
+!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!!!!END OF THRID ATTEMP (TROUBLESHOOTING)!!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 if(diag_pusher_tetry_poly) then
     print *, 'After orbit pushing'
@@ -517,21 +444,33 @@ endif
             t_pass = tau*dt_dtau_const
 !
 if(diag_pusher_tetry_poly) print *, 'tau total',tau
+if(diag_pusher_tetry_poly) print *, 't_pass',t_pass
+if(diag_pusher_tetry_poly) then
+    print *, 't_remain',t_remain
+    if (t_remain .lt. 0) stop
+    if (t_pass .lt. 0) stop
+endif
 
+!
             !Particle stops inside the tetrahedron
             if(t_pass.ge.t_remain) then
 !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!FORTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL IN REMAINING TIME!!!!!!!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
                 !Set z back to z_init
                 z = z_init
-!               
-                !If vnorm was corrected, coefficients need to be computed again.
-                if(boole_vnorm_correction) then
-                    iface_new = iface_init
-                    boole_faces = .true.
 !
-                    call analytic_approx(poly_order,i_precomp,boole_faces, &
-                                         & i_scaling,z,iface_new,tau,boole_analytical_approx)
+                !If vnorm was corrected or intermediate steps taken, coefficients need to be computed again.
+                if(number_of_integration_steps .gt. 1) then
+                    iface_new = iface_init
+!
+                    call set_integration_coef_manually(poly_order,z)
                 endif
+!
+                !And reset the integration step counter
+                number_of_integration_steps = 0
 !
                 !Compute orbit parameter tau from t_remain
                 tau = t_remain/dt_dtau_const
@@ -539,6 +478,12 @@ if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
 !
                 !Integrate trajectory analytically from start until t_remain
                 call analytic_integration(poly_order,i_precomp,z,tau)
+!
+                if (boole_adaptive_time_steps) then
+                    !For this section the starting face is the initial face
+                    call overhead_adaptive_time_steps(poly_order, i_scaling, .false., .false., &
+                                                        &  iface_new, tau, z, boole_face_correct)
+                endif !adaptive steps scheme
 !
                 ind_tetr_inout = ind_tetr
                 iface = 0
@@ -550,7 +495,7 @@ if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
                         boole_face_correct = .false.
                     endif
                 enddo
-
+!
                 if(boole_face_correct) then
                     boole_t_finished = .true.
                     
@@ -558,21 +503,24 @@ if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
                     x=z(1:3)+tetra_physics(ind_tetr)%x1
                     vpar=z(4)
                     t_pass = t_remain
-                    
+!                    
                 else    !Time step finishes while particle is outside the tetrahedron (Wrong face was predicted, but logically true)
                     !Compute correct root by honestly computing higher order root for all four faces
 if(diag_pusher_tetry_poly) then
     print *, 'Error: Particle is outside the tetrahedron when time is finished.'
     do i = 1,4
-        print *,i, 'norm', normal_distance_func(z(1:3),i) 
+        print *,i, 'norm', normal_distance_func(z(1:3),i)
     enddo
 endif
-                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
+!
+                    call trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new, &
+                                                                & boole_trouble_shooting)
 !                       
                     if(.not.boole_trouble_shooting) then
                         print *, 'Error: Trouble shooting failed. Remove particle.'
                         ind_tetr_inout = -1
                         iface = -1
+                        call manage_intermediate_steps_arrays(1)
                         return
                     endif
 !
@@ -589,6 +537,10 @@ endif
                     call pusher_handover2neighbour(ind_tetr,ind_tetr_inout,iface,x,iper_phi)
                 endif
 !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !!!!!!!!!!!!END OF FORTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL!!!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
             !Normal orbit that passes the whole tetrahedron
             else
 !            
@@ -600,7 +552,574 @@ endif
 !                
             endif
 !
+            if(any(boole_array_optional_quantities)) then
+                !loop over number_of_integration_steps
+                do i = 1,number_of_integration_steps
+                    call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
+                enddo
+            endif
+            !If finished particle integration, deallocate the intermediate_steps_array (get also deallocated in previous instances if lost particle)
+            if(boole_t_finished) call manage_intermediate_steps_arrays(1)
+!
         end subroutine pusher_tetra_poly
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine check_three_planes(z,iface_new,boole_face_correct)
+
+            use gorilla_diag_mod,only: diag_pusher_tetry_poly
+
+            implicit none
+            double precision, dimension(4), intent(in)         :: z
+            integer, intent(in)                                :: iface_new
+            logical                                            :: boole_face_correct
+            integer                                            :: j,k
+
+            !Validation loop ('3-planes'-control)
+            do j=1,3    !Just consider the planes without the "exit-plane"
+            k=modulo(iface_new+j-1,4)+1
+                if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
+                    boole_face_correct = .false.
+if(diag_pusher_tetry_poly) print *, 'Error: three planes'
+                endif        
+            enddo
+
+        end subroutine check_three_planes
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine check_face_convergence(z,iface_new,boole_face_correct)
+
+            use gorilla_diag_mod,only: diag_pusher_tetry_poly
+
+            implicit none
+            double precision, dimension(4), intent(in)         :: z
+            integer, intent(in)                                :: iface_new
+            logical                                            :: boole_face_correct
+
+        if(abs(normal_distance_func(z(1:3),iface_new)).gt.1.d-11) then
+            boole_face_correct = .false.
+if(diag_pusher_tetry_poly) print *, 'Error: distance'
+        endif
+
+        
+        end subroutine check_face_convergence
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine check_velocity(z,iface_new,boole_face_correct,poly_order)
+
+            use gorilla_diag_mod,only: diag_pusher_tetry_poly
+
+            implicit none
+            double precision, dimension(4), intent(in)         :: z
+            integer, intent(in)                                :: iface_new
+            logical                                            :: boole_face_correct
+            integer, intent(in)                                :: poly_order
+
+        if(normal_velocity_func(z,iface_new).gt.0.d0) then
+if(diag_pusher_tetry_poly) print *, 'Error: normal velocity'
+                boole_face_correct = .false.
+        endif
+
+        end subroutine check_velocity
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine check_exit_time(tau,tau_max,boole_face_correct,poly_order) !checks only for poly_order > 2
+
+            use gorilla_diag_mod,only: diag_pusher_tetry_poly
+
+            implicit none
+            logical                                            :: boole_face_correct
+            integer, intent(in)                                :: poly_order
+            double precision                                   :: tau,tau_max
+
+            !Higher order polynomial result for tau is out of safety boundary
+            if(poly_order.gt.2) then
+                if(tau.gt.tau_max) then
+if(diag_pusher_tetry_poly)  print *, 'Error: Tau is out of safety boundary'
+                    boole_face_correct = .false.
+                endif
+            endif
+            
+        end subroutine check_exit_time
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine prolonged_trajectory(poly_order,i_scaling,z,tau,ind_tetr_inout,iface, iface_new, boole_face_correct, &
+            & boole_analytical_approx)
+!
+        use gorilla_settings_mod, only: i_precomp, boole_adaptive_time_steps
+!
+        implicit none
+!
+        integer, intent(in)                                 :: poly_order, i_scaling
+        double precision, dimension(4), intent(inout)       :: z
+        double precision, intent(inout)                     :: tau
+        integer,intent(inout)                               :: ind_tetr_inout,iface, iface_new
+        logical, intent(inout)                              :: boole_face_correct
+        logical, intent(out)                                :: boole_analytical_approx
+!
+        logical, dimension(4)                               :: boole_faces
+        integer                                             :: iface_new_save
+        double precision                                    :: tau_save,tau_max
+
+!                   
+        !Particle orbit turns exactly at the face. Find next exit point of same tetrahedron.
+        boole_faces = .true.
+        tau_save = tau
+        iface_new_save = iface_new !saving is done to retain the value for second analytic_approx
+
+!                   
+        if (poly_order.gt.2) then
+            !Analytical calculation of orbit parameter for safety boundary
+            call analytic_approx(2,i_precomp,boole_faces, &
+                                & i_scaling,z,iface_new,tau,boole_analytical_approx)
+            !Define boundary for tau_max
+            tau_max = tau*eps_tau
+        endif  
+!                    
+        iface_new = iface_new_save   !<-- Jonatan, Georg, 07.07.2022: above, iface_new is changed, this must be undone
+        call analytic_approx(poly_order,i_precomp,boole_faces, &
+                            & i_scaling,z,iface_new,tau,boole_analytical_approx)                                   
+!                    
+        !Analytical result does not exist.
+        if(.not.boole_analytical_approx) then
+            print *, 'Error in prolonged trajectory: No analytical solution exists.'
+            ind_tetr_inout = -1
+            iface = -1
+            call manage_intermediate_steps_arrays(1)
+            return
+        endif
+!                    
+        !Integrate trajectory analytically
+        call analytic_integration(poly_order,i_precomp,z,tau)
+!
+        if (boole_adaptive_time_steps) then
+            call overhead_adaptive_time_steps(poly_order, i_scaling, .false., .true., &
+                                                &  iface_new, tau, z, boole_face_correct)
+        endif !adaptive steps scheme
+!
+        !Only executed if poly_order > 2, checks if exit time is within upper limit
+        call check_exit_time(tau,tau_max,boole_face_correct,poly_order)
+        !Validation loop ('3-planes'-control) 
+        call check_three_planes(z,iface_new,boole_face_correct)        
+        call check_velocity(z,iface_new,boole_face_correct,poly_order)
+        call check_face_convergence(z,iface_new,boole_face_correct)
+
+        !Integration in two parts (Therefore time must be added)
+        tau = tau + tau_save !potentially alter this for energy adaption
+
+    end subroutine prolonged_trajectory
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine overhead_adaptive_time_steps(poly_order, i_scaling, boole_guess_adaptive, boole_passing, &
+                                            &  iface_inout_adaptive, tau, z, boole_face_correct)
+!
+        use gorilla_settings_mod, only: desired_delta_energy, max_n_intermediate_steps
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly
+!
+        implicit none
+!
+        integer, intent(in)                                   :: poly_order, i_scaling
+        logical, intent(in)                                   :: boole_guess_adaptive
+        logical, intent(in)                                   :: boole_passing
+!
+        integer, intent(inout)                                :: iface_inout_adaptive
+        double precision, intent(inout)                       :: tau
+        double precision, dimension(4), intent(inout)         :: z
+        logical, intent(inout)                                :: boole_face_correct
+!
+        double precision                                      :: energy_start, energy_current, delta_energy_current
+        double precision, dimension(4)                        :: z0
+!
+        if ((desired_delta_energy .le. 0)) then
+            print*, 'Error: The control setting desired_delta_energy is invalid! Check the limits in gorilla.inp!'
+            stop
+        elseif ((max_n_intermediate_steps .lt. 1)) then
+            print*, 'Error: The control setting max_n_intermediate_steps is invalid! Check the limits in gorilla.inp!'
+            stop
+        endif
+!
+if(diag_pusher_tetry_poly) print*, 'Sanity check before checking energy conservation:'
+if(diag_pusher_tetry_poly) print*, 'z', z
+        !At least the check of proper inside (three planes + convergence in case of passing) have to be fullfilled
+        if (boole_passing) then
+            call check_three_planes(z,iface_inout_adaptive,boole_face_correct)
+            call check_face_convergence(z,iface_inout_adaptive,boole_face_correct)
+        elseif (.not.boole_passing) then
+            call check_three_planes(z,0,boole_face_correct)
+        else
+            print*, 'Error: Non valid value for boole_passing of overhead_adaptive_time_step()!'
+            stop
+        endif
+        if (.not.boole_face_correct) return
+!
+        z0 = intermediate_z0_list(:,number_of_integration_steps)
+if(diag_pusher_tetry_poly) print*, 'z0', z0
+        energy_start = energy_tot_func(z0)
+        energy_current = energy_tot_func(z)
+if(diag_pusher_tetry_poly) print*, 'energy_current', energy_current
+if(diag_pusher_tetry_poly) print*, 'energy_start', energy_start
+        delta_energy_current = abs(1-energy_current/energy_start)
+        !If energy fluctuating too strong -> start recursive adaptive scheme
+        if (delta_energy_current .gt. desired_delta_energy) then
+if(diag_pusher_tetry_poly) print*, 'Adaptive Stepsize equidistant was called'
+            call adaptive_time_steps_equidistant(poly_order, i_scaling, boole_guess_adaptive, boole_passing, &
+                                & delta_energy_current, iface_inout_adaptive, tau, z, boole_face_correct)
+        endif
+!
+    end subroutine overhead_adaptive_time_steps
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine adaptive_time_steps_equidistant(poly_order, i_scaling, boole_guess_adaptive, boole_passing, &
+        &  delta_energy_current, iface_out_adaptive, tau, z, boole_face_correct)
+!
+        use gorilla_settings_mod, only: i_precomp, desired_delta_energy, max_n_intermediate_steps
+        use gorilla_diag_mod,only: diag_pusher_tetry_poly_adaptive, report_pusher_tetry_poly_adaptive
+!
+        implicit none
+!
+        integer, intent(in)                                   :: poly_order, i_scaling
+        logical, intent(in)                                   :: boole_guess_adaptive
+        logical, intent(in)                                   :: boole_passing
+!
+        double precision, intent(inout)                       :: tau, delta_energy_current
+        double precision, dimension(4), intent(inout)         :: z
+        logical, intent(inout)                                :: boole_face_correct
+!
+        integer, intent(out)                                  :: iface_out_adaptive
+!
+        logical, dimension(4)                                 :: boole_faces
+        double precision, dimension(4)                        :: z_start_adaptive
+        integer                                               :: i, k, eta, eta_extended, eta_limit,&
+                                                                & eta_minimum, eta_buffer
+        integer                                               :: iface_new_adaptive, number_of_integration_steps_start_adaptive
+        logical                                               :: boole_analytical_approx, boole_exit_tetrahedron, & 
+                                                               & boole_energy_check, boole_reached_minimum
+        double precision                                      :: energy_start_adaptive, energy_current, &
+                                                               & delta_energy_start, delta_energy_minimum, & 
+                                                               & tau_prime, tau_collected, tau_exit, tau_minimum, tau_buffer
+!
+        !Save current z0 and stepped back global integration counter
+        z_start_adaptive = intermediate_z0_list(:,number_of_integration_steps)
+        number_of_integration_steps_start_adaptive = number_of_integration_steps - 1
+        energy_start_adaptive = energy_tot_func(z_start_adaptive)
+if(report_pusher_tetry_poly_adaptive) boole_collect_data = .false.
+if(diag_pusher_tetry_poly_adaptive) print*, '------------------------'
+!
+        !Set up for Partition procedure
+        eta = 1
+        eta_extended = 1
+        boole_reached_minimum = .false.
+        delta_energy_start = delta_energy_current
+        delta_energy_minimum = delta_energy_current
+!
+        !Loop over possible equidistant splittings (eta changing depending on the current energy error, with uppper limit a priori set)
+        PARTITION: do while (eta .lt. max_n_intermediate_steps)
+!
+            !If did not succeed (aka not left the loop) -> try to update number of steps
+            !and try again, if not yet at maximal number of intermediate steps or passed minimum
+            call update_eta(poly_order,delta_energy_current,eta)
+!
+            !Set up for redo of the minimum run
+            if (boole_reached_minimum) then
+                eta = eta_minimum
+                tau = tau_minimum
+            endif
+!
+if (report_pusher_tetry_poly_adaptive) then
+if(.not.boole_collect_data.AND.(eta.gt.minimum_partition_number)) then
+boole_collect_data = .true.
+number_reports = number_reports + 1
+report_entry_index = report_entry_index + 1
+eta = 1
+delta_energy_current = delta_energy_start
+single_step_fluctuation_report(report_entry_index,1) = eta
+single_step_fluctuation_report(report_entry_index,2) = delta_energy_current
+single_step_fluctuation_report(report_entry_index,3) = tau
+total_fluctuation_report(report_entry_index,1) = eta
+total_fluctuation_report(report_entry_index,2) = delta_energy_current
+closure_fluctuation_report(report_entry_index,1) = eta
+closure_fluctuation_report(report_entry_index,2) = delta_energy_current
+closure_fluctuation_report(report_entry_index,3) = 1
+cycle PARTITION
+endif
+endif
+!
+            !Set up for every partition trial; boole_face_correct can be set true here as adaptive is before the consistency checks
+            z = z_start_adaptive
+            number_of_integration_steps = number_of_integration_steps_start_adaptive
+            tau_prime = tau/eta
+if(diag_pusher_tetry_poly_adaptive) print*, 'eta', eta
+if(diag_pusher_tetry_poly_adaptive) print *, 'tau_prime', tau_prime
+            tau_collected = 0
+            boole_face_correct = .true.
+            boole_exit_tetrahedron = .false.
+            boole_energy_check = .false.
+            if (boole_passing) then
+                !As the intermediate steps change our orbit, we may need longer than the original tau -> more steps 
+                eta_limit = ceiling(max_n_intermediate_steps*1.1d0)
+            else
+                !We do not expect a passing
+                eta_limit = eta
+            endif !boole_passing for eta_limit
+!
+            STEPWISE: do i = 1, (eta_limit -1) !used to be 1,eta-1
+                !recalculate polynomial coefficients (tensors) as at every intermediate step the poly_coef change
+                call set_integration_coef_manually(poly_order,z)
+                call analytic_integration(poly_order,i_precomp,z,tau_prime)
+!
+                !GC must be still inside the tetrahedron
+                !If fail -> return to last step and close orbit then
+                CONTROL: do k = 1,4
+                    if(normal_distance_func(z(1:3),k).lt.0.d0) then
+if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive steps: Position left tetrahedron'
+if(diag_pusher_tetry_poly_adaptive) print *, k, 'norm', normal_distance_func(z(1:3),k)
+if(diag_pusher_tetry_poly_adaptive) print *, 'steps taken', i, '/' ,eta
+                        !Exception: if the first step is already outside (order-inconsistency if used guess) -> return failure
+                        if (i .eq. 1) then
+if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: Left tetrahedron in first step (order-inconsistency)!'
+                            boole_face_correct = .false.
+                            return
+                        endif
+                        z = intermediate_z0_list(:,number_of_integration_steps)
+                        boole_exit_tetrahedron = .true.
+                        exit STEPWISE
+                    endif
+                end do CONTROL !Is the orbit still inside
+!
+                !If it was a valid step we add it to the total used time
+                tau_collected = tau_collected + tau_prime
+                eta_extended = i
+!
+if (report_pusher_tetry_poly_adaptive) then
+if (boole_collect_data ) then
+if (i.eq.1) then
+report_entry_index = report_entry_index + 1
+single_step_fluctuation_report(report_entry_index,1) = 0
+single_step_fluctuation_report(report_entry_index,2) = 0
+single_step_fluctuation_report(report_entry_index,3) = tau_prime
+endif
+single_step_fluctuation_report(report_entry_index,1) = & 
+& single_step_fluctuation_report(report_entry_index,1) + 1
+single_step_fluctuation_report(report_entry_index,2) = &
+& single_step_fluctuation_report(report_entry_index,2) + abs(1-energy_tot_func(z)/ & 
+& energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
+endif
+endif
+!
+                !The only reason to not use the guessing scheme is to avoid nipping out of orbits (ensure order-consistency)
+                !For that we additionally need to check the remaining tau after each step when using the adaptive scheme
+                if(.not.boole_guess_adaptive) then
+                    iface_new_adaptive = 0
+                    call adaptive_time_steps_exit_time(poly_order,i_scaling,z,.false., & 
+                                                            & iface_new_adaptive,tau_exit,boole_analytical_approx)
+                    !Analytical result does not exist can therefore not close cell orbit
+                    ! -> "return" leaves orbit (falsely, therefore boole set to false) inside of tetrahedron
+                    if(.not.boole_analytical_approx) then
+                        if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: no analytical solution'
+                        boole_face_correct = .false.
+                        return
+                    endif
+                    if(tau_exit .le. tau_prime) then
+if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive step order-consistency: tau_exit',tau_exit,'smaller than tau_prime',tau_prime
+                        tau_prime = tau_exit
+                        exit STEPWISE !boole_exit_tetrahedron is still FALSE, as avoid leaving tetrahedron all together
+                    endif
+                endif !oberving remaining tau to avoid nipping out of orbits
+!
+            end do STEPWISE ! stepwise integration
+!
+            !If orbit exited, the now remaining time (tau_prime) from the last intermediate point to the exit face has to be recalculated
+            !Alternatively stepwise integration might reveal a not passing orbit to be a passing one, which also has to be closed
+            if (boole_exit_tetrahedron) then
+                !As we already preformed at least one step before leaving the tetrahedron, the orbit is now INSIDE
+                iface_new_adaptive = 0
+                call adaptive_time_steps_exit_time(poly_order,i_scaling,z,boole_guess_adaptive, & 
+                                                        & iface_new_adaptive,tau_exit,boole_analytical_approx)           
+                !Analytical result does not exist can therefore not close cell orbit
+                ! -> "return" leaves orbit (falsely, therefore boole set to false) inside of tetrahedron
+                if(.not.boole_analytical_approx) then
+if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: no analytical solution'
+                    boole_face_correct = .false.
+                    return
+                endif
+if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive step closure: tau_exit', tau_exit
+                tau_prime = tau_exit !The last step will close the orbit to the exit
+            else
+                !If the orbit does not pass, the same timestep as for the other intermediate steps is used
+                !Should it then end up outside, the higher level checks will detect it
+                !We only have to manually update again the new position in the coefficiants, no new tau_prime needed
+                call set_integration_coef_manually(poly_order,z)
+            end if !boole_passing
+!
+            !Closing integration (either to the exit face or to the final position inside of tetrahedron)
+            call analytic_integration(poly_order,i_precomp,z,tau_prime)
+            tau_collected = tau_collected + tau_prime
+!
+            !Check if energy fluctuation was successfully decreased
+            energy_current = energy_tot_func(z)
+            delta_energy_current = abs(1-energy_current/energy_start_adaptive)
+!
+if (report_pusher_tetry_poly_adaptive) then
+delta_energy_minimum = delta_energy_current*2 !Circumvent the minimum approach to collect more data
+if (boole_collect_data) then
+single_step_fluctuation_report(report_entry_index,2) = &
+& single_step_fluctuation_report(report_entry_index,2) + abs(1-energy_tot_func(z)/ & 
+& energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
+single_step_fluctuation_report(report_entry_index,1) = & 
+& single_step_fluctuation_report(report_entry_index,1) + 1
+!Forming the average of the single step error done in this partition  
+single_step_fluctuation_report(report_entry_index,2) = & 
+& single_step_fluctuation_report(report_entry_index,2) / & 
+& single_step_fluctuation_report(report_entry_index,1)
+total_fluctuation_report(report_entry_index,2) = delta_energy_current
+total_fluctuation_report(report_entry_index,1) = single_step_fluctuation_report(report_entry_index,1)
+closure_fluctuation_report(report_entry_index,1) = single_step_fluctuation_report(report_entry_index,1)
+closure_fluctuation_report(report_entry_index,2) = abs(1-energy_tot_func(z)/ & 
+& energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
+closure_fluctuation_report(report_entry_index,3) = & 
+& tau_prime/single_step_fluctuation_report(report_entry_index,3)
+endif
+endif
+!
+            !Update tau/eta actually needed to travers tetrahedron (for final result or for better approx in another iteration)
+            !The buffer variables are used to 1:1 save the minimum run, as it was achieved now (even if the tau/eta was off, only the result matters not how we got to it!)
+            eta_buffer = eta
+            tau_buffer = tau
+            eta = eta_extended + 1
+            tau = tau_collected
+!
+            !There is an effective minimum that can be achieved by decreasing the timesteps
+            !After that the error actually increases/osscilates -> we only use the monoton decrease
+if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_current', delta_energy_current
+if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energy_minimum
+            if (boole_reached_minimum) then
+                exit PARTITION
+            elseif (delta_energy_current.lt.delta_energy_minimum) then
+                delta_energy_minimum = delta_energy_current
+                eta_minimum = eta_buffer
+                tau_minimum = tau_buffer
+                if (delta_energy_current.le.desired_delta_energy) then
+                    boole_energy_check = .true.
+                    exit PARTITION
+                endif
+            else
+                !If we see that our new step choice has INCREASED the energy, we redo the last partition and stop
+                boole_reached_minimum = .true.
+                cycle PARTITION
+            endif !energy check
+!
+        end do PARTITION
+!
+        iface_out_adaptive = iface_new_adaptive
+!
+        !If could not satisfy energy conservation with scheme, notify user
+        if (.not.boole_energy_check) then
+            print *, 'Error in adaptive steps equidistant: energy conservation could not be fullfilled!'
+if(diag_pusher_tetry_poly_adaptive)print*, 'delta_energy_minimum', delta_energy_minimum
+if(diag_pusher_tetry_poly_adaptive) stop
+        endif 
+!
+if (report_pusher_tetry_poly_adaptive) then
+if (boole_collect_data) then
+if (number_reports.ge.max_number_reports) then
+if (diag_pusher_tetry_poly_adaptive) print*, eta
+if (diag_pusher_tetry_poly_adaptive) print*, boole_exit_tetrahedron
+call manage_intermediate_steps_arrays(1)
+print *, 'Collected enough data for adaptive scheme report!'
+stop
+endif
+report_entry_index = report_entry_index + 1
+single_step_fluctuation_report(report_entry_index,:) = -1
+total_fluctuation_report(report_entry_index,:) = -1
+closure_fluctuation_report(report_entry_index,:) = -1
+endif
+endif
+!
+    end subroutine adaptive_time_steps_equidistant
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine update_eta(poly_order,delta_energy_current,eta)
+!
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
+        use gorilla_settings_mod, only: desired_delta_energy, max_n_intermediate_steps
+!
+        implicit none
+!
+        integer, intent(in)                         :: poly_order
+        double precision, intent(in)                :: delta_energy_current
+!
+        integer, intent(inout)                      :: eta
+!
+        double precision                            :: scale_factor, max_scale_factor
+        double precision, parameter                 :: threshold = 1.d0, min_step_error = 1E-15, additive_increase = 1 !default 1,1E-15,10
+!
+if (boole_collect_data)  then 
+    eta = eta + 100
+    return
+endif
+        scale_factor = (delta_energy_current/desired_delta_energy)**(1.0d0/poly_order)
+        max_scale_factor = (delta_energy_current/(min_step_error*eta))**(1.0d0/(poly_order+1))
+if (diag_pusher_tetry_poly_adaptive) print*, 'scale factor', scale_factor
+if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_factor
+       if ((scale_factor .gt. threshold) .AND. (max_scale_factor .gt. threshold)) then
+            scale_factor = min(scale_factor,max_scale_factor)
+            eta = min(ceiling(eta*scale_factor),max_n_intermediate_steps)
+        elseif (scale_factor .gt. threshold) then
+            eta = min(ceiling(eta*scale_factor),max_n_intermediate_steps)
+        else
+            eta = eta + additive_increase
+        endif !Choice of next number of steps
+!
+    end subroutine update_eta
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!    
+    subroutine adaptive_time_steps_exit_time(poly_order,i_scaling,z,boole_guess_adaptive, & 
+                                                & iface_new_adaptive,tau_exit,boole_analytical_approx)
+!
+        use gorilla_settings_mod, only: i_precomp
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
+!
+        implicit none
+!
+        integer, intent(in)                                 :: poly_order,i_scaling
+        double precision, dimension(4),intent(in)           :: z
+        logical, intent(in)                                 :: boole_guess_adaptive
+!
+        integer,intent(inout)                               :: iface_new_adaptive
+!
+        double precision, intent(out)                       :: tau_exit
+        logical,intent(out)                                 :: boole_analytical_approx
+!
+        logical, dimension(4)                               :: boole_faces
+!
+        boole_faces = .true.
+!
+        !use face prediction of second order for higher order computation in the adaptive scheme if wished
+        if (boole_guess_adaptive .and. (poly_order.gt.2)) then
+            call analytic_approx(2,i_precomp,boole_faces, &
+            & i_scaling,z,iface_new_adaptive,tau_exit,boole_analytical_approx)
+            !Higher order polynomial root is computed only for previously predicted face in second order
+            if(boole_analytical_approx) then               
+                boole_faces = .false.                !Disable all 4 faces 
+                boole_faces(iface_new_adaptive) = .true.      !Enable guessed face
+            endif
+            !Reset starting face (to INSIDE) for actual correct order calculation down below
+            iface_new_adaptive = 0 
+        endif  
+        !calculate exit time and exit face in correct order
+        !if a successful guess was made above in second order, boole_faces only allows the guessed face 
+        call analytic_approx(poly_order,i_precomp,boole_faces, &
+                            & i_scaling,z,iface_new_adaptive,tau_exit,boole_analytical_approx)   
+!   
+    end subroutine adaptive_time_steps_exit_time
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -1357,9 +1876,9 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
             implicit none
 !
-            integer, intent(in)                 :: poly_order,i_precomp
-            double precision, intent(in) :: tau
-            double precision, dimension(4),intent(inout) :: z
+            integer, intent(in)                             :: poly_order,i_precomp
+            double precision, intent(in)                    :: tau
+            double precision, dimension(4),intent(inout)    :: z
 !
             !Integrate trajectory analytically
             select case(i_precomp)
@@ -1378,6 +1897,7 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
         subroutine analytic_integration_without_precomp(poly_order,z,tau)
 !
             use poly_without_precomp_mod
+            use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
 !
             implicit none
 !
@@ -1385,6 +1905,12 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             double precision, intent(in)                 :: tau
             double precision, dimension(4),intent(inout) :: z
             double precision                             :: tau2_half,tau3_sixth,tau4_twentyfourth
+!
+            !for each time integration performed, tau and z are saved for later computation of optional quantities
+            !it is important to handle number_of_integration_steps appropriately when intrgration steps are discarded
+            number_of_integration_steps = number_of_integration_steps + 1
+            tau_steps_list(number_of_integration_steps) = tau
+            intermediate_z0_list(:,number_of_integration_steps) = z
 !
             if(poly_order.ge.1) then
                 z = z + tau*(b+amat_in_z)
@@ -1409,48 +1935,308 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-        subroutine analytic_integration_without_precomp_stepwise(poly_order,z,tau)
+        subroutine set_integration_coef_manually(poly_order,z0)
 !
-            use poly_without_precomp_mod, only: amat,amat2,amat3,amat4,b
+            use poly_without_precomp_mod, only: amat,amat2,amat3,amat4,b,&
+                                                & amat_in_b,amat2_in_b,amat3_in_b,&
+                                                & amat_in_z,amat2_in_z,amat3_in_z,amat4_in_z
 !
             implicit none
 !
             integer, intent(in)                          :: poly_order
-            double precision, intent(in)                 :: tau
-            double precision, dimension(4),intent(inout) :: z
-            double precision                             :: tau2_half,tau3_sixth,tau4_twentyfourth
-            double precision, dimension(4)      :: amat_in_z,amat2_in_z,amat3_in_z,amat_in_b,amat2_in_b
-            double precision, dimension(4)      :: amat4_in_z,amat3_in_b, z_save
-!
-            z_save = z
+            double precision, dimension(4),intent(in)    :: z0
 !
             if(poly_order.ge.1) then
-                amat_in_z = matmul(amat,z_save)
-                z = z + tau*(b+amat_in_z)
+                amat_in_z = matmul(amat,z0)
             endif
-!
             if(poly_order.ge.2) then
-                amat2_in_z = matmul(amat2,z_save)
+                amat2_in_z = matmul(amat2,z0)
                 amat_in_b = matmul(amat,b)
-                tau2_half = tau**2*0.5d0
-                z = z + tau2_half*(amat_in_b + amat2_in_z)
             endif
-!
             if(poly_order.ge.3) then
-                amat3_in_z = matmul(amat3,z_save)
+                amat3_in_z = matmul(amat3,z0)
                 amat2_in_b = matmul(amat2,b)
-                tau3_sixth = tau**3/6.d0
-                z = z + tau3_sixth*(amat2_in_b + amat3_in_z)
             endif
-
             if(poly_order.ge.4) then
-                amat4_in_z = matmul(amat4,z_save)
+                amat4_in_z = matmul(amat4,z0)
                 amat3_in_b = matmul(amat3,b)
-                tau4_twentyfourth = tau**4/24.d0
-                z = z + tau4_twentyfourth *(amat3_in_b + amat4_in_z)
             endif
+        end subroutine set_integration_coef_manually
 !
-        end subroutine analytic_integration_without_precomp_stepwise
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine initialise_optional_quantities(optional_quantities)
+!
+            use gorilla_settings_mod, only: optional_quantities_type
+!
+            implicit none
+!
+            type(optional_quantities_type)    :: optional_quantities
+!
+            optional_quantities%t_hamiltonian = 0
+            optional_quantities%gyrophase = 0
+!
+        end subroutine initialise_optional_quantities
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine calc_optional_quantities(poly_order,z0,tau,optional_quantities)
+!
+        use gorilla_settings_mod, only: boole_time_Hamiltonian, boole_gyrophase, optional_quantities_type
+        use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(4), intent(in)      :: z0
+        type(optional_quantities_type), intent(inout)   :: optional_quantities
+!
+        double precision                                :: delta_t_hamiltonian
+        double precision                                :: tau2_half,tau3_sixth,tau4_twentyfourth
+        double precision, dimension(3)                  :: x0
+        double precision                                :: vpar0
+        double precision, dimension(:,:), allocatable   :: x_coef,x_vpar_coef
+        double precision, dimension(:), allocatable     :: vpar_coef,res_poly_coef
+        double precision, dimension(4,poly_order+1)     :: dummy_coef_mat !exists because of analytic_coeff_without_precomp syntax
+        logical, dimension(4)                           :: boole_faces_off = .false. !avoid root coefficients computation
+!
+        !recalculate polynomial coefficients (tensors) if more than one integration step was performed
+        if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
+
+        !Optional computation of Hamiltonian time
+        if(boole_time_Hamiltonian) then
+!
+            allocate(x_coef(3,poly_order+1))
+            allocate(vpar_coef(poly_order+1))
+            allocate(x_vpar_coef(3,poly_order+1))
+!
+            call z_series_coef(poly_order,z0,x_coef,vpar_coef)
+!
+            call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
+            call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
+            call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
+!
+            delta_t_hamiltonian = hamiltonian_time(ind_tetr)%h1_in_curlA * tau + &
+            & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * scalar_integral_without_precomp(poly_order,tau,vpar_coef)+&
+            & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * vector_integral_without_precomp(poly_order,tau,x_coef) ) + &
+            & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
+            & vector_integral_without_precomp(poly_order,tau,x_vpar_coef))
+!
+            optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + delta_t_hamiltonian
+!
+            !Optional computation of gyrophase
+            if(boole_gyrophase) then
+                optional_quantities%gyrophase = optional_quantities%gyrophase - ( &
+!
+                    !Zeroth term
+                    & 1.d0/cm_over_e * tetra_physics(ind_tetr)%bmod1 * delta_t_hamiltonian + &
+!
+                    !First term
+                    & 1.d0/cm_over_e * sum( tetra_physics(ind_tetr)%gb * vector_integral_without_precomp(poly_order,tau,x_coef) ) *&
+                    & hamiltonian_time(ind_tetr)%h1_in_curlA + &
+!
+                    !Second term
+                    & sum(vector_integral_without_precomp(poly_order,tau,x_vpar_coef) * tetra_physics(ind_tetr)%gb ) * &
+                    & hamiltonian_time(ind_tetr)%h1_in_curlh + &
+!
+                    !Third term
+                    & 1.d0/cm_over_e * sum( matmul( tensor_integral_without_precomp(poly_order,tau,x_coef,x_coef) , &
+                    & hamiltonian_time(ind_tetr)%vec_mismatch_der ) * tetra_physics(ind_tetr)%gb) + &
+!
+                    !Fourth term
+                    & sum( matmul( tensor_integral_without_precomp(poly_order,tau,x_coef,x_vpar_coef), &
+                    & hamiltonian_time(ind_tetr)%vec_parcurr_der ) *  tetra_physics(ind_tetr)%gb) &
+                & )
+
+            endif ! gyrophase
+!            
+            deallocate(x_coef,vpar_coef,x_vpar_coef)
+!
+        endif ! time_Hamiltonian
+!
+    end subroutine calc_optional_quantities
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine z_series_coef(poly_order,z0,x_coef,vpar_coef)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        use poly_without_precomp_mod, only: b, amat_in_z,amat2_in_z,amat3_in_z,amat_in_b,amat2_in_b, &
+                                            & amat4_in_z,amat3_in_b
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, dimension(4), intent(in)      :: z0
+!
+        double precision, dimension(:,:),intent(out)    :: x_coef
+        double precision, dimension(:),intent(out)      :: vpar_coef
+!
+        x_coef(:,1) = z0(1:3)
+        vpar_coef(1) = z0(4)
+!
+        if(poly_order.ge.1) then
+            x_coef(:,2) = b(1:3) + amat_in_z(1:3)
+            vpar_coef(2) = b(4) + amat_in_z(4)
+        endif
+!
+        if(poly_order.ge.2) then
+            x_coef(:,3) = 0.5d0 * (amat_in_b(1:3) + amat2_in_z(1:3))
+            vpar_coef(3) = 0.5d0 * (amat_in_b(4) + amat2_in_z(4))
+        endif
+!
+        if(poly_order.ge.3) then
+            x_coef(:,4) = 1.d0 / 6.d0 * (amat2_in_b(1:3) + amat3_in_z(1:3))
+            vpar_coef(4) = 1.d0 / 6.d0 * (amat2_in_b(4) + amat3_in_z(4))
+        endif
+!
+        if(poly_order.ge.4) then
+            x_coef(:,5) = 1.d0 / 24.d0 * (amat3_in_b(1:3) + amat4_in_z(1:3))
+            vpar_coef(5) = 1.d0 / 24.d0 * (amat3_in_b(4) + amat4_in_z(4))
+        endif
+!
+    end subroutine z_series_coef
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure subroutine poly_multiplication_coef(poly_coef_1,poly_coef_2,res_poly_coef)
+!
+        implicit none
+!
+        double precision, dimension(:),intent(in) :: poly_coef_1,poly_coef_2
+!
+        double precision, dimension(:),intent(out) :: res_poly_coef
+!
+        integer :: max_order,i,j,k,sz_1,sz_2,cur_order
+        integer,dimension(:),allocatable :: poly_order_vec_1,poly_order_vec_2
+!
+        sz_1 = size(poly_coef_1)
+        sz_2 = size(poly_coef_2)
+!
+        !Maximum order of the two polynomials - No higher order than that will be computed
+        max_order = maxval([sz_1,sz_2])
+!
+        allocate(poly_order_vec_1(sz_1),poly_order_vec_2(sz_2))
+!
+        poly_order_vec_1 = [(i, i = 0,sz_1-1,1)]
+        poly_order_vec_2 = [(i, i = 0,sz_2-1,1)]
+!
+        !Initialize coefficient result vector
+        res_poly_coef = 0.d0
+!
+        !Loop over coefficients of first polynomial
+        do j = 1,sz_1
+!
+            !Loop over coefficients of first polynomial
+            do k = 1,sz_2
+!
+                !Current order of term multiplication
+                cur_order = (poly_order_vec_1(j) + poly_order_vec_2(k))
+!
+                !Check order of the multiplied term, and exit if max order is exceeded
+                if( cur_order.gt.(max_order-1) ) exit
+!
+                res_poly_coef(cur_order+1) = res_poly_coef(cur_order+1) + &
+                    & poly_coef_1(j) * poly_coef_2(k)
+
+            enddo
+!
+        enddo
+!
+        deallocate(poly_order_vec_1,poly_order_vec_2)
+        
+    end subroutine poly_multiplication_coef
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function scalar_integral_without_precomp(poly_order,tau,scalar_coef)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(:), intent(in)      :: scalar_coef
+!
+        double precision                                :: scalar_integral_without_precomp
+!
+        if(poly_order.ge.1) then
+            scalar_integral_without_precomp = scalar_coef(1)*tau + tau**2 * 0.5d0 * scalar_coef(2)
+        endif
+!
+        if(poly_order.ge.2) then
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**3/3.d0 * scalar_coef(3)
+        endif
+!
+        if(poly_order.ge.3) then
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**4/4.d0 * scalar_coef(4)
+        endif
+!
+        if(poly_order.ge.4) then
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**5/5.d0 * scalar_coef(5)
+        endif
+!
+    end function scalar_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function vector_integral_without_precomp(poly_order,tau,vector_coef)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(:,:), intent(in)    :: vector_coef
+!
+        double precision, dimension(3)                  :: vector_integral_without_precomp
+!
+        integer                                         :: i
+!
+        forall(i = 1:3) vector_integral_without_precomp(i) = scalar_integral_without_precomp(poly_order,tau,vector_coef(i,:))
+!
+    end function vector_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function tensor_integral_without_precomp(poly_order,tau,vector_coef_1,vector_coef_2)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(:,:), intent(in)    :: vector_coef_1,vector_coef_2
+!
+        double precision, dimension(3,3)                :: tensor_integral_without_precomp
+        double precision, dimension(:), allocatable     :: tensor_component_coef
+        integer :: j,k
+!
+        allocate(tensor_component_coef(poly_order+1))
+!
+        do j = 1,3
+            do k = 1,3
+!
+                !Compute convolution of coefficient for one component
+                call poly_multiplication_coef(vector_coef_1(j,:),vector_coef_2(k,:),tensor_component_coef)
+!
+                tensor_integral_without_precomp(j,k) = scalar_integral_without_precomp(poly_order,tau,tensor_component_coef)
+!
+            enddo
+        enddo
+!
+        deallocate(tensor_component_coef)
+!
+    end function tensor_integral_without_precomp
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -1761,6 +2547,7 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
     subroutine trouble_shooting_polynomial_solver(poly_order,i_precomp,z,tau,iface_new,boole_trouble_shooting)
 !
         use gorilla_diag_mod, only: diag_pusher_tetry_poly
+        use gorilla_settings_mod, only: boole_adaptive_time_steps
 !
         implicit none
 !
@@ -1779,12 +2566,8 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
         boole_faces = .true.
         i_scaling = 0
         boole_trouble_shooting = .true.
-!
-!        !Trouble shooting is only developed for fourth order
-!        if(poly_order.eq.2) then
-!            print *, 'Error: Trouble shooting is only developed for third and fourth order'
-!            stop
-!        endif
+        iface_new = iface_init    !<-- Jonatan, Georg 07.07.2022: we think the face should be reseted because of analytic_approx belo
+        z = z_init               !<-- Jonatan, Georg 07.07.2022. we think z should be reseted to allow for an appropriate tau_max
 !
         !Analytical calculation of orbit parameter for safety boundary
         call analytic_approx(2,i_precomp,boole_faces, &
@@ -1806,7 +2589,9 @@ if(diag_pusher_tetry_poly) print *, 'quadratic tau',tau
             
             boole_faces = .true.    !Compute root for all 4 faces
             iface_new = iface_init
-            z = z_init   
+            z = z_init
+            number_of_integration_steps = 0 !Resetting the number of integration steps because we start from scratch #1
+!
             !Analytical calculation of orbit parameter to pass tetrahdron
             call analytic_approx(poly_order,i_precomp,boole_faces, &
                                 & i_scaling,z,iface_new,tau,boole_analytical_approx)
@@ -1821,29 +2606,19 @@ if(diag_pusher_tetry_poly) print *, 'quadratic tau',tau
             !Integrate trajectory analytically
             call analytic_integration(poly_order,i_precomp,z,tau)
 !
+            if (boole_adaptive_time_steps) then
+                !For this section the starting face is the initial face
+                !The i_scaling gets changed repeatedly
+                call overhead_adaptive_time_steps(poly_order, i_scaling, .false., .true., &
+                                                    &  iface_new, tau, z, boole_face_correct)
+            endif !adaptive steps scheme
+!
             !Control section
             boole_face_correct = .true.
 !        
-            !Validation loop ('3-planes'-control)
-            three_planes_loop: do j=1,3                             !Just consider the planes without the "exit-plane"
-                k=modulo(iface_new+j-1,4)+1
-                if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
-                    boole_face_correct = .false.
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting: three planes'
-                endif        
-            enddo three_planes_loop
-!
-            !Accuracy on face
-            if(abs(normal_distance_func(z(1:3),iface_new)).gt.1.d-11) then
-                boole_face_correct = .false.
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting: distance'
-            endif
-!
-            !Validation for vnorm
-            if(normal_velocity_func(z,iface_new).gt.0.d0) then
-                boole_face_correct = .false.
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting: normal velocity'
-            endif
+            call check_three_planes(z,iface_new,boole_face_correct)
+            call check_face_convergence(z,iface_new,boole_face_correct)
+            call check_velocity(z,iface_new,boole_face_correct,poly_order)    
 !
             !Tau outside safety margin
             if(tau.gt.tau_max) then
@@ -1858,8 +2633,8 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting: Safety margin'
             endif
 !            
             if(i.eq.6) exit
-        enddo 
-!        
+        enddo
+!
 if(diag_pusher_tetry_poly) print *, 'scaling', i
 !
         !3rd order polynomial pushing: (1) For Quadratic and Cubic solver, (2) if quartic solver fails
@@ -1867,7 +2642,8 @@ if(diag_pusher_tetry_poly) print *, 'scaling', i
 if(diag_pusher_tetry_poly) print *, 'Trouble shooting routine failed: Use 3rd order polynomial'
             boole_faces = .true.    !Compute root for all 4 faces
             iface_new = iface_init
-            z = z_init   
+            z = z_init
+            number_of_integration_steps = 0 !Resetting the number of integration steps because we start from scratch #2
 !
             select case(poly_order)
                 case(2)
@@ -1895,30 +2671,21 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting routine failed: Use 3rd or
 !
             !Integrate trajectory analytically
             call analytic_integration(poly_order,i_precomp,z,tau)
-            
+!           
             !Control section
             boole_face_correct = .true.
-!        
-            !Validation loop ('3-planes'-control)
-            do j=1,3                             !Just consider the planes without the "exit-plane"
-                k=modulo(iface_new+j-1,4)+1
-                if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
-                    boole_face_correct = .false.
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting: three planes'
-                endif        
-            enddo
 !
-            !Accuracy on face
-            if(abs(normal_distance_func(z(1:3),iface_new)).gt.1.d-11) then
-                boole_face_correct = .false.
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting: distance'
-            endif
-!            
-            !Validation for vnorm
-            if(normal_velocity_func(z,iface_new).gt.0.d0) then
-                boole_face_correct = .false.
-if(diag_pusher_tetry_poly) print *, 'Trouble shooting: normal velocity'
-            endif           
+            if (boole_adaptive_time_steps) then
+                !For this section the starting face is the initial face
+                !i_scaling and the poly_order were changed 
+                call overhead_adaptive_time_steps(poly_order_new, i_scaling, .false., .true., &
+                                                    &  iface_new, tau, z, boole_face_correct)
+            endif !adaptive steps scheme    
+!    
+            !consistency checks
+            call check_three_planes(z,iface_new,boole_face_correct)
+            call check_face_convergence(z,iface_new,boole_face_correct)
+            call check_velocity(z,iface_new,boole_face_correct,poly_order)            
 !        
             !Tau outside safety margin
             if(tau.gt.tau_max) then
