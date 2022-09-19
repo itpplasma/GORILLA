@@ -3,6 +3,8 @@ module pusher_tetra_rk_mod
 !
     private
 !
+    integer                          :: sign_rhs
+    integer                          :: sign_t_step_save
     integer                          :: iface_init
     integer,public,protected         :: ind_tetr
     double precision                 :: B0,perpinv,perpinv2,vmod_init
@@ -22,7 +24,7 @@ module pusher_tetra_rk_mod
     double precision,parameter      :: eps_dtau_quad = 1.5d0
     double precision                 :: k1, k3
 !   
-    !$OMP THREADPRIVATE(ind_tetr,spamat,B0,perpinv,perpinv2,iface_init,dt_dtau_const,k1,k3, &
+    !$OMP THREADPRIVATE(ind_tetr,spamat,B0,perpinv,perpinv2,iface_init,dt_dtau_const,k1,k3,sign_rhs,sign_t_step_save, &
     !$OMP& dist1,dist_min,dist_max,Bvec,gradB,x_init,b,z_init,amat,anorm,t_remain,vmod_init,dtau_ref,dtau_max,dtau_quad)
 !    
     public :: pusher_tetra_rk,find_tetra,initialize_const_motion_rk,energy_tot_func
@@ -46,7 +48,7 @@ module pusher_tetra_rk_mod
 !
     subroutine initialize_pusher_tetra_rk_mod(ind_tetr_inout,x,iface,vpar,t_remain_in)
 !
-        use tetra_physics_mod, only: tetra_physics, cm_over_e,dt_dtau,coord_system
+        use tetra_physics_mod, only: tetra_physics, cm_over_e,dt_dtau,coord_system,sign_sqg
         use tetra_grid_settings_mod, only: grid_size
         use constants, only : clight,eps,pi
         use gorilla_settings_mod, only: boole_dt_dtau
@@ -61,8 +63,12 @@ module pusher_tetra_rk_mod
         logical                                    :: boole_vd_ExB,boole_vperp
 !
         t_remain = t_remain_in
-!    
+!
         ind_tetr=ind_tetr_inout           !Save the index of the tetrahedron locally
+!
+        !Sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+        sign_t_step_save = int(sign(1.d0,t_remain))
+        sign_rhs = sign_sqg * sign_t_step_save
 !
         z_init(1:3)=x-tetra_physics(ind_tetr)%x1       !x is the entry point of the particle into the tetrahedron in (R,phi,z)-coordinates
 !
@@ -77,6 +83,9 @@ module pusher_tetra_rk_mod
         gradB = tetra_physics(ind_tetr)%gb
         anorm = tetra_physics(ind_tetr)%anorm
         dt_dtau_const = tetra_physics(ind_tetr)%dt_dtau_const
+!
+        !Multiply with sign of rhs - ensures that tau is ALWAYS positive inside the algorithm
+        dt_dtau_const = dt_dtau_const*dble(sign_rhs)
 !    
         !Module of B at the entry point of the particle
         bmod=bmod_func(z_init(1:3))
@@ -108,6 +117,12 @@ module pusher_tetra_rk_mod
 !                
         spamat=perpinv*cm_over_e*tetra_physics(ind_tetr)%spalpmat &
             - clight* tetra_physics(ind_tetr)%spbetmat    !tr(a-Matrix)
+!
+        !Multiply A-matrix (4x4) and b with appropriate sign (which ensures that tau remains positive inside the algorithm)
+        amat = amat * dble(sign_rhs)
+        b = b * dble(sign_rhs)
+        Bvec = Bvec * dble(sign_rhs)
+        spamat = spamat * dble(sign_rhs)
 !
         !Reference distances
         dist1=-tetra_physics(ind_tetr)%dist_ref     ! Normal distance of first vertex to first plane
@@ -516,7 +531,7 @@ endif
 !
 
 ! if(diag_pusher_tetra_rk) then
-        if((t_pass.ge.t_remain).and.(.not.boole_t_finished)) then
+        if((abs(t_pass).ge.abs(t_remain)).and.(.not.boole_t_finished)) then
             print *, 'boole_t_finished was not set'
             ind_tetr_inout = -1
             iface = -1
@@ -526,7 +541,7 @@ endif
         
 
 
-        if(t_pass.le.0.d0) then
+        if((t_pass*dble(sign_t_step_save)).le.0.d0) then
             print *, 't_pass is <= Zero'
             ind_tetr_inout = -1
             iface = -1
@@ -563,7 +578,7 @@ endif
         if(norder.ge.1) then
             do n = 1,4
                 coef_mat(n,2) = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
-                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) + &
+                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) * dble(sign_rhs) + &
 !                                    
 !                                 & tetra_physics_poly4(ind_tetr)%anorm_in_b0(n) + &
 !                                 & k1 * tetra_physics_poly4(ind_tetr)%anorm_in_b1(n) + &
@@ -590,7 +605,7 @@ endif
 !                                 & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b3(n))
 !
                                 & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
-                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * b)
+                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * b) * dble(sign_rhs)
             enddo
         endif
 !            
@@ -627,7 +642,9 @@ endif
             bcoef = coef_mat(:,2)
             acoef = coef_mat(:,3)
         else
-            acoef= tetra_physics(ind_tetr)%acoef_pre
+            !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+            !Only precomputed quantity needs to be adapted. Other quantities are already adapted in initialization process
+            acoef= tetra_physics(ind_tetr)%acoef_pre * dble(sign_rhs)
             bcoef=z(4)*acoef+matmul(b(1:3),anorm)
             acoef=acoef*(b(4)+spamat*z(4))
             ccoef = normal_distances_func(z(1:3))
@@ -2068,7 +2085,9 @@ endif
         if(boole_dt_dtau) then
             t_pass = tau*dt_dtau_const
         else
-            t_pass = tau*dt_dtau(ind_tetr,x_init,x)
+            t_pass = tau*dt_dtau(ind_tetr,x_init,x)*dble(sign_rhs)
+            !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+            !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
         endif
 !
 !
@@ -2087,7 +2106,7 @@ if(diag_pusher_tetra_rk) print *, 't_remain',t_remain
 ! if(diag_pusher_tetra_rk) print *, 'tau',tau
 !
         !Time handling - Treat case, if orbit stops within the cell
-        if(t_remain.lt.t_pass) then
+        if(abs(t_remain).lt.abs(t_pass)) then
 !
             !Start from the original coordinates
             z = z_init
@@ -2097,7 +2116,9 @@ if(diag_pusher_tetra_rk) print *, 't_remain',t_remain
             if(boole_dt_dtau) then
                 dtau = t_remain/dt_dtau_const
             else
-                dtau = t_remain/dt_dtau(ind_tetr,x_init,x)! !x(1) is used, because it is the "best" guess
+                dtau = t_remain/dt_dtau(ind_tetr,x_init,x) * dble(sign_rhs)! !x(1) is used, because it is the "best" guess
+                !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
             endif
 !
 
@@ -2142,11 +2163,13 @@ if(diag_pusher_tetra_rk)       print *, 'Error final processing: LLOD yields wro
                     if(boole_dt_dtau) then
                         t_pass = tau*dt_dtau_const
                     else
-                        t_pass = tau*dt_dtau(ind_tetr,x_init,x)
+                        t_pass = tau*dt_dtau(ind_tetr,x_init,x)*dble(sign_rhs)
+                        !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                        !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                     endif
 !                   
                     !Desired convergence point MUST be reached within t_remain
-                    if(t_pass.le.t_remain) then
+                    if(abs(t_pass).le.abs(t_remain)) then
 !                        
                         boole_t_finished = .false.
                         vpar=z(4)
@@ -2171,7 +2194,9 @@ if(diag_pusher_tetra_rk)       print *, 'Error final processing: LLOD does not y
                     t_pass = tau*dt_dtau_const
                     exit !If dt_dtau is a constant, loop should only be run once
                 else
-                    t_pass = tau*dt_dtau(ind_tetr,x_init,x)
+                    t_pass = tau*dt_dtau(ind_tetr,x_init,x)*dble(sign_rhs)
+                    !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                    !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                 endif    
 !                
                 
@@ -2193,7 +2218,9 @@ if(diag_pusher_tetra_rk)   print *,"Error - Final processing: Can't calculate po
                 if(boole_dt_dtau) then
                     dtau = t_remain/dt_dtau_const-tau
                 else
-                    dtau = t_remain/dt_dtau(ind_tetr,x_init,x)-tau
+                    dtau = t_remain/dt_dtau(ind_tetr,x_init,x)*dble(sign_rhs) - tau
+                    !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                    !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                 endif
             enddo
 !
@@ -2224,7 +2251,9 @@ if(diag_pusher_tetra_rk)   print *,"Error - Final processing: Can't calculate po
                     if(boole_dt_dtau) then
                         t_pass = tau*dt_dtau_const
                     else
-                        t_pass = tau*dt_dtau(ind_tetr,x_init,x) 
+                        t_pass = tau*dt_dtau(ind_tetr,x_init,x) * dble(sign_rhs)
+                        !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                        !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                     endif
                     boole_t_finished = .true.
                     vpar=z(4)
@@ -2238,7 +2267,9 @@ if(diag_pusher_tetra_rk)   print *,"Error - Final processing: Can't calculate po
                     if(boole_dt_dtau) then
                         t_pass = tau*dt_dtau_const
                     else
-                        t_pass = tau*dt_dtau(ind_tetr,x_init,x) 
+                        t_pass = tau*dt_dtau(ind_tetr,x_init,x) * dble(sign_rhs)
+                        !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                        !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                     endif
                     boole_t_finished = .true.
                     vpar=z(4)
@@ -2324,7 +2355,9 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
                 if(boole_dt_dtau) then
                     t_pass = tau*dt_dtau_const
                 else
-                    t_pass = tau*dt_dtau(ind_tetr,x_init,x) 
+                    t_pass = tau*dt_dtau(ind_tetr,x_init,x) * dble(sign_rhs)
+                    !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                    !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                 endif
                 boole_t_finished = .false.
                 vpar=z(4)
@@ -2500,7 +2533,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
         double precision                            :: normal_velocity_analytic
 !            
         normal_velocity_analytic = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,iface) + &
-                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) + &
+                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) * dble(sign_rhs) + &
                                 & sum(anorm(:,iface) * b(1:3))
 !        
     end function normal_velocity_analytic
@@ -2522,7 +2555,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
                                         & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_2(:,iface)) * z) + &
 !                    
                                         & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,iface) + &
-                                        & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * b)
+                                        & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * b) * dble(sign_rhs)
 !                                            
     end function normal_acceleration_analytic    
 !
@@ -2545,7 +2578,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface)
+    subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
         use tetra_grid_mod, only : Rmin,Rmax,Zmin,Zmax,ntetr,tetra_grid, verts_sthetaphi
         use tetra_grid_settings_mod, only: grid_kind, grid_size, n_field_periods
@@ -2561,6 +2594,9 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
 !
         integer, intent(out) :: ind_tetr_out,iface
 !
+        integer, intent(in), optional :: sign_t_step_in
+!
+        integer :: sign_t_step
         integer :: ir,iphi,iz,ind_search_tetra, indtetr_start,indtetr_end, ind_normdist, ind_tetr_save
         integer :: ind_plane_tetra_start, ntetr_in_plane, numerical_corr
         integer :: nr, nphi, nz
@@ -2573,6 +2609,13 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
         logical, dimension(4) :: boole_plane_conv,boole_plane_conv_temp
         integer, dimension(:), allocatable :: ind_tetr_tried
 !
+        ! Initialize sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+        if(present(sign_t_step_in)) then
+            sign_t_step = sign_t_step_in
+        else
+            sign_t_step = +1
+        endif
+
         ! Initialize numerical correction
         numerical_corr = 0
 !
@@ -2692,7 +2735,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
 !
                     z(1:3) = x-tetra_physics(ind_tetr_out)%x1
 !
-                    call initialize_pusher_tetra_rk_mod(ind_tetr_out,x,iface_new,vpar,-1.d0)
+                    call initialize_pusher_tetra_rk_mod(ind_tetr_out,x,iface_new,vpar,dble(sign_t_step))
 !
                     cur_dist_value = normal_distances_func(z(1:3))
 !print *, 'norm',cur_dist_value
@@ -2855,7 +2898,7 @@ module par_adiab_inv_rk_mod
         z = z_init
 !
         !Trace banana tips
-        if((vpar_end.gt.0.d0).and.(vpar_in.lt.0.d0)) then
+        if((vpar_end.lt.0.d0).and.(vpar_in.gt.0.d0)) then
 !
             !Compute integral of $v_\parallel^2$ and position z until $vpar = 0$
             call calc_par_adiab_until_root(tau,z,par_adiab_tau,tau_part1)

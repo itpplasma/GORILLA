@@ -92,6 +92,7 @@
 !
     double precision,public :: cm_over_e,particle_charge,particle_mass,mag_axis_R0,mag_axis_Z0
     integer, public, protected :: coord_system
+    integer, public, protected :: sign_sqg
 !   
   contains
 !
@@ -753,6 +754,11 @@
 enddo
 !$OMP END PARALLEL DO
 !
+        !Save sign of sqrt g - Load value from tetrahedral cell with index 1
+        sign_sqg = int(sign(1.d0,metric_determinant(1,tetra_physics(1)%x1)))
+!print *, 'Sign of sqrt g', sign_sqg
+!stop
+!
         !Deallocate quantities
         deallocate(davec_dx1,davec_dx2,davec_dx3)
         deallocate(avec)
@@ -918,7 +924,7 @@ enddo
                         Bcovar_r,Bcovar_vartheta,Bcovar_varphi)
 !
         !Squareroot(g) is for some reason a negative quantity ???
-        sqg = abs(sqg) ! <-- Only needed for underlying problem, that in vmec_field() sqg = J instead of sqg = ABS(J), 
+!        sqg = abs(sqg) ! <-- Only needed for underlying problem, that in vmec_field() sqg = J instead of sqg = ABS(J),
                        ! This respects the fact that depending on the coordinate system, the actual integration might go 
                        ! backwards in time (orbitparameter ~ -physical time), but this is inpracticable with the pusher routine, 
                        ! which always assumes positive tau and positive integration time -> may lead to issues with t-uneven moments

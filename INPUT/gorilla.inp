@@ -71,6 +71,14 @@
 !
 !------------------------------------------------------------------------------------------------------------!
 !
+ !Time tracing options
+ ! 1 ... Time tracing in 0th order approximation: dt / dtau = const. in each tetrahedral cell
+ ! 2 ... (Correct) Hamiltonian time tracing in adequate polynomial order
+ !       Dependencies:  ipusher must be 2 (Polynomial pusher)
+ i_time_tracing_option = 1 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
  !Processing of particle handover to tetrahedron neighbour
  ! 1 ... Processing with special treatment of periodic boundaries and manipulation of periodic position values
  ! 2 ... Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included
@@ -134,7 +142,7 @@
 !
  !Allowed relative fluctuation of energy between entry and exit of a tetrahedron
  !Must not be smaller or equal zero!
- desired_delta_energy = 1.E-10
+ desired_delta_energy = 1.E-10 ,
 !
  !Maximum number of intermediate steps allowed for splitting up an orbit section
  !Should not go much beyond 10000 steps.

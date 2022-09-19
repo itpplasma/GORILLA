@@ -15,7 +15,7 @@ find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 find_package(netCDF REQUIRED)
 
-if ($ENV{GORILLA_COVERAGE} STREQUAL "TRUE")
+if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	find_package(PFUNIT REQUIRED)
 	enable_testing()
 endif()
@@ -27,7 +27,7 @@ if(APPLE)
 	add_link_options(-L/opt/local/lib)
 endif()
 
-if ($ENV{GORILLA_COVERAGE} STREQUAL "TRUE")
+if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	add_link_options(--coverage)
 endif()
 
