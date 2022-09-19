@@ -994,6 +994,7 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: Left tetr
                             return
                         endif
                         z = intermediate_z0_list(:,number_of_integration_steps)
+                        number_of_integration_steps = number_of_integration_steps - 1
                         boole_exit_tetrahedron = .true.
                         exit STEPWISE
                     endif
@@ -1028,7 +1029,7 @@ endif
                     !Analytical result does not exist can therefore not close cell orbit
                     ! -> "return" leaves orbit (falsely, therefore boole set to false) inside of tetrahedron
                     if(.not.boole_analytical_approx) then
-                        if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: no analytical solution'
+if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: no analytical solution'
                         boole_face_correct = .false.
                         return
                     endif
@@ -1115,8 +1116,8 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energ
                     boole_energy_check = .true.
                     exit PARTITION
                 endif
-            else
-                !If we see that our new step choice has INCREASED the energy, we redo the last partition and stop
+            elseif(delta_energy_current.gt.delta_energy_minimum) then
+                !If we see that our new step choice has INCREASED the energy, we redo the minimum partition and stop
                 boole_reached_minimum = .true.
                 cycle PARTITION
             endif !energy check
@@ -1128,6 +1129,9 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energ
         !If could not satisfy energy conservation with scheme, notify user
         if (.not.boole_energy_check) then
             print *, 'Error in adaptive steps equidistant: energy conservation could not be fullfilled!'
+print *, 'delta_energy_minimum', delta_energy_minimum
+print *, 'eta_minimum', eta_minimum
+print *, 'tau_minimum', tau_minimum
 if(diag_pusher_tetry_poly_adaptive)print*, 'delta_energy_minimum', delta_energy_minimum
 if(diag_pusher_tetry_poly_adaptive) stop
         endif 
@@ -2008,7 +2012,6 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
         subroutine analytic_integration_without_precomp(poly_order,z,tau)
 !
             use poly_without_precomp_mod
-            use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
 !
             implicit none
 !
@@ -3082,7 +3085,6 @@ module par_adiab_inv_poly_mod
                                                 number_of_integration_steps, intermediate_z0_list, tau_steps_list, &
                                                 & set_integration_coef_manually
         use tetra_physics_mod, only: particle_mass,tetra_physics
-        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
 !  
         implicit none
 !
