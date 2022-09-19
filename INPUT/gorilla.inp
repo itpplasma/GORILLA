@@ -71,6 +71,15 @@
 !
 !------------------------------------------------------------------------------------------------------------!
 !
+  !Time tracing options
+  ! 1 ... Time tracing in 0th order approximation: dt / dtau = const. in each tetrahedral cell
+  ! 2 ... (Correct) Hamiltonian time tracing via optional quantity t_hamiltonian in adequate polynomial order
+  !       Dependencies:  boole_time_Hamiltonian must be .true.
+  !                      ipusher must be 2 (Polynomial pusher)
+  i_time_tracing_option = 1 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
  !Processing of particle handover to tetrahedron neighbour
  ! 1 ... Processing with special treatment of periodic boundaries and manipulation of periodic position values
  ! 2 ... Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included

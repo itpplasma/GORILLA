@@ -179,7 +179,7 @@ endif
             use gorilla_diag_mod,only: diag_pusher_tetry_poly
             use pusher_tetra_func_mod, only: pusher_handover2neighbour
             use gorilla_settings_mod, only: i_precomp, boole_guess, optional_quantities_type, boole_array_optional_quantities, &
-                                    &  boole_adaptive_time_steps
+                                    &  boole_adaptive_time_steps, i_time_tracing_option
 !
             implicit none
 !
@@ -204,6 +204,9 @@ endif
             logical                                               :: boole_analytical_approx,boole_face_correct
             logical                                               :: boole_trouble_shooting
             double precision, dimension(4,4)                      :: operator_b,operator_z_init
+            double precision, dimension(:), allocatable           :: t_hamiltonian_list
+            integer                                               :: i_step_root
+            double precision                                      :: t_remain_new
 !         
             call initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
             !In case of first call of orbit integration -> inialize the intermediate_steps_array
@@ -335,7 +338,7 @@ if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: normal veloc
 if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
 !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !!!!!!!!!!!!!!!!SECOND ATTEMPT WITHOUT GUESSES PLUS RESCALE!!!!!!!!!!!!!!!!!!
+            !!!!!!!!SECOND ATTEMPT WITHOUT GUESSES PLUS RESCALING IN 2nd ORDER!!!!!!!!!!!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
@@ -441,7 +444,33 @@ endif
             !Final processing
             x=z(1:3)+tetra_physics(ind_tetr)%x1
             vpar=z(4)
-            t_pass = tau*dt_dtau_const
+!
+            if(any(boole_array_optional_quantities)) then
+!
+                !Track Hamiltonian time for root finding operation, if necessary
+                if(i_time_tracing_option.eq.2) then
+                    allocate(t_hamiltonian_list(number_of_integration_steps+1))
+                    t_hamiltonian_list(1) = 0.d0
+                endif
+!
+                !loop over number_of_integration_steps
+                do i = 1,number_of_integration_steps
+                    call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
+!
+                    !Track Hamiltonian time
+                    if(i_time_tracing_option.eq.2) t_hamiltonian_list(i+1) = optional_quantities%t_hamiltonian
+                enddo
+            endif
+!
+            !Compute passing time dependent on time tracing option
+            select case(i_time_tracing_option)
+                !Time tracing in 0th order - dt_dtau = const.
+                case(1)
+                    t_pass = tau*dt_dtau_const
+                !Hamiltonian time tracing with computation of polynomial
+                case(2)
+                    t_pass = optional_quantities%t_hamiltonian
+            end select
 !
 if(diag_pusher_tetry_poly) print *, 'tau total',tau
 if(diag_pusher_tetry_poly) print *, 't_pass',t_pass
@@ -450,30 +479,59 @@ if(diag_pusher_tetry_poly) then
     if (t_remain .lt. 0) stop
     if (t_pass .lt. 0) stop
 endif
-
 !
             !Particle stops inside the tetrahedron
             if(t_pass.ge.t_remain) then
 !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !!!!!!!FORTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL IN REMAINING TIME!!!!!!!
+            !!!!!!!FOURTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL IN REMAINING TIME!!!!!!!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-                !Set z back to z_init
-                z = z_init
+                !Case selection dependent on time tracing option
+                select case(i_time_tracing_option)
+                    !Time tracing in 0th order - dt_dtau = const.
+                    case(1)
 !
-                !If vnorm was corrected or intermediate steps taken, coefficients need to be computed again.
-                if(number_of_integration_steps .gt. 1) then
-                    iface_new = iface_init
+                        !Set z back to z_init
+                        z = z_init
 !
-                    call set_integration_coef_manually(poly_order,z)
-                endif
+                        !If vnorm was corrected or intermediate steps taken, coefficients need to be computed again.
+                        if(number_of_integration_steps .gt. 1) then
+                            iface_new = iface_init
+
+                            call set_integration_coef_manually(poly_order,z)
+                        endif
 !
-                !And reset the integration step counter
-                number_of_integration_steps = 0
+                        !And reset the integration step counter
+                        number_of_integration_steps = 0
 !
-                !Compute orbit parameter tau from t_remain
-                tau = t_remain/dt_dtau_const
+                        !Compute orbit parameter tau from t_remain
+                        tau = t_remain/dt_dtau_const
+!
+                    !Hamiltonian time tracing with computation of polynomial
+                    case(2)
+!
+                        !Find integration step in which t_hamiltonian exceeds t_remain
+                        i_step_root =  findloc(t_hamiltonian_list.gt.t_remain,.true.,dim=1)
+!
+                        !Set orbit back to i-th integration step
+                        z = intermediate_z0_list(:,i_step_root - 1)
+                        call set_integration_coef_manually(poly_order,z)
+                        number_of_integration_steps = i_step_root - 2
+                        iface_new = iface_init ! (just in case)
+!
+                        !Find tau corresponding to root of t_Hamiltonian
+                        t_remain_new = t_remain - t_hamiltonian_list(i_step_root-1)
+                        call get_t_hamiltonian_root(poly_order,z,t_remain_new,tau)
+!
+                        !Fail save: consistency check due to order reduction in root solving operation in the case of 5th order
+                        if(tau.gt.tau_steps_list(i_step_root - 1)) then
+                            print *, 'Warning: Final t_hamiltonian step in 0th order for avoiding inconsistency.'
+                            tau = t_remain_new/dt_dtau_const
+                        endif
+!
+                end select
+                
 if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
 !
                 !Integrate trajectory analytically from start until t_remain
@@ -502,6 +560,22 @@ if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
                     z_save = z(1:3)
                     x=z(1:3)+tetra_physics(ind_tetr)%x1
                     vpar=z(4)
+
+                    !Compute optional quantities for the final step
+                    call initialise_optional_quantities(optional_quantities)
+!
+                    !Redo loop over number_of_integration_steps
+                    do i = 1,number_of_integration_steps
+                        call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
+                    enddo
+!
+                    !Difference in between t_pass and t_hamiltonian of optional quantities:
+!
+                    ! t_pass: expresses the used time of integration including possible error due to order reduction (only relevant
+                    ! if poly_order = 4) which is necessary for analytical root finding in the 5th order
+                    !
+                    ! optional_quantities%t_hamiltonian: order consistent computation of Hamiltonian time elapsed
+                    ! Due to above described order reduction, t_hamiltonian might sligthly differ from t_step
                     t_pass = t_remain
 !                    
                 else    !Time step finishes while particle is outside the tetrahedron (Wrong face was predicted, but logically true)
@@ -528,7 +602,24 @@ endif
                     !Final processing
                     x=z(1:3)+tetra_physics(ind_tetr)%x1
                     vpar=z(4)
-                    t_pass = tau*dt_dtau_const
+
+                    !Compute optional quantities for the final step
+                    call initialise_optional_quantities(optional_quantities)
+!
+                    !Redo loop over number_of_integration_steps
+                    do i = 1,number_of_integration_steps
+                        call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
+                    enddo
+!
+                    !Case selection dependent on time tracing option
+                    select case(i_time_tracing_option)
+                        !Time tracing in 0th order - dt_dtau = const.
+                        case(1)
+                            t_pass = tau*dt_dtau_const
+                        !Hamiltonian time tracing with computation of polynomial
+                        case(2)
+                            t_pass = optional_quantities%t_hamiltonian
+                    end select
 !
                     !Save relative coordinates after pushing
                     z_save = z(1:3)
@@ -538,7 +629,7 @@ endif
                 endif
 !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !!!!!!!!!!!!END OF FORTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL!!!!!!!!!!!!!
+            !!!!!!!!!!!!END OF FOURTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL!!!!!!!!!!!!!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
             !Normal orbit that passes the whole tetrahedron
@@ -552,14 +643,22 @@ endif
 !                
             endif
 !
-            if(any(boole_array_optional_quantities)) then
-                !loop over number_of_integration_steps
-                do i = 1,number_of_integration_steps
-                    call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
-                enddo
-            endif
+!            if(any(boole_array_optional_quantities)) then
+!!
+!                !Track Hamiltonian time for root finding operation, if necessary
+!                if(i_time_tracing_option.eq.2) allocate(t_hamiltonian_list(number_of_integration_steps))
+!!
+!                !loop over number_of_integration_steps
+!                do i = 1,number_of_integration_steps
+!                    call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
+!                enddo
+!            endif
+!
             !If finished particle integration, deallocate the intermediate_steps_array (get also deallocated in previous instances if lost particle)
             if(boole_t_finished) call manage_intermediate_steps_arrays(1)
+!
+            !Deallocation
+            if(i_time_tracing_option.eq.2) deallocate(t_hamiltonian_list)
 !
         end subroutine pusher_tetra_poly
 !
@@ -2023,6 +2122,8 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
             & vector_integral_without_precomp(poly_order,tau,x_vpar_coef))
 !
+!            call calc_t_hamiltonian(poly_order,z0,tau,delta_t_hamiltonian)
+!
             optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + delta_t_hamiltonian
 !
             !Optional computation of gyrophase
@@ -2056,6 +2157,178 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
         endif ! time_Hamiltonian
 !
     end subroutine calc_optional_quantities
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine calc_t_hamiltonian(poly_order,z0,tau,delta_t_hamiltonian)
+!
+        use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, dimension(4), intent(in)      :: z0
+        double precision, intent(in)                    :: tau
+        double precision, intent(out)                   :: delta_t_hamiltonian
+        double precision, dimension(:,:), allocatable   :: x_coef,x_vpar_coef
+        double precision, dimension(:), allocatable     :: vpar_coef
+        double precision                                :: a_coef, b_coef, c_coef, d_coef, e_coef
+
+!
+        !recalculate polynomial coefficients (tensors) if more than one integration step was performed
+        !if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
+!
+        allocate(x_coef(3,poly_order+1))
+        allocate(vpar_coef(poly_order+1))
+        allocate(x_vpar_coef(3,poly_order+1))
+!
+        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
+!
+        call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
+        call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
+        call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
+!
+        !Input for Root Solver
+        !f(tau) = a/24 * tau**4 + b/6 * tau**3 + c/2 * tau**2 + d * tau + e
+!
+        a_coef = (1.d0/5.d0) * ( &
+        & vpar_coef(5) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+        & sum ( x_coef(:,5) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+        & cm_over_e * sum (x_vpar_coef(:,5) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+        & )
+!
+        b_coef = (1.d0/4.d0) * ( &
+        & vpar_coef(4) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+        & sum ( x_coef(:,4) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+        & cm_over_e * sum (x_vpar_coef(:,4) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+        & )
+!
+        c_coef = (1.d0/3.d0) * ( &
+        & vpar_coef(3) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+        & sum ( x_coef(:,3) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+        & cm_over_e * sum (x_vpar_coef(:,3) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+        & )
+!
+        d_coef = 0.5d0 *(  &
+        & vpar_coef(2) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+        & sum ( x_coef(:,2) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+        & cm_over_e * sum (x_vpar_coef(:,2) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+        & )
+!
+        e_coef = ( &
+        & hamiltonian_time(ind_tetr)%h1_in_curlA + &
+        & vpar_coef(1) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+        & sum( x_coef(:,1) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+        & cm_over_e * sum( x_vpar_coef(:,1) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+        & )
+!
+        delta_t_hamiltonian = &
+!        & tau**5 * a_coef + &
+        & tau**4 * b_coef + &
+        & tau**3 * c_coef + &
+        & tau**2 * d_coef + &
+        & tau * e_coef
+!
+        deallocate(x_coef,vpar_coef,x_vpar_coef)
+!
+    end subroutine calc_t_hamiltonian
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine get_t_hamiltonian_root(poly_order,z0,t_remain,tau_t_hamiltonian_root)
+!
+        use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
+!
+        implicit none
+!
+        integer, intent(in)                                     :: poly_order
+        double precision, dimension(4), intent(in)              :: z0
+        double precision, intent(in)                            :: t_remain
+        double precision, intent(out)                           :: tau_t_hamiltonian_root
+        double precision                                        :: a_coef, b_coef, c_coef, d_coef, e_coef
+        double precision, dimension(:,:), allocatable           :: x_coef,x_vpar_coef
+        double precision, dimension(:), allocatable             :: vpar_coef
+!
+        !recalculate polynomial coefficients (tensors) if more than one integration step was performed
+        !if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
+!
+        allocate(x_coef(3,poly_order+1))
+        allocate(vpar_coef(poly_order+1))
+        allocate(x_vpar_coef(3,poly_order+1))
+!
+        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
+!
+        call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
+        call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
+        call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
+!
+        !Coefficient for Root Solver
+        !t_hamiltonian(tau) = a * tau**5 + b * tau**4 + c * tau**3 + d * tau**2 + e * tau - t_remain == 0
+!
+        !We neglect the 5th order term in the root solving operation in order to be analytical.
+        !This is only relevant in the "final" tetrahedron of a time step.
+!
+        !t_hamiltonian(tau) = b * tau**4 + c * tau**3 + d * tau**2 + e * tau - t_remain == 0
+!
+        e_coef = ( &
+        & hamiltonian_time(ind_tetr)%h1_in_curlA + &
+        & vpar_coef(1) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+        & sum( x_coef(:,1) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+        & cm_over_e * sum( x_vpar_coef(:,1) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+        & )
+!
+        if(poly_order.ge.1) then
+            d_coef = 0.5d0 *(  &
+            & vpar_coef(2) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+            & sum ( x_coef(:,2) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+            & cm_over_e * sum (x_vpar_coef(:,2) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+            & )
+        endif
+!
+        if(poly_order.ge.2) then
+            c_coef = (1.d0/3.d0) * ( &
+            & vpar_coef(3) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+            & sum ( x_coef(:,3) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+            & cm_over_e * sum (x_vpar_coef(:,3) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+            & )
+        endif
+!
+        if(poly_order.ge.3) then
+            b_coef = (1.d0/4.d0) * ( &
+            & vpar_coef(4) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+            & sum ( x_coef(:,4) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+            & cm_over_e * sum (x_vpar_coef(:,4) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+            & )
+        endif
+!
+!        a_coef = (1.d0/5.d0) * ( &
+!        & vpar_coef(5) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
+!        & sum ( x_coef(:,5) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
+!        & cm_over_e * sum (x_vpar_coef(:,5) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
+!        & )
+!
+        deallocate(x_coef,vpar_coef,x_vpar_coef)
+!
+        !Manipulate coefficients for root solvers
+        !f(tau) = b/24 * tau**4 + c/6 * tau**3 + d/2 * tau**2 + e * tau - t_remain == 0
+!
+        !t_remain = t_remain
+        !e_coef = e_coef
+        if(poly_order.ge.1) d_coef = 2.d0 * d_coef
+        if(poly_order.ge.2) c_coef = 6.d0 * c_coef
+        if(poly_order.ge.3) b_coef = 24.d0 * b_coef
+!
+        !Find root
+        select case(poly_order)
+            case(1)
+                call Quadratic_Solver2(d_coef,e_coef,-t_remain,tau_t_hamiltonian_root)
+            case(2)
+                call Cubic_Solver(c_coef,d_coef,e_coef,-t_remain,tau_t_hamiltonian_root)
+            case(3,4)
+                call Quartic_Solver(0,b_coef,c_coef,d_coef,e_coef,-t_remain,tau_t_hamiltonian_root)
+        end select
+!
+    end subroutine get_t_hamiltonian_root
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -2855,7 +3128,7 @@ module par_adiab_inv_poly_mod
 !
 
         !Compute coefficients for vpar(t)==0 root finding
-        !f(tau)  = a + b*tau + c/2 * tau^2 + d/6 * tau^3 + e/24 * tau^5
+        !f(tau)  = a + b*tau + c/2 * tau^2 + d/6 * tau^3 + e/24 * tau^4
 !
         i_scaling = 0
 !
