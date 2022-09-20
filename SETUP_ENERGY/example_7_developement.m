@@ -24,43 +24,56 @@ close all
 boole_recalculate_nonadaptive = false;
 boole_recalculate_adaptive = false;
 boole_recalculate_control_order4 = false;
+boole_recalculate_full_orbit = false;
+boole_recalculate_full_orbit_adaptive = false;
+boole_load_data = false;
 poly_order = 2;
 poly_order_adaptive = 2;
 total_orbit_time = 1d1;
 desired_delta_energy = 1.0d-10;
 max_n_intermediate_steps = 10000;
 
-boole_full_orbit = false;
+boole_full_orbit = true;
 boole_e_tot = true;
 boole_poincare_vpar_0 = true;
 boole_J_par = true;
 
-boole_show_energy = true;
-boole_show_energy_fluctuation = false;
+boole_show_e_tot = true;
+boole_show_e_tot_fluctuation = false;
+boole_show_e_tot_fluctuation_full_orbit = true;
 boole_show_full_orbit = false;
 boole_show_J_par = false;
-boole_show_J_par_combined = false;
+boole_show_J_par_combined = true;
 boole_show_poincare_vpar_0_rphiz = false;
-boole_show_poincare_vpar_0_rphiz_combined = false;
-boole_show_poincare_vpar_0_sthetaphi_combined = false;
+boole_show_poincare_vpar_0_rphiz_combined = true;
+boole_show_poincare_vpar_0_sthetaphi_combined = true;
 
 n_skip_poincare = 5;
 n_skip_poincare_rphiz = 5;
 n_skip_J_par = 20;
 n_skip_e_tot_fluctuation = 10;
+n_skip_e_tot_fluctuation_full_orbit = 1;
 n_skip_e_tot = 1;
 
 % order2Color = [102,194,165]/256;
 % adaptiveColor = [141,160,203]/256;
 % order4Color = [252,141,98]/256;
 order2Color = [27,158,119]/256;
-adaptiveColor = [117,112,179]/256;
-order4Color = [217,95,2]/256;
-MarkerSize = 5;
+% adaptiveColor = [117,112,179]/256;
+% order4Color = [217,95,2]/256;
+adaptiveColor = [217,95,2]/256;
+order4Color = [117,112,179]/256;
+
 MarkerPoincare = '.';
 MarkerSizePoincare = 15;
 CentralLineWidth = 2;
+MarkerEnergyFluctuation = '.';
+MarkerSizeEnergyFluctuation = 15;
+MarkerSize = 5;
 FontSize = 14;
+
+postprocessing_functions_path = 'postprocessing_functions';
+addpath(postprocessing_functions_path);
 
 %tests on lamor radius
 start_pitch_parameter = 0.3;
@@ -76,7 +89,7 @@ m_ratio = 1/(4*1800);
 zeta = 1 - start_pitch_parameter^2;
 changed_energy = energy_eV_start * m_ratio;
 
-if (boole_recalculate_nonadaptive || boole_recalculate_adaptive || boole_recalculate_control_order4)
+if (boole_recalculate_nonadaptive || boole_recalculate_adaptive || boole_recalculate_control_order4 || boole_load_data || boole_recalculate_full_orbit || boole_recalculate_full_orbit_adaptive)
     %filenames for output
     filename_poincare_vpar_0_rphiz = 'poincare_plot_v_par_0_rphiz.dat';
     filename_poincare_vpar_0_rphiz_adaptive = 'poincare_plot_v_par_0_rphiz_adaptive.dat';
@@ -90,6 +103,8 @@ if (boole_recalculate_nonadaptive || boole_recalculate_adaptive || boole_recalcu
     filename_e_tot = 'e_tot.dat';
     filename_e_tot_adaptive = 'e_tot_adaptive.dat';
     filename_e_tot_control_order4 = 'e_tot_control_order4.dat';
+    filename_e_tot_full_orbit = 'e_tot_full_orbit.dat';
+    filename_e_tot_full_orbit_adaptive = 'e_tot_full_orbit_adaptive.dat';
     filename_J_par = 'J_par.dat';
     filename_J_par_adaptive = 'J_par_adaptive.dat';
     filename_J_par_control_order4 = 'J_par_control_order4.dat';
@@ -254,7 +269,7 @@ if (boole_recalculate_nonadaptive || boole_recalculate_adaptive || boole_recalcu
                 gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi = filename_poincare_vpar_0_sthetaphi;
 
         %Switch for plotting full orbit
-            gorilla_plot.GORILLA_PLOT_NML.boole_full_orbit = boole_full_orbit;
+            gorilla_plot.GORILLA_PLOT_NML.boole_full_orbit = false;
 
         %Number of skipped (non-printed tetrahedra passings) full orbit
             gorilla_plot.GORILLA_PLOT_NML.n_skip_full_orbit = n_skip_full_orbit;
@@ -329,7 +344,7 @@ if (boole_recalculate_nonadaptive || boole_recalculate_adaptive || boole_recalcu
     %Load Data-files and copy them into data_plots folder
     data=struct();
     data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
-
+    
     %polynominal order = 4
     gorilla.GORILLANML.poly_order = 4;
     gorilla_plot.GORILLA_PLOT_NML.filename_J_par = filename_J_par_control_order4;
@@ -362,6 +377,38 @@ if (boole_recalculate_nonadaptive || boole_recalculate_adaptive || boole_recalcu
 
     data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
+    %observe energy fluctuation in detail
+    gorilla.GORILLANML.poly_order = poly_order;
+    gorilla.GORILLANML.boole_adaptive_time_steps = false;
+    gorilla_plot.GORILLA_PLOT_NML.boole_poincare_vpar_0 = false;
+    gorilla_plot.GORILLA_PLOT_NML.boole_full_orbit = true;
+    gorilla_plot.GORILLA_PLOT_NML.boole_J_par = false;
+    gorilla_plot.GORILLA_PLOT_NML.total_orbit_time = total_orbit_time/100;
+    gorilla_plot.GORILLA_PLOT_NML.filename_e_tot = filename_e_tot_full_orbit;
+    gorilla.write([path_RUN,'/gorilla.inp']);
+    gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
+    
+    %Run with energy control
+    if (boole_recalculate_full_orbit)
+        ! ./test_gorilla_main.x
+    end
+
+    data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
+    
+    %observe energy fluctuation in detail
+    gorilla.GORILLANML.poly_order = poly_order_adaptive;
+    gorilla.GORILLANML.boole_adaptive_time_steps = true;
+    gorilla_plot.GORILLA_PLOT_NML.filename_e_tot = filename_e_tot_full_orbit_adaptive;
+    gorilla.write([path_RUN,'/gorilla.inp']);
+    gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
+    
+    %Run with energy control
+    if (boole_recalculate_full_orbit_adaptive)
+        ! ./test_gorilla_main.x
+    end
+    
+    data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
+    
     cd(path_script)
     
 end
@@ -382,6 +429,10 @@ if (boole_show_full_orbit)
     full_orbit_data = data.full_orbit_plot_rphiz;
     full_orbit_adaptive_data = data.full_orbit_plot_rphiz_adaptive;
 end
+if (boole_show_e_tot_fluctuation_full_orbit && boole_full_orbit)
+    e_tot_full_orbit_data = data.e_tot_full_orbit;
+    e_tot_full_orbit_adaptive_data = data.e_tot_full_orbit_adaptive;
+end
 if (boole_e_tot)
     e_tot_data = data.e_tot;
     e_tot_adaptive_data = data.e_tot_adaptive;
@@ -393,24 +444,22 @@ if (boole_J_par)
 end
 
 %Energy evolution comparison
-if (boole_show_energy)
-    if (boole_full_orbit)
-        xlabel_txt = '$t_{orbit}$';
-    else
-        xlabel_txt = '$N_{Bounces}$';
-    end
+if (boole_show_e_tot)
+    xlabel_txt = '$N_{Bounces}$';
     ylabel_txt = '$E/E(\tau = 0)$';
-    figure('Renderer', 'painters', 'Position', [50 100 1200 1000])
+    
+    figure('Renderer', 'painters', 'Position', [24 37 1214 580])
     subplot(1,2,1)
-    plot(e_tot_data(1:n_skip_e_tot:end,1),e_tot_data(1:n_skip_e_tot:end,2)/e_tot_data(1,2)-1)
+    plot(e_tot_data(1:n_skip_e_tot:end,1),e_tot_data(1:n_skip_e_tot:end,2)/e_tot_data(1,2)-1,'Color',order2Color)
     tit = title(['Energy evolution (order ',num2str(poly_order),')'],'Interpreter','latex');
     xlab = xlabel(xlabel_txt,'Interpreter','latex');
     ylab = ylabel(ylabel_txt,'Interpreter','latex');
     tit.FontSize = FontSize;
     xlab.FontSize = FontSize;
     ylab.FontSize = FontSize;
+    
     subplot(1,2,2)
-    plot(e_tot_adaptive_data(1:n_skip_e_tot:end,1),e_tot_adaptive_data(1:n_skip_e_tot:end,2)/e_tot_adaptive_data(1,2)-1)
+    plot(e_tot_adaptive_data(1:n_skip_e_tot:end,1),e_tot_adaptive_data(1:n_skip_e_tot:end,2)/e_tot_adaptive_data(1,2)-1,'Color',adaptiveColor)
     xlab = xlabel(xlabel_txt,'Interpreter','latex');
     ylab = ylabel(ylabel_txt,'Interpreter','latex');
     tit = title(['Energy evolution (adaptive/order ',num2str(poly_order_adaptive),')'],'Interpreter','latex');
@@ -420,39 +469,88 @@ if (boole_show_energy)
 end
 
 %Energy fluctuation comparison
-if (boole_show_energy_fluctuation)
-    if (boole_full_orbit)
-        xlabel_txt = '\Delta{}t';
-    else
-        xlabel_txt = 'N_{mappings}';
-    end
+if (boole_show_energy_fluctuation && ~boole_full_orbit)
+    xlabel_txt = 'N_{Bounces}';
+    ylabel_txt = '$\delta$';
     energy_fluctuation_data = nan*ones([length(e_tot_data)-1,2]);
     %energy_fluctuation_data(:,2) = (e_tot_data(2:end,2) - e_tot_data(1:end-1,2))./(abs(e_tot_data(1:end-1,2))+abs(e_tot_data(1:end-1,2)));
     energy_fluctuation_data(:,2) = e_tot_data(2:end,2)./e_tot_data(1:end-1,2) -1;
     energy_fluctuation_adaptive_data = nan*ones([length(e_tot_adaptive_data)-1,2]);
     %energy_fluctuation_adaptive_data(:,2) = (e_tot_adaptive_data(2:end,2) - e_tot_adaptive_data(1:end-1,2))./(abs(e_tot_adaptive_data(1:end-1,2))+abs(e_tot_adaptive_data(1:end-1,2)));
     energy_fluctuation_adaptive_data(:,2) = e_tot_adaptive_data(2:end,2)./e_tot_adaptive_data(1:end-1,2) -1;
-    figure('Renderer', 'painters', 'Position', [1300 100 1200 1000])
+    
+    figure('Renderer', 'painters', 'Position', [1288 37 1214 580])
     subplot(1,2,1)
-    if (boole_full_orbit)
-        energy_fluctuation_data(:,1) = e_tot_data(2:end,1)-e_tot_data(1:end-1,1);
-        plot(energy_fluctuation_data(:,1),energy_fluctuation_data(:,2),'.','MarkerSize',10)
-    else
-        energy_fluctuation_data(:,1) = e_tot_data(2:end,1);
-        plot(energy_fluctuation_data(:,1),energy_fluctuation_data(:,2),'.','MarkerSize',10)
-    end
-    title(['Energy fluctuation (order ',num2str(poly_order),')'])
-    xlabel(xlabel_txt)
+    energy_fluctuation_data(:,1) = e_tot_data(2:end,1);
+    plot(energy_fluctuation_data(:,1),energy_fluctuation_data(:,2),'.','MarkerSize',10)
+    tit = title(['Energy fluctuation (order ',num2str(poly_order),')'],'Interpreter','latex');
+    xlab = xlabel(xlabel_txt,'Interpreter','latex');
+    ylab = ylabel(ylabel_txt,'Interpreter','latex');
+    tit.FontSize = FontSize;
+    xlab.FontSize = FontSize;
+    ylab.FontSize = FontSize;
+    
     subplot(1,2,2)
-    if (boole_full_orbit)
-        energy_fluctuation_adaptive_data(:,1) = e_tot_adaptive_data(2:end,1)-e_tot_adaptive_data(1:end-1,1);
-        plot(energy_fluctuation_adaptive_data(:,1),energy_fluctuation_adaptive_data(:,2),'.','MarkerSize',10)
-    else
-        energy_fluctuation_adaptive_data(:,1) = e_tot_adaptive_data(2:end,1);
-        plot(energy_fluctuation_adaptive_data(:,1),energy_fluctuation_adaptive_data(:,2),'.','MarkerSize',10)
-    end
-    title(['Energy fluctuation (adaptive/order ',num2str(poly_order_adaptive),')'])
-    xlabel(xlabel_txt)
+    energy_fluctuation_adaptive_data(:,1) = e_tot_adaptive_data(2:end,1);
+    plot(energy_fluctuation_adaptive_data(:,1),energy_fluctuation_adaptive_data(:,2),'.','MarkerSize',10)
+    tit = title(['Energy fluctuation (adaptive/order ',num2str(poly_order_adaptive),')'],'Interpreter','latex');
+    xlab = xlabel(xlabel_txt,'Interpreter','latex');
+    ylab = ylabel(ylabel_txt,'Interpreter','latex');
+    tit.FontSize = FontSize;
+    xlab.FontSize = FontSize;
+    ylab.FontSize = FontSize;
+end
+
+%Energy fluctuation comparison full orbit
+if (boole_show_e_tot_fluctuation_full_orbit && boole_full_orbit)
+    xlabel_txt = '$\Delta{}\tau$';
+    ylabel_txt = '$\delta$';
+    energy_fluctuation_full_orbit_data = nan*ones([length(e_tot_full_orbit_data)-1,2]);
+    energy_fluctuation_full_orbit_data(:,2) = abs(e_tot_full_orbit_data(2:end,2)./e_tot_full_orbit_data(1:end-1,2) -1);
+    energy_fluctuation_full_orbit_adaptive_data = nan*ones([length(e_tot_full_orbit_adaptive_data)-1,2]);
+    energy_fluctuation_full_orbit_adaptive_data(:,2) = abs(e_tot_full_orbit_adaptive_data(2:end,2)./e_tot_full_orbit_adaptive_data(1:end-1,2) -1);
+    
+    figure('Renderer', 'painters', 'Position', [1288 37 1214 580])
+    subplot(1,2,1)
+    energy_fluctuation_full_orbit_data(:,1) = e_tot_full_orbit_data(2:end,1)-e_tot_full_orbit_data(1:end-1,1);
+    plot(energy_fluctuation_full_orbit_data(1:n_skip_e_tot_fluctuation_full_orbit:end,1),energy_fluctuation_full_orbit_data(1:n_skip_e_tot_fluctuation_full_orbit:end,2),MarkerEnergyFluctuation,'MarkerSize',MarkerSizeEnergyFluctuation,'MarkerEdgeColor',order2Color,'MarkerFaceColor',order2Color)
+    tit = title(['Energy fluctuation (order ',num2str(poly_order),')'],'Interpreter','latex');
+    xlab = xlabel(xlabel_txt,'Interpreter','latex');
+    ylab = ylabel(ylabel_txt,'Interpreter','latex');
+    tit.FontSize = FontSize;
+    xlab.FontSize = FontSize;
+    ylab.FontSize = FontSize;
+    
+    set(gcf, 'units', 'normalized');
+    box_x1 = 0;
+    box_y1 = 0;
+    box_x2 = 4d-5;
+    box_x3 = box_x2;
+    box_x4 = box_x1;
+    box_y2 = box_y1;
+    box_y3 = desired_delta_energy;
+    box_y4 = box_y3;
+    
+    ax1 = gca;
+    [xfig(1), yfig(1)] = axescoord2figurecoord((box_x3-box_x4)*1/3+box_x4, box_y3);
+    ax2 = axes('position',[.16 .72 .10 .15]); % [left bottom width height];
+    box on % put box around new pair of axes
+    plot(energy_fluctuation_full_orbit_data(1:n_skip_e_tot_fluctuation_full_orbit:end,1),energy_fluctuation_full_orbit_data(1:n_skip_e_tot_fluctuation_full_orbit:end,2),MarkerEnergyFluctuation,'MarkerSize',MarkerSizeEnergyFluctuation,'MarkerEdgeColor',order2Color,'MarkerFaceColor',order2Color)
+    xlim([box_x1,box_x3]);
+    ylim([box_y1,box_y3]);
+    [xfig(2), yfig(2)] = axescoord2figurecoord((box_x2-box_x1)*1/3+box_x1, box_y1);
+    annotation('line', xfig, yfig);
+    
+    subplot(1,2,2)
+    energy_fluctuation_full_orbit_adaptive_data(:,1) = e_tot_full_orbit_adaptive_data(2:end,1)-e_tot_full_orbit_adaptive_data(1:end-1,1);
+    plot(energy_fluctuation_full_orbit_adaptive_data(1:n_skip_e_tot_fluctuation_full_orbit:end,1),energy_fluctuation_full_orbit_adaptive_data(1:n_skip_e_tot_fluctuation_full_orbit:end,2),MarkerEnergyFluctuation,'MarkerSize',MarkerSizeEnergyFluctuation,'MarkerEdgeColor',adaptiveColor,'MarkerFaceColor',adaptiveColor);
+    tit = title(['Energy fluctuation (adaptive/order ',num2str(poly_order_adaptive),')'],'Interpreter','latex');
+    xlab = xlabel(xlabel_txt,'Interpreter','latex');
+    ylab = ylabel(ylabel_txt,'Interpreter','latex');
+    tit.FontSize = FontSize;
+    xlab.FontSize = FontSize;
+    ylab.FontSize = FontSize;
+    
 end
 
 %Poincare rphiz comparison
@@ -471,15 +569,15 @@ if (boole_show_poincare_vpar_0_rphiz_combined)
     xlabel_txt = '$R$ [cm]';
     ylabel_txt = '$Z$ [cm]';
     if(boole_show_poincare_vpar_0_sthetaphi_combined)
-        figure('Renderer', 'painters', 'Position', [100 100 2300 1000])
+        figure('Renderer', 'painters', 'Position', [30 734 1214 580])
         subplot(1,2,1)
     else
         figure('Renderer', 'painters', 'Position', [100 100 1300 1000])
     end
     hold on
     h1 = plot(poincare_rphiz_data(1:n_skip_poincare_rphiz:end,2),poincare_rphiz_data(1:n_skip_poincare_rphiz:end,1),MarkerPoincare,'MarkerSize',MarkerSizePoincare,'MarkerEdgeColor',order2Color,'MarkerFaceColor',order2Color);
-    h2 = plot(poincare_rphiz_adaptive_data(1:n_skip_poincare_rphiz:end,2),poincare_rphiz_adaptive_data(1:n_skip_poincare_rphiz:end,1),MarkerPoincare,'MarkerSize',MarkerSizePoincare,'MarkerEdgeColor',adaptiveColor,'MarkerFaceColor',adaptiveColor);
     h3 = plot(poincare_rphiz_control_order4_data(1:n_skip_poincare_rphiz:end,2),poincare_rphiz_control_order4_data(1:n_skip_poincare_rphiz:end,1),MarkerPoincare,'MarkerSize',MarkerSizePoincare,'MarkerEdgeColor',order4Color,'MarkerFaceColor',order4Color);
+    h2 = plot(poincare_rphiz_adaptive_data(1:n_skip_poincare_rphiz:end,2),poincare_rphiz_adaptive_data(1:n_skip_poincare_rphiz:end,1),MarkerPoincare,'MarkerSize',MarkerSizePoincare,'MarkerEdgeColor',adaptiveColor,'MarkerFaceColor',adaptiveColor);
     hold off
     tit = title('Poincare cut at $v_{\parallel} = 0$','Interpreter','latex');
     leg = legend([h1 h2 h3],{['order ',num2str(poly_order)],['order ',num2str(poly_order_adaptive),' (adaptive)'],'order 4'},'Interpreter','latex');
@@ -504,8 +602,8 @@ if (boole_show_poincare_vpar_0_sthetaphi_combined)
     end
     hold on
     h1 = plot(poincare_sthetaphi_data(1:n_skip_poincare:end,2),poincare_sthetaphi_data(1:n_skip_poincare:end,1),MarkerPoincare,'MarkerSize',MarkerSizePoincare,'MarkerEdgeColor',order2Color,'MarkerFaceColor',order2Color);
-    h2 = plot(poincare_sthetaphi_adaptive_data(1:n_skip_poincare:end,2),poincare_sthetaphi_adaptive_data(1:n_skip_poincare:end,1),MarkerPoincare,'MarkerSize',MarkerSizePoincare,'MarkerEdgeColor',adaptiveColor,'MarkerFaceColor',adaptiveColor);
     h3 = plot(poincare_sthetaphi_control_order4_data(1:n_skip_poincare:end,2),poincare_sthetaphi_control_order4_data(1:n_skip_poincare:end,1),MarkerPoincare,'MarkerSize',MarkerSizePoincare,'MarkerEdgeColor',order4Color,'MarkerFaceColor',order4Color);
+    h2 = plot(poincare_sthetaphi_adaptive_data(1:n_skip_poincare:end,2),poincare_sthetaphi_adaptive_data(1:n_skip_poincare:end,1),MarkerPoincare,'MarkerSize',MarkerSizePoincare,'MarkerEdgeColor',adaptiveColor,'MarkerFaceColor',adaptiveColor);
     hold off
     tit = title('Poincare cut at $v_{\parallel} = 0$','Interpreter','latex');
     leg = legend([h1 h2 h3],{['order ',num2str(poly_order)],['order ',num2str(poly_order_adaptive),' (adaptive)'],'order 4'},'Interpreter','latex');
@@ -541,15 +639,15 @@ end
 if (boole_show_J_par_combined)
     xlabel_txt = '$N_{Bounces}$';
     ylabel_txt = '$J_{\parallel}/J_{\parallel}(\tau = 0)$';
-    figure('Renderer', 'painters', 'Position', [1300 100 1200 1000])
+    figure('Renderer', 'painters', 'Position', [1288 734 1214 580])
     hold on
     h1 = plot(J_par_data(1:n_skip_J_par:end,1),J_par_data(1:n_skip_J_par:end,2)/J_par_data(1,2),'o','MarkerSize',MarkerSize,'MarkerEdgeColor',order2Color,'MarkerFaceColor',order2Color);
-    h2 = plot(J_par_adaptive_data(1:n_skip_J_par:end,1),J_par_adaptive_data(1:n_skip_J_par:end,2)/J_par_adaptive_data(1,2),'o','MarkerSize',MarkerSize,'MarkerEdgeColor',adaptiveColor,'MarkerFaceColor',adaptiveColor);
     h3 = plot(J_par_control_order4_data(1:n_skip_J_par:end,1),J_par_control_order4_data(1:n_skip_J_par:end,2)/J_par_control_order4_data(1,2),'o','MarkerSize',MarkerSize,'MarkerEdgeColor',order4Color,'MarkerFaceColor',order4Color);
+    h2 = plot(J_par_adaptive_data(1:n_skip_J_par:end,1),J_par_adaptive_data(1:n_skip_J_par:end,2)/J_par_adaptive_data(1,2),'o','MarkerSize',MarkerSize,'MarkerEdgeColor',adaptiveColor,'MarkerFaceColor',adaptiveColor);
     plot(J_par_data(1:n_skip_J_par:end,1),ones(length(J_par_data(1:n_skip_J_par:end,1)),1),'k-','LineWidth',CentralLineWidth)
     hold off
     tit = title(['$J_{\parallel}$ over number of bounces'],'interpreter','latex');
-    leg = legend([h1 h2 h3],{['default order ',num2str(poly_order)],['adaptive order',num2str(poly_order_adaptive)],'order 4'}, 'Interpreter','latex');
+    leg = legend([h1 h2 h3],{['order ',num2str(poly_order)],['order ',num2str(poly_order_adaptive),' (adaptive)'],'order 4'}, 'Interpreter','latex');
     leg.FontSize = FontSize;
     %set(leg,'Location','Southeast')
     xlab = xlabel(xlabel_txt,'interpreter','latex');
