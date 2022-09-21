@@ -43,7 +43,7 @@ add_library(GORILLA STATIC
 	gorilla_plot_mod.f90
 	)
 
-if ($ENV{GORILLA_COVERAGE} STREQUAL "TRUE")
+if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	target_compile_options(GORILLA
 		PRIVATE --coverage
 		)
@@ -60,7 +60,7 @@ set_target_properties (GORILLA PROPERTIES
 
 target_include_directories(GORILLA PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
-if ($ENV{GORILLA_COVERAGE} STREQUAL "TRUE")
+if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	add_subdirectory(TESTS)
 endif()
 
