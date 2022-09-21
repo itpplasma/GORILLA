@@ -99,6 +99,8 @@ jobs:
           ./test_gorilla_main_cmake.x
           cd ../../EXAMPLES/example_6
           ./test_gorilla_main_cmake.x
+          cd ../../EXAMPLES/example_7
+          ./test_gorilla_main_cmake.x
           
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v1
@@ -114,6 +116,7 @@ jobs:
             example_4
             example_5
             example_6
+            example_7
 
       - name: Run MATLAB livescript
         uses: matlab-actions/run-command@v1
@@ -152,6 +155,7 @@ jobs:
           python3.9 example_4.py
           python3.9 example_5.py
           python3.9 example_6.py
+          python3.9 example_7.py
 
       - name: Run PYTHON plottingscripts
         run: |
@@ -162,6 +166,7 @@ jobs:
           python3.9 plot_example_4.py
           python3.9 plot_example_5.py
           python3.9 plot_example_6.py
+          python3.9 plot_example_7.py
 
       - name: Run JUPYTER notebook
         run: |
