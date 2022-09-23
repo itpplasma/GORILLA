@@ -43,11 +43,8 @@ module pusher_tetra_poly_mod
                                0.d0, 0.d0, 0.d0, 1.d0 ], [4,4])
 !
     !Diagnostics for adaptive step scheme (only useable for one particle calculation)
-    double precision, dimension(:,:), allocatable         :: total_fluctuation_report, single_step_fluctuation_report, &
-                                                           & closure_fluctuation_report
-    integer                                               :: report_entry_index, number_reports
-    integer, parameter                                    :: max_number_reports = 1, minimum_partition_number = 9000
-    logical                                               :: boole_collect_data
+    double precision, dimension(:,:), allocatable         :: total_fluc_report, step_fluc_report
+    integer                                               :: report_index
 !
     !$OMP THREADPRIVATE(ind_tetr,iface_init,perpinv,perpinv2,dt_dtau_const,bmod0,t_remain,x_init,  &
     !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps,sign_rhs)
@@ -94,35 +91,20 @@ module pusher_tetra_poly_mod
                     !if no adaptive scheme -> just two steps in total
                     allocate(tau_steps_list(2),intermediate_z0_list(4,2))
                 endif
-if (report_pusher_tetry_poly_adaptive) then
-allocate(total_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),2), & 
-& single_step_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),3), &
-& closure_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),3))
-report_entry_index = 0
-number_reports = 0
+!
+if(report_pusher_tetry_poly_adaptive) then
+open(124, file='./total_fluc_report.dat')
+open(118, file='./step_fluc_report.dat')
 endif
+
             elseif(option .eq. 1) then
+                deallocate(tau_steps_list,intermediate_z0_list)
 !
-if (report_pusher_tetry_poly_adaptive) then
-open(123, file='./total_fluctuation_report.dat')
-do k = 1, report_entry_index
-write(123,*) total_fluctuation_report(k,:)
-end do
-close(123)
-open(123, file='./single_step_fluctuation_report.dat')
-do k = 1, report_entry_index
-write(123,*) single_step_fluctuation_report(k,:)
-end do
-close(123)
-open(123, file='./closure_fluctuation_report.dat')
-do k = 1, report_entry_index
-write(123,*) closure_fluctuation_report(k,:)
-end do
-close(123)
-deallocate(total_fluctuation_report,single_step_fluctuation_report,closure_fluctuation_report)
+if(report_pusher_tetry_poly_adaptive) then
+close(124)
+close(118)
 endif
 !
-                deallocate(tau_steps_list,intermediate_z0_list)
             endif
 !            
         end subroutine manage_intermediate_steps_arrays
@@ -826,7 +808,7 @@ if(diag_pusher_tetry_poly)  print *, 'Error: Tau is out of safety boundary'
                                             &  iface_inout_adaptive, tau, z, boole_face_correct)
 !
         use gorilla_settings_mod, only: desired_delta_energy, max_n_intermediate_steps
-        use gorilla_diag_mod, only: diag_pusher_tetry_poly
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly, report_pusher_tetry_poly_adaptive
 !
         implicit none
 !
@@ -839,13 +821,16 @@ if(diag_pusher_tetry_poly)  print *, 'Error: Tau is out of safety boundary'
         double precision, dimension(4), intent(inout)         :: z
         logical, intent(inout)                                :: boole_face_correct
 !
-        double precision                                      :: energy_start, energy_current, delta_energy_current
-        double precision, dimension(4)                        :: z0
+        double precision                                      :: energy_start, energy_current, delta_energy_current, tau_save_report
+        double precision, dimension(4)                        :: z0, z_save_report
+        integer                                               :: number_of_integration_steps_save_report, &
+                                                               & iface_inout_adaptive_save_report
+        logical                                               :: boole_face_correct_save_report                        
 !
         if ((desired_delta_energy .le. 0)) then
             print*, 'Error: The control setting desired_delta_energy is invalid! Check the limits in gorilla.inp!'
             stop
-        elseif ((max_n_intermediate_steps .lt. 1)) then
+        elseif ((max_n_intermediate_steps .lt. 2)) then
             print*, 'Error: The control setting max_n_intermediate_steps is invalid! Check the limits in gorilla.inp!'
             stop
         endif
@@ -865,18 +850,38 @@ if(diag_pusher_tetry_poly) print*, 'z', z
         if (.not.boole_face_correct) return
 !
         z0 = intermediate_z0_list(:,number_of_integration_steps)
-if(diag_pusher_tetry_poly) print*, 'z0', z0
         energy_start = energy_tot_func(z0)
         energy_current = energy_tot_func(z)
+        delta_energy_current = abs(1-energy_current/energy_start)
+!
+if(diag_pusher_tetry_poly) print*, 'z0', z0
 if(diag_pusher_tetry_poly) print*, 'energy_current', energy_current
 if(diag_pusher_tetry_poly) print*, 'energy_start', energy_start
-        delta_energy_current = abs(1-energy_current/energy_start)
+if(report_pusher_tetry_poly_adaptive) then
+!Save the non-adaptive end results -> in report mode, the actual orbit is not changed by th adaptive scheme!
+z_save_report = z
+tau_save_report = tau
+number_of_integration_steps_save_report = number_of_integration_steps
+boole_face_correct_save_report = boole_face_correct
+iface_inout_adaptive_save_report = iface_inout_adaptive
+endif
+!
         !If energy fluctuating too strong -> start recursive adaptive scheme
         if (delta_energy_current .gt. desired_delta_energy) then
 if(diag_pusher_tetry_poly) print*, 'Adaptive Stepsize equidistant was called'
             call adaptive_time_steps_equidistant(poly_order, i_scaling, boole_guess_adaptive, boole_passing, &
                                 & delta_energy_current, iface_inout_adaptive, tau, z, boole_face_correct)
         endif
+!
+if(report_pusher_tetry_poly_adaptive) then
+!Restore non-adaptive results (report mode does not change orbit!)
+z = z_save_report
+tau = tau_save_report
+number_of_integration_steps = number_of_integration_steps_save_report
+tau_steps_list(number_of_integration_steps) = tau
+boole_face_correct = boole_face_correct_save_report
+iface_inout_adaptive = iface_inout_adaptive_save_report
+endif
 !
     end subroutine overhead_adaptive_time_steps
 !
@@ -910,12 +915,12 @@ if(diag_pusher_tetry_poly) print*, 'Adaptive Stepsize equidistant was called'
         double precision                                      :: energy_start_adaptive, energy_current, &
                                                                & delta_energy_start, delta_energy_minimum, & 
                                                                & tau_prime, tau_collected, tau_exit, tau_minimum, tau_buffer
+        double precision                                      :: delta_energy_step, energy_current_step, energy_previous_step
 !
         !Save current z0 and stepped back global integration counter
         z_start_adaptive = intermediate_z0_list(:,number_of_integration_steps)
         number_of_integration_steps_start_adaptive = number_of_integration_steps - 1
         energy_start_adaptive = energy_tot_func(z_start_adaptive)
-if(report_pusher_tetry_poly_adaptive) boole_collect_data = .false.
 if(diag_pusher_tetry_poly_adaptive) print*, '------------------------'
 !
         !Set up for Partition procedure
@@ -925,37 +930,30 @@ if(diag_pusher_tetry_poly_adaptive) print*, '------------------------'
         delta_energy_start = delta_energy_current
         delta_energy_minimum = delta_energy_current
 !
+if (report_pusher_tetry_poly_adaptive) then
+!Intialize report quantities for this instance of adaptive scheme
+if((.not. allocated(step_fluc_report)) .OR. (.not. allocated(total_fluc_report))) then
+allocate(total_fluc_report(max_n_intermediate_steps+100,2), step_fluc_report(max_n_intermediate_steps+100,2))
+endif
+report_index = 1
+step_fluc_report(report_index,1) = eta
+step_fluc_report(report_index,2) = delta_energy_current
+total_fluc_report(report_index,1) = eta
+total_fluc_report(report_index,2) = delta_energy_current
+endif
+!
         !Loop over possible equidistant splittings (eta changing depending on the current energy error, with uppper limit a priori set)
         PARTITION: do while (eta .lt. max_n_intermediate_steps)
 !
             !If did not succeed (aka not left the loop) -> try to update number of steps
             !and try again, if not yet at maximal number of intermediate steps or passed minimum
-            call update_eta(poly_order,delta_energy_current,eta)
+            call adaptive_time_steps_update_eta(poly_order,delta_energy_current,eta)
 !
             !Set up for redo of the minimum run
             if (boole_reached_minimum) then
                 eta = eta_minimum
                 tau = tau_minimum
             endif
-!
-if (report_pusher_tetry_poly_adaptive) then
-if(.not.boole_collect_data.AND.(eta.gt.minimum_partition_number)) then
-boole_collect_data = .true.
-number_reports = number_reports + 1
-report_entry_index = report_entry_index + 1
-eta = 1
-delta_energy_current = delta_energy_start
-single_step_fluctuation_report(report_entry_index,1) = eta
-single_step_fluctuation_report(report_entry_index,2) = delta_energy_current
-single_step_fluctuation_report(report_entry_index,3) = tau
-total_fluctuation_report(report_entry_index,1) = eta
-total_fluctuation_report(report_entry_index,2) = delta_energy_current
-closure_fluctuation_report(report_entry_index,1) = eta
-closure_fluctuation_report(report_entry_index,2) = delta_energy_current
-closure_fluctuation_report(report_entry_index,3) = 1
-cycle PARTITION
-endif
-endif
 !
             !Set up for every partition trial; boole_face_correct can be set true here as adaptive is before the consistency checks
             z = z_start_adaptive
@@ -1005,19 +1003,16 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: Left tetr
                 eta_extended = i
 !
 if (report_pusher_tetry_poly_adaptive) then
-if (boole_collect_data ) then
+!Collecting single step fluctuation data
 if (i.eq.1) then
-report_entry_index = report_entry_index + 1
-single_step_fluctuation_report(report_entry_index,1) = 0
-single_step_fluctuation_report(report_entry_index,2) = 0
-single_step_fluctuation_report(report_entry_index,3) = tau_prime
+report_index = report_index + 1
+step_fluc_report(report_index,2) = 0
+energy_current_step = energy_start_adaptive
 endif
-single_step_fluctuation_report(report_entry_index,1) = & 
-& single_step_fluctuation_report(report_entry_index,1) + 1
-single_step_fluctuation_report(report_entry_index,2) = &
-& single_step_fluctuation_report(report_entry_index,2) + abs(1-energy_tot_func(z)/ & 
-& energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
-endif
+energy_previous_step = energy_current_step
+energy_current_step = energy_tot_func(z)
+delta_energy_step = abs(1 - energy_current_step/energy_previous_step)
+step_fluc_report(report_index,2) = step_fluc_report(report_index,2) + delta_energy_step
 endif
 !
                 !The only reason to not use the guessing scheme is to avoid nipping out of orbits (ensure order-consistency)
@@ -1073,34 +1068,29 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive step closure: tau_exit', 
             energy_current = energy_tot_func(z)
             delta_energy_current = abs(1-energy_current/energy_start_adaptive)
 !
-if (report_pusher_tetry_poly_adaptive) then
-delta_energy_minimum = delta_energy_current*2 !Circumvent the minimum approach to collect more data
-if (boole_collect_data) then
-single_step_fluctuation_report(report_entry_index,2) = &
-& single_step_fluctuation_report(report_entry_index,2) + abs(1-energy_tot_func(z)/ & 
-& energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
-single_step_fluctuation_report(report_entry_index,1) = & 
-& single_step_fluctuation_report(report_entry_index,1) + 1
-!Forming the average of the single step error done in this partition  
-single_step_fluctuation_report(report_entry_index,2) = & 
-& single_step_fluctuation_report(report_entry_index,2) / & 
-& single_step_fluctuation_report(report_entry_index,1)
-total_fluctuation_report(report_entry_index,2) = delta_energy_current
-total_fluctuation_report(report_entry_index,1) = single_step_fluctuation_report(report_entry_index,1)
-closure_fluctuation_report(report_entry_index,1) = single_step_fluctuation_report(report_entry_index,1)
-closure_fluctuation_report(report_entry_index,2) = abs(1-energy_tot_func(z)/ & 
-& energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
-closure_fluctuation_report(report_entry_index,3) = & 
-& tau_prime/single_step_fluctuation_report(report_entry_index,3)
-endif
-endif
-!
             !Update tau/eta actually needed to travers tetrahedron (for final result or for better approx in another iteration)
             !The buffer variables are used to 1:1 save the minimum run, as it was achieved now (even if the tau/eta was off, only the result matters not how we got to it!)
             eta_buffer = eta
             tau_buffer = tau
             eta = eta_extended + 1
             tau = tau_collected
+!
+if (report_pusher_tetry_poly_adaptive) then
+!Finish up on data of this partition (average of step-fluctuation)
+!And circumvent the exit mechanisms to collect more data
+boole_energy_check = .true.
+energy_previous_step = energy_current_step
+energy_current_step = energy_tot_func(z)
+delta_energy_step = abs(1 - energy_current_step/energy_previous_step)
+step_fluc_report(report_index,2) = step_fluc_report(report_index,2) + delta_energy_step
+step_fluc_report(report_index,1) = eta_extended + 1 
+step_fluc_report(report_index,2) = step_fluc_report(report_index,2) / (eta_extended + 1)
+total_fluc_report(report_index,2) = delta_energy_current
+total_fluc_report(report_index,1) = eta_extended + 1
+eta = eta_buffer
+tau = tau_buffer
+cycle PARTITION
+endif
 !
             !There is an effective minimum that can be achieved by decreasing the timesteps
             !After that the error actually increases/osscilates -> we only use the monoton decrease
@@ -1129,36 +1119,33 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energ
         !If could not satisfy energy conservation with scheme, notify user
         if (.not.boole_energy_check) then
             print *, 'Error in adaptive steps equidistant: energy conservation could not be fullfilled!'
-print *, 'delta_energy_minimum', delta_energy_minimum
-print *, 'eta_minimum', eta_minimum
-print *, 'tau_minimum', tau_minimum
-if(diag_pusher_tetry_poly_adaptive)print*, 'delta_energy_minimum', delta_energy_minimum
+            print *, 'delta_energy_minimum', delta_energy_minimum
+            print *, 'eta_minimum', eta_minimum
+            print *, 'tau_minimum', tau_minimum
 if(diag_pusher_tetry_poly_adaptive) stop
         endif 
 !
 if (report_pusher_tetry_poly_adaptive) then
-if (boole_collect_data) then
-if (number_reports.ge.max_number_reports) then
-if (diag_pusher_tetry_poly_adaptive) print*, eta
-if (diag_pusher_tetry_poly_adaptive) print*, boole_exit_tetrahedron
-call manage_intermediate_steps_arrays(1)
-print *, 'Collected enough data for adaptive scheme report!'
-stop
-endif
-report_entry_index = report_entry_index + 1
-single_step_fluctuation_report(report_entry_index,:) = -1
-total_fluctuation_report(report_entry_index,:) = -1
-closure_fluctuation_report(report_entry_index,:) = -1
-endif
+!Write data of this instance of adaptive scheme into report files
+report_index = report_index + 1
+step_fluc_report(report_index,:) = -1
+total_fluc_report(report_index,:) = -1
+do k = 1, report_index
+write(124,*) total_fluc_report(k,:)
+end do
+do k = 1, report_index
+write(118,*) step_fluc_report(k,:)
+end do
+deallocate(total_fluc_report,step_fluc_report)
 endif
 !
     end subroutine adaptive_time_steps_equidistant
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine update_eta(poly_order,delta_energy_current,eta)
+    subroutine adaptive_time_steps_update_eta(poly_order,delta_energy_current,eta)
 !
-        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive, report_pusher_tetry_poly_adaptive
         use gorilla_settings_mod, only: desired_delta_energy, max_n_intermediate_steps
 !
         implicit none
@@ -1171,8 +1158,14 @@ endif
         double precision                            :: scale_factor, max_scale_factor
         double precision, parameter                 :: threshold = 1.d0, min_step_error = 1E-15, additive_increase = 1 !default 1,1E-15,10
 !
-if (boole_collect_data)  then 
-    eta = eta + 100
+if (report_pusher_tetry_poly_adaptive)  then 
+    !To get more data points, do not optimal scaling
+    if (delta_energy_current/eta .lt. min_step_error) then
+        eta = ceiling(eta*2.d0**(1.d0/4.d0))
+    else
+        eta = ceiling(eta*2.d0**(1.d0/2.d0))
+    endif
+    eta = min(eta,max_n_intermediate_steps)
     return
 endif
         scale_factor = (delta_energy_current/desired_delta_energy)**(1.0d0/poly_order)
@@ -1188,7 +1181,7 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_facto
             eta = eta + additive_increase
         endif !Choice of next number of steps
 !
-    end subroutine update_eta
+    end subroutine adaptive_time_steps_update_eta
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !    
@@ -1755,6 +1748,10 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
     subroutine Quadratic_Solver(i_scaling,a,b,c,dtau)
 !
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly
+!
+        implicit none
+!
         integer, intent(in) :: i_scaling
         double precision, intent(in)  :: a,b,c
         double precision,intent(out)                :: dtau
@@ -1763,7 +1760,7 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             case(0)
                 call Quadratic_Solver1(a,b,c,dtau)
             case DEFAULT
-                print *, 'New quadratic solver is called.'
+if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
                 call Quadratic_Solver2(a,b,c,dtau)
         end select
                     

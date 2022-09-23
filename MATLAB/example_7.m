@@ -379,7 +379,7 @@ tit.FontSize = FontSize;
 
 
 %Energy fluctuation as function of dwell time comparison
-xlabel_txt = '$\Delta{}\tau$';
+xlabel_txt = '$\Delta{}t$';
 ylabel_txt = '$\delta$';
 energy_fluctuation_full_orbit_data = nan*ones([length(e_tot_full_orbit_data)-1,2]);
 energy_fluctuation_full_orbit_data(:,2) = abs(e_tot_full_orbit_data(2:end,2)./e_tot_full_orbit_data(1:end-1,2) -1);
