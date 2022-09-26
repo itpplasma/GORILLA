@@ -71,12 +71,12 @@
 !
 !------------------------------------------------------------------------------------------------------------!
 !
-  !Time tracing options
-  ! 1 ... Time tracing in 0th order approximation: dt / dtau = const. in each tetrahedral cell
-  ! 2 ... (Correct) Hamiltonian time tracing via optional quantity t_hamiltonian in adequate polynomial order
-  !       Dependencies:  boole_time_Hamiltonian must be .true.
-  !                      ipusher must be 2 (Polynomial pusher)
-  i_time_tracing_option = 1 ,
+ !Time tracing options
+ ! 1 ... Time tracing in 0th order approximation: dt / dtau = const. in each tetrahedral cell
+ ! 2 ... (Correct) Hamiltonian time tracing via optional quantity t_hamiltonian in adequate polynomial order
+ !       Dependencies:  boole_time_Hamiltonian must be .true.
+ !                      ipusher must be 2 (Polynomial pusher)
+ i_time_tracing_option = 1 ,
 !
 !------------------------------------------------------------------------------------------------------------!
 !
