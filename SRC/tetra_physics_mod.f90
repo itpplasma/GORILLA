@@ -755,7 +755,7 @@ enddo
 !$OMP END PARALLEL DO
 !
         !Save sign of sqrt g - Load value from tetrahedral cell with index 1
-        sign_sqg = sign(1,metric_determinant(1,tetra_physics(1)%x1))
+        sign_sqg = integer(sign(1.d0,metric_determinant(1,tetra_physics(1)%x1)))
 print *, 'Sign of sqrt g', sign_sqg
 stop
 !
