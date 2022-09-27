@@ -756,8 +756,8 @@ enddo
 !
         !Save sign of sqrt g - Load value from tetrahedral cell with index 1
         sign_sqg = int(sign(1.d0,metric_determinant(1,tetra_physics(1)%x1)))
-print *, 'Sign of sqrt g', sign_sqg
-stop
+!print *, 'Sign of sqrt g', sign_sqg
+!stop
 !
         !Deallocate quantities
         deallocate(davec_dx1,davec_dx2,davec_dx3)
