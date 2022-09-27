@@ -24,6 +24,7 @@ module pusher_tetra_poly_mod
 !    
     integer                             :: iface_init
     integer, public, protected          :: ind_tetr
+    integer                             :: sign_rhs
     double precision                    :: perpinv2,vmod0
     double precision, public, protected :: perpinv,dt_dtau_const,bmod0
     double precision                    :: t_remain
@@ -129,7 +130,7 @@ endif
 !
         subroutine initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
 !
-            use tetra_physics_mod, only: tetra_physics
+            use tetra_physics_mod, only: tetra_physics, sign_sqg
 !
             implicit none
 !
@@ -141,6 +142,8 @@ endif
             t_remain = t_remain_in
 !    
             ind_tetr=ind_tetr_inout           !Save the index of the tetrahedron locally
+!
+            sign_rhs = sign_sqg * int(sign(1.d0,t_remain))
 !
             z_init(1:3)=x-tetra_physics(ind_tetr)%x1       !x is the entry point of the particle into the tetrahedron in (R,phi,z)-coordinates
 !
@@ -474,11 +477,11 @@ endif
 !
 if(diag_pusher_tetry_poly) print *, 'tau total',tau
 if(diag_pusher_tetry_poly) print *, 't_pass',t_pass
-if(diag_pusher_tetry_poly) then
-    print *, 't_remain',t_remain
-    if (t_remain .lt. 0) stop
-    if (t_pass .lt. 0) stop
-endif
+!if(diag_pusher_tetry_poly) then
+!    print *, 't_remain',t_remain
+!    if (t_remain .lt. 0) stop
+!    if (t_pass .lt. 0) stop
+!endif
 !
             !Particle stops inside the tetrahedron
             if(t_pass.ge.t_remain) then
