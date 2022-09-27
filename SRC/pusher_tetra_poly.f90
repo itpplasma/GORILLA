@@ -687,6 +687,7 @@ endif
                 if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
                     boole_face_correct = .false.
 if(diag_pusher_tetry_poly) print *, 'Error: three planes'
+if(diag_pusher_tetry_poly) print *, 'face', k,'normal_distance',normal_distance_func(z(1:3),k)
                 endif        
             enddo
 
