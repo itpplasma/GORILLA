@@ -851,7 +851,7 @@ if(diag_pusher_tetry_poly) print*, 'z', z
         elseif (.not.boole_passing) then
             call check_three_planes(z,0,boole_face_correct)
         else
-            print*, 'Error: Non valid value for boole_passing of overhead_adaptive_time_step()!'
+            print*, 'Error: Non valid value for boole_passing of overhead_adaptive_time_step()!' 
             stop
         endif
         if (.not.boole_face_correct) return
