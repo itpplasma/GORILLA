@@ -98,7 +98,7 @@
 !
             !Dependencies of input parameters
             if( i_time_tracing_option.eq.2 ) then
-                if (.not.boole_time_Hamiltonian) ) then
+                if (.not.boole_time_Hamiltonian ) then
                     print *, 'ERROR: When Hamiltonian time tracing is activated, set boole_time_Hamiltonian to TRUE in gorilla.inp.'
                     stop
                 endif
