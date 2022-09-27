@@ -143,6 +143,7 @@ endif
 !    
             ind_tetr=ind_tetr_inout           !Save the index of the tetrahedron locally
 !
+            !Sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
             sign_rhs = sign_sqg * int(sign(1.d0,t_remain))
 !
             z_init(1:3)=x-tetra_physics(ind_tetr)%x1       !x is the entry point of the particle into the tetrahedron in (R,phi,z)-coordinates
@@ -1485,6 +1486,10 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
                         - clight* tetra_physics(ind_tetr)%spbetmat
             amat(1:3,4) = tetra_physics(ind_tetr)%curlA
 !
+            !Multiply amat and b with appropriate sign (which ensures that tau remains positive inside the algorithm)
+            amat = amat * dble(sign_rhs)
+            b = b * dble(sign_rhs)
+!
             dist1= -tetra_physics(ind_tetr)%dist_ref
 !
             boole_faces_not = .not.boole_faces
@@ -2125,6 +2130,9 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
             & vector_integral_without_precomp(poly_order,tau,x_vpar_coef))
 !
+            !Multiply delta_t_hamiltonian with appropriate sign (We require that tau remains positive inside the algorithm)
+            delta_t_hamiltonian = delta_t_hamiltonian * dble(sign_rhs)
+!
 !            call calc_t_hamiltonian(poly_order,z0,tau,delta_t_hamiltonian)
 !
             optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + delta_t_hamiltonian
@@ -2137,20 +2145,20 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
                     & 1.d0/cm_over_e * tetra_physics(ind_tetr)%bmod1 * delta_t_hamiltonian + &
 !
                     !First term
-                    & 1.d0/cm_over_e * sum( tetra_physics(ind_tetr)%gb * vector_integral_without_precomp(poly_order,tau,x_coef) ) *&
-                    & hamiltonian_time(ind_tetr)%h1_in_curlA + &
+                    & 1.d0/cm_over_e * sum( tetra_physics(ind_tetr)%gb * vector_integral_without_precomp(poly_order,tau,x_coef) )*&
+                    & hamiltonian_time(ind_tetr)%h1_in_curlA * dble(sign_rhs) + &
 !
                     !Second term
                     & sum(vector_integral_without_precomp(poly_order,tau,x_vpar_coef) * tetra_physics(ind_tetr)%gb ) * &
-                    & hamiltonian_time(ind_tetr)%h1_in_curlh + &
+                    & hamiltonian_time(ind_tetr)%h1_in_curlh * dble(sign_rhs)+ &
 !
                     !Third term
                     & 1.d0/cm_over_e * sum( matmul( tensor_integral_without_precomp(poly_order,tau,x_coef,x_coef) , &
-                    & hamiltonian_time(ind_tetr)%vec_mismatch_der ) * tetra_physics(ind_tetr)%gb) + &
+                    & hamiltonian_time(ind_tetr)%vec_mismatch_der ) * tetra_physics(ind_tetr)%gb) * dble(sign_rhs) + &
 !
                     !Fourth term
                     & sum( matmul( tensor_integral_without_precomp(poly_order,tau,x_coef,x_vpar_coef), &
-                    & hamiltonian_time(ind_tetr)%vec_parcurr_der ) *  tetra_physics(ind_tetr)%gb) &
+                    & hamiltonian_time(ind_tetr)%vec_parcurr_der ) *  tetra_physics(ind_tetr)%gb) * dble(sign_rhs) &
                 & )
 
             endif ! gyrophase

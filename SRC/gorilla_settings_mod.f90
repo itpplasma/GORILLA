@@ -109,6 +109,12 @@
                 endif
             endif
 !
+            !Gyrophase requires Hamiltonian time evolution (At least, the current implementation requires that)
+            if ( boole_gyrophase.and.(.not.boole_time_Hamiltonian)) then
+                print *, 'ERROR: When gyro-phase computation is activated, set boole_time_Hamiltonian to TRUE in gorilla.inp.'
+                stop
+            endif
+!
         end subroutine load_gorilla_inp
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
