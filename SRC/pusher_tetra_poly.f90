@@ -574,7 +574,8 @@ if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
 !
                         !Redo loop over number_of_integration_steps
                         do i = 1,number_of_integration_steps
-                            call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
+                            call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), &
+                                 & tau_steps_list(i), optional_quantities)
                         enddo
                     endif
 !
