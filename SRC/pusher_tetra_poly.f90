@@ -157,6 +157,9 @@ endif
 !
             !Tetrahedron constants
             dt_dtau_const = tetra_physics(ind_tetr)%dt_dtau_const
+!
+            !Multiply with sign of rhs - ensures that tau is ALWAYS positive inside the algorithm
+            dt_dtau_const = dt_dtau_const*dble(sign_rhs)
 !    
             !Module of B at the entry point of the particle
             bmod0 = bmod_func(z_init(1:3)) !tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z_init(1:3))
