@@ -567,14 +567,16 @@ if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
                     z_save = z(1:3)
                     x=z(1:3)+tetra_physics(ind_tetr)%x1
                     vpar=z(4)
-
-                    !Compute optional quantities for the final step
-                    call initialise_optional_quantities(optional_quantities)
 !
-                    !Redo loop over number_of_integration_steps
-                    do i = 1,number_of_integration_steps
-                        call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
-                    enddo
+                    !Compute optional quantities for the final step
+                    if(any(boole_array_optional_quantities)) then
+                        call initialise_optional_quantities(optional_quantities)
+!
+                        !Redo loop over number_of_integration_steps
+                        do i = 1,number_of_integration_steps
+                            call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
+                        enddo
+                    endif
 !
                     !Difference in between t_pass and t_hamiltonian of optional quantities:
 !
