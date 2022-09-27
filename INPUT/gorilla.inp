@@ -143,7 +143,7 @@
 !
  !Allowed relative fluctuation of energy between entry and exit of a tetrahedron
  !Must not be smaller or equal zero!
- desired_delta_energy = 1.E-10
+ desired_delta_energy = 1.E-10 ,
 !
  !Maximum number of intermediate steps allowed for splitting up an orbit section
  !Should not go much beyond 10000 steps.
