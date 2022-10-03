@@ -81,6 +81,9 @@ module pusher_tetra_rk_mod
         gradB = tetra_physics(ind_tetr)%gb
         anorm = tetra_physics(ind_tetr)%anorm
         dt_dtau_const = tetra_physics(ind_tetr)%dt_dtau_const
+!
+        !Multiply with sign of rhs - ensures that tau is ALWAYS positive inside the algorithm
+        dt_dtau_const = dt_dtau_const*dble(sign_rhs)
 !    
         !Module of B at the entry point of the particle
         bmod=bmod_func(z_init(1:3))
