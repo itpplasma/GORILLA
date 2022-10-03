@@ -3,6 +3,7 @@ module pusher_tetra_rk_mod
 !
     private
 !
+    integer                          :: sign_rhs
     integer                          :: iface_init
     integer,public,protected         :: ind_tetr
     double precision                 :: B0,perpinv,perpinv2,vmod_init
@@ -46,7 +47,7 @@ module pusher_tetra_rk_mod
 !
     subroutine initialize_pusher_tetra_rk_mod(ind_tetr_inout,x,iface,vpar,t_remain_in)
 !
-        use tetra_physics_mod, only: tetra_physics, cm_over_e,dt_dtau,coord_system
+        use tetra_physics_mod, only: tetra_physics, cm_over_e,dt_dtau,coord_system,sign_sqg
         use tetra_grid_settings_mod, only: grid_size
         use constants, only : clight,eps,pi
         use gorilla_settings_mod, only: boole_dt_dtau
@@ -61,8 +62,11 @@ module pusher_tetra_rk_mod
         logical                                    :: boole_vd_ExB,boole_vperp
 !
         t_remain = t_remain_in
-!    
+!
         ind_tetr=ind_tetr_inout           !Save the index of the tetrahedron locally
+!
+        !Sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+        sign_rhs = sign_sqg * int(sign(1.d0,t_remain))
 !
         z_init(1:3)=x-tetra_physics(ind_tetr)%x1       !x is the entry point of the particle into the tetrahedron in (R,phi,z)-coordinates
 !
@@ -108,6 +112,12 @@ module pusher_tetra_rk_mod
 !                
         spamat=perpinv*cm_over_e*tetra_physics(ind_tetr)%spalpmat &
             - clight* tetra_physics(ind_tetr)%spbetmat    !tr(a-Matrix)
+!
+        !Multiply A-matrix (4x4) and b with appropriate sign (which ensures that tau remains positive inside the algorithm)
+        amat = amat * dble(sign_rhs)
+        b = b * dble(sign_rhs)
+        Bvec = Bvec * dble(sign_rhs)
+        spamat = spamat * dble(sign_rhs)
 !
         !Reference distances
         dist1=-tetra_physics(ind_tetr)%dist_ref     ! Normal distance of first vertex to first plane
@@ -2500,7 +2510,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
         double precision                            :: normal_velocity_analytic
 !            
         normal_velocity_analytic = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,iface) + &
-                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) + &
+                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) * dble(sign_rhs) + &
                                 & sum(anorm(:,iface) * b(1:3))
 !        
     end function normal_velocity_analytic
@@ -2522,7 +2532,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
                                         & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_2(:,iface)) * z) + &
 !                    
                                         & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,iface) + &
-                                        & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * b)
+                                        & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * b) * dble(sign_rhs)
 !                                            
     end function normal_acceleration_analytic    
 !
@@ -2545,7 +2555,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface)
+    subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
         use tetra_grid_mod, only : Rmin,Rmax,Zmin,Zmax,ntetr,tetra_grid, verts_sthetaphi
         use tetra_grid_settings_mod, only: grid_kind, grid_size, n_field_periods
@@ -2561,6 +2571,9 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
 !
         integer, intent(out) :: ind_tetr_out,iface
 !
+        integer, intent(in), optional :: sign_t_step_in
+!
+        integer :: sign_t_step
         integer :: ir,iphi,iz,ind_search_tetra, indtetr_start,indtetr_end, ind_normdist, ind_tetr_save
         integer :: ind_plane_tetra_start, ntetr_in_plane, numerical_corr
         integer :: nr, nphi, nz
@@ -2573,6 +2586,13 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
         logical, dimension(4) :: boole_plane_conv,boole_plane_conv_temp
         integer, dimension(:), allocatable :: ind_tetr_tried
 !
+        ! Initialize sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+        if(present(sign_t_step_in)) then
+            sign_t_step = sign_t_step_in
+        else
+            sign_t_step = +1
+        endif
+
         ! Initialize numerical correction
         numerical_corr = 0
 !
@@ -2692,7 +2712,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
 !
                     z(1:3) = x-tetra_physics(ind_tetr_out)%x1
 !
-                    call initialize_pusher_tetra_rk_mod(ind_tetr_out,x,iface_new,vpar,-1.d0)
+                    call initialize_pusher_tetra_rk_mod(ind_tetr_out,x,iface_new,vpar,dble(sign_t_step))
 !
                     cur_dist_value = normal_distances_func(z(1:3))
 !print *, 'norm',cur_dist_value

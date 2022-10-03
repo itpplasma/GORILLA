@@ -2777,7 +2777,7 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
                         & sum(tetra_physics(ind_tetr)%anorm(:,iface) * b(1:3))
         else
             normal_velocity_func = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,iface) + &
-                                    & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) + &
+                                    & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) * dble(sign_rhs) + &
                                     & sum(tetra_physics(ind_tetr)%anorm(:,iface) * b(1:3))
         endif
 !        

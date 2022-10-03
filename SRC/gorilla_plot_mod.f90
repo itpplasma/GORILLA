@@ -437,12 +437,16 @@ module gorilla_plot_mod
             logical                                         :: boole_t_finished
             integer                                         :: ind_tetr_save,file_id,iper,k
             double precision                                :: perpinv,perpinv2
+            integer                                         :: sign_t_step
 !
             !Check coordinate domain (optionally perform modulo operation)
             call check_coordinate_domain(x)
-
+!
+            !Compute sign t_step
+            sign_t_step = int(sign(1.d0,t_step))
+!
             !Find tetrahedron index and face index for position x
-            call find_tetra(x,vpar,vperp,ind_tetr,iface)
+            call find_tetra(x,vpar,vperp,ind_tetr,iface,sign_t_step)
 !               
             !If particle doesn't lie inside any tetrahedron
             if(ind_tetr.eq.-1) then
