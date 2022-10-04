@@ -487,8 +487,8 @@ if(diag_pusher_tetry_poly) print *, 't_pass',t_pass
 !    if (t_pass .lt. 0) stop
 !endif
 !
-            !Particle stops inside the tetrahedron
-            if(t_pass.ge.t_remain) then
+            !Particle stops inside the tetrahedron - Absolute value is used, because negative time can be allowed
+            if(abs(t_pass).ge.abs(t_remain)) then
 !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!!!!!!FOURTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL IN REMAINING TIME!!!!!!!
@@ -519,7 +519,8 @@ if(diag_pusher_tetry_poly) print *, 't_pass',t_pass
                     case(2)
 !
                         !Find integration step in which t_hamiltonian exceeds t_remain
-                        i_step_root =  findloc(t_hamiltonian_list.gt.t_remain,.true.,dim=1)
+                        !Absolute value is used, because negative time can be allowed
+                        i_step_root =  findloc(abs(t_hamiltonian_list).gt.abs(t_remain),.true.,dim=1)
 !
                         !Set orbit back to i-th integration step
                         z = intermediate_z0_list(:,i_step_root - 1)
@@ -3189,85 +3190,6 @@ module par_adiab_inv_poly_mod
     end function tau_vpar_root
 !        
 end module
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-module vperp2_integral_mod
-!
-!WARNING: This module and its functions and routines were never tested and only written conceptually.
-!
-    implicit none
-!
-    private
-!
-    public :: vperp2_integral_tetra
-!
-    contains
-!    
-    function vperp2_integral_tetra(poly_order,t_pass)
-        !WARNING: This subroutine CAN ONLY BE CALLED directly after pusher, when modules still contain
-        !           the quantities from last pushing
-!        
-        use pusher_tetra_poly_mod, only: ind_tetr,perpinv,dt_dtau_const,bmod0
-        use tetra_physics_mod, only: tetra_physics
-!
-        implicit none
-!        
-        integer                         :: poly_order
-        double precision                :: vperp2_integral_tetra,tau,t_pass
-!
-        !Convert t_pass to tau
-        tau = t_pass/dt_dtau_const
-!
-        !Integral of vper^2(tau) over dwell time-orbit parameter
-        vperp2_integral_tetra = -2.d0*perpinv*( bmod0*tau &
-                            & + sum(tetra_physics(ind_tetr)%gB * x_integral_tetra(poly_order,tau)) )
-!
-        !Integral of vper^2(time)
-        vperp2_integral_tetra = vperp2_integral_tetra*dt_dtau_const
-! 
-    end function vperp2_integral_tetra
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    function x_integral_tetra(poly_order,tau)
-!
-        use poly_without_precomp_mod
-        use pusher_tetra_poly_mod, only: z_init
-!
-        implicit none
-!
-        integer, parameter                  :: n_dim=3
-        integer                             :: poly_order
-        double precision, dimension(n_dim)  :: x_integral_tetra
-        double precision                    :: tau,tau2_half,tau3_sixth,tau4_twelvth,tau5_hundredtwentyth
-!
-            if(poly_order.ge.1) then
-                tau2_half = tau**2*0.5d0
-                x_integral_tetra(1:n_dim) = z_init(1:n_dim)*tau + tau2_half*(b(1:n_dim)+amat_in_z(1:n_dim))
-            endif
-!
-            if(poly_order.ge.2) then
-                tau3_sixth = tau**3/6.d0
-                x_integral_tetra(1:n_dim) = x_integral_tetra(1:n_dim) + tau3_sixth*(amat_in_b(1:n_dim) &
-                                          & + amat2_in_z(1:n_dim))
-            endif
-!
-            if(poly_order.ge.3) then
-                tau4_twelvth = tau**4/12.d0
-                x_integral_tetra(1:n_dim) = x_integral_tetra(1:n_dim) + tau4_twelvth*(amat2_in_b(1:n_dim) &
-                                          & + amat3_in_z(1:n_dim))
-            endif
-!
-            if(poly_order.ge.4) then
-                tau5_hundredtwentyth = tau**5/120.d0
-                x_integral_tetra(1:n_dim) = x_integral_tetra(1:n_dim) + tau5_hundredtwentyth *(amat3_in_b(1:n_dim) &
-                                          & + amat4_in_z(1:n_dim))  
-            endif
-!
-    end function x_integral_tetra
-!
-end module    
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
