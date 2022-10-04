@@ -542,6 +542,7 @@ print *, 't_hamiltonian_list',t_hamiltonian_list
 print *, 't_remain',t_remain
 print *, 't_remain_new',t_remain_new
 print *, 'i_step_root', i_step_root
+print *, 'intermediate_z0_list',intermediate_z0_list
                             print *, 'Warning: Final t_hamiltonian step in 0th order for avoiding inconsistency.'
                             tau = t_remain_new/dt_dtau_const
                         endif
