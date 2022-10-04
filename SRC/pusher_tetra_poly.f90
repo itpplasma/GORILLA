@@ -538,14 +538,14 @@ if(diag_pusher_tetry_poly) print *, 't_pass',t_pass
                             tau = t_remain_new/dt_dtau_const
                         endif
 !
-print *, 'Warning: tau', tau, 'tau_steps_list',tau_steps_list(i_step_root - 1)
-print *, 'number_of_integration_steps', number_of_integration_steps
-print *, 'tau_steps_list',tau_steps_list
-print *, 'tau_steps_list * dt_dtau',tau_steps_list*dt_dtau_const
-print *, 't_hamiltonian_list',t_hamiltonian_list
-print *, 't_remain',t_remain
-print *, 't_remain_new',t_remain_new
-print *, 'i_step_root', i_step_root
+!print *, 'Warning: tau', tau, 'tau_steps_list',tau_steps_list(i_step_root - 1)
+!print *, 'number_of_integration_steps', number_of_integration_steps
+!print *, 'tau_steps_list',tau_steps_list
+!print *, 'tau_steps_list * dt_dtau',tau_steps_list*dt_dtau_const
+!print *, 't_hamiltonian_list',t_hamiltonian_list
+!print *, 't_remain',t_remain
+!print *, 't_remain_new',t_remain_new
+!print *, 'i_step_root', i_step_root
 !print *, 'intermediate_z0_list',intermediate_z0_list
 !
                 end select
