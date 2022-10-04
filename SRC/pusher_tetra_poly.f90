@@ -2376,6 +2376,12 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
         if(poly_order.ge.2) c_coef = 6.d0 * c_coef
         if(poly_order.ge.3) b_coef = 24.d0 * b_coef
 !
+        !Multiply delta_t_hamiltonian with appropriate sign (We require that tau remains positive inside the algorithm)
+        e_coef = e_coef * sign_rhs
+        if(poly_order.ge.1) d_coef = d_coef * sign_rhs
+        if(poly_order.ge.2) c_coef = c_coef * sign_rhs
+        if(poly_order.ge.3) b_coef = b_coef * sign_rhs
+!
         !Find root
         select case(poly_order)
             case(1)
