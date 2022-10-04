@@ -534,6 +534,10 @@ if(diag_pusher_tetry_poly) print *, 't_pass',t_pass
 !
                         !Fail save: consistency check due to order reduction in root solving operation in the case of 5th order
                         if(tau.gt.tau_steps_list(i_step_root - 1)) then
+                            print *, 'Warning: Final t_hamiltonian step in 0th order for avoiding inconsistency.'
+                            tau = t_remain_new/dt_dtau_const
+                        endif
+!
 print *, 'Warning: tau', tau, 'tau_steps_list',tau_steps_list(i_step_root - 1)
 print *, 'number_of_integration_steps', number_of_integration_steps
 print *, 'tau_steps_list',tau_steps_list
@@ -542,10 +546,7 @@ print *, 't_hamiltonian_list',t_hamiltonian_list
 print *, 't_remain',t_remain
 print *, 't_remain_new',t_remain_new
 print *, 'i_step_root', i_step_root
-print *, 'intermediate_z0_list',intermediate_z0_list
-                            print *, 'Warning: Final t_hamiltonian step in 0th order for avoiding inconsistency.'
-                            tau = t_remain_new/dt_dtau_const
-                        endif
+!print *, 'intermediate_z0_list',intermediate_z0_list
 !
                 end select
                 
