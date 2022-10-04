@@ -23,7 +23,7 @@ module pusher_tetra_rk_mod
     double precision,parameter      :: eps_dtau_quad = 1.5d0
     double precision                 :: k1, k3
 !   
-    !$OMP THREADPRIVATE(ind_tetr,spamat,B0,perpinv,perpinv2,iface_init,dt_dtau_const,k1,k3, &
+    !$OMP THREADPRIVATE(ind_tetr,spamat,B0,perpinv,perpinv2,iface_init,dt_dtau_const,k1,k3,sign_rhs, &
     !$OMP& dist1,dist_min,dist_max,Bvec,gradB,x_init,b,z_init,amat,anorm,t_remain,vmod_init,dtau_ref,dtau_max,dtau_quad)
 !    
     public :: pusher_tetra_rk,find_tetra,initialize_const_motion_rk,energy_tot_func
