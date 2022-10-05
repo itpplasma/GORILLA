@@ -576,7 +576,7 @@ endif
         if(norder.ge.1) then
             do n = 1,4
                 coef_mat(n,2) = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
-                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) + &
+                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) * sign_rhs + &
 !                                    
 !                                 & tetra_physics_poly4(ind_tetr)%anorm_in_b0(n) + &
 !                                 & k1 * tetra_physics_poly4(ind_tetr)%anorm_in_b1(n) + &
@@ -603,7 +603,7 @@ endif
 !                                 & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b3(n))
 !
                                 & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
-                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * b)
+                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * b) * sign_rhs
             enddo
         endif
 !            
@@ -640,7 +640,9 @@ endif
             bcoef = coef_mat(:,2)
             acoef = coef_mat(:,3)
         else
-            acoef= tetra_physics(ind_tetr)%acoef_pre
+            !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+            !Only precomputed quantity needs to be adapted. Other quantities are already adapted in initialization process
+            acoef= tetra_physics(ind_tetr)%acoef_pre * sign_rhs
             bcoef=z(4)*acoef+matmul(b(1:3),anorm)
             acoef=acoef*(b(4)+spamat*z(4))
             ccoef = normal_distances_func(z(1:3))
