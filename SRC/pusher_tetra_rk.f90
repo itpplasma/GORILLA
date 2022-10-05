@@ -4,6 +4,7 @@ module pusher_tetra_rk_mod
     private
 !
     integer                          :: sign_rhs
+    integer                          :: sign_t_step_save
     integer                          :: iface_init
     integer,public,protected         :: ind_tetr
     double precision                 :: B0,perpinv,perpinv2,vmod_init
@@ -66,7 +67,8 @@ module pusher_tetra_rk_mod
         ind_tetr=ind_tetr_inout           !Save the index of the tetrahedron locally
 !
         !Sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
-        sign_rhs = sign_sqg * int(sign(1.d0,t_remain))
+        sign_t_step_save = int(sign(1.d0,t_remain))
+        sign_rhs = sign_sqg * sign_t_step_save
 !
         z_init(1:3)=x-tetra_physics(ind_tetr)%x1       !x is the entry point of the particle into the tetrahedron in (R,phi,z)-coordinates
 !
@@ -529,7 +531,7 @@ endif
 !
 
 ! if(diag_pusher_tetra_rk) then
-        if((t_pass.ge.t_remain).and.(.not.boole_t_finished)) then
+        if((abs(t_pass).ge.abs(t_remain)).and.(.not.boole_t_finished)) then
             print *, 'boole_t_finished was not set'
             ind_tetr_inout = -1
             iface = -1
@@ -539,7 +541,7 @@ endif
         
 
 
-        if(t_pass.le.0.d0) then
+        if((t_pass*dble(sign_t_step_save)).le.0.d0) then
             print *, 't_pass is <= Zero'
             ind_tetr_inout = -1
             iface = -1
@@ -576,7 +578,7 @@ endif
         if(norder.ge.1) then
             do n = 1,4
                 coef_mat(n,2) = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
-                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) * sign_rhs + &
+                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) * dble(sign_rhs) + &
 !                                    
 !                                 & tetra_physics_poly4(ind_tetr)%anorm_in_b0(n) + &
 !                                 & k1 * tetra_physics_poly4(ind_tetr)%anorm_in_b1(n) + &
@@ -603,7 +605,7 @@ endif
 !                                 & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b3(n))
 !
                                 & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
-                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * b) * sign_rhs
+                                & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * b) * dble(sign_rhs)
             enddo
         endif
 !            
@@ -642,7 +644,7 @@ endif
         else
             !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
             !Only precomputed quantity needs to be adapted. Other quantities are already adapted in initialization process
-            acoef= tetra_physics(ind_tetr)%acoef_pre * sign_rhs
+            acoef= tetra_physics(ind_tetr)%acoef_pre * dble(sign_rhs)
             bcoef=z(4)*acoef+matmul(b(1:3),anorm)
             acoef=acoef*(b(4)+spamat*z(4))
             ccoef = normal_distances_func(z(1:3))
