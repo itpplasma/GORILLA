@@ -2085,7 +2085,9 @@ endif
         if(boole_dt_dtau) then
             t_pass = tau*dt_dtau_const
         else
-            t_pass = tau*dt_dtau(ind_tetr,x_init,x)
+            t_pass = tau*dt_dtau(ind_tetr,x_init,x)*dble(sign_rhs)
+            !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+            !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
         endif
 !
 !
@@ -2104,7 +2106,7 @@ if(diag_pusher_tetra_rk) print *, 't_remain',t_remain
 ! if(diag_pusher_tetra_rk) print *, 'tau',tau
 !
         !Time handling - Treat case, if orbit stops within the cell
-        if(t_remain.lt.t_pass) then
+        if(abs(t_remain).lt.abs(t_pass)) then
 !
             !Start from the original coordinates
             z = z_init
@@ -2114,7 +2116,9 @@ if(diag_pusher_tetra_rk) print *, 't_remain',t_remain
             if(boole_dt_dtau) then
                 dtau = t_remain/dt_dtau_const
             else
-                dtau = t_remain/dt_dtau(ind_tetr,x_init,x)! !x(1) is used, because it is the "best" guess
+                dtau = t_remain/dt_dtau(ind_tetr,x_init,x) * dble(sign_rhs)! !x(1) is used, because it is the "best" guess
+                !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
             endif
 !
 
@@ -2159,11 +2163,13 @@ if(diag_pusher_tetra_rk)       print *, 'Error final processing: LLOD yields wro
                     if(boole_dt_dtau) then
                         t_pass = tau*dt_dtau_const
                     else
-                        t_pass = tau*dt_dtau(ind_tetr,x_init,x)
+                        t_pass = tau*dt_dtau(ind_tetr,x_init,x)*dble(sign_rhs)
+                        !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                        !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                     endif
 !                   
                     !Desired convergence point MUST be reached within t_remain
-                    if(t_pass.le.t_remain) then
+                    if(abs(t_pass).le.abs(t_remain)) then
 !                        
                         boole_t_finished = .false.
                         vpar=z(4)
@@ -2188,7 +2194,9 @@ if(diag_pusher_tetra_rk)       print *, 'Error final processing: LLOD does not y
                     t_pass = tau*dt_dtau_const
                     exit !If dt_dtau is a constant, loop should only be run once
                 else
-                    t_pass = tau*dt_dtau(ind_tetr,x_init,x)
+                    t_pass = tau*dt_dtau(ind_tetr,x_init,x)*dble(sign_rhs)
+                    !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                    !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                 endif    
 !                
                 
@@ -2210,7 +2218,9 @@ if(diag_pusher_tetra_rk)   print *,"Error - Final processing: Can't calculate po
                 if(boole_dt_dtau) then
                     dtau = t_remain/dt_dtau_const-tau
                 else
-                    dtau = t_remain/dt_dtau(ind_tetr,x_init,x)-tau
+                    dtau = t_remain/dt_dtau(ind_tetr,x_init,x)*dble(sign_rhs) - tau
+                    !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                    !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                 endif
             enddo
 !
@@ -2241,7 +2251,9 @@ if(diag_pusher_tetra_rk)   print *,"Error - Final processing: Can't calculate po
                     if(boole_dt_dtau) then
                         t_pass = tau*dt_dtau_const
                     else
-                        t_pass = tau*dt_dtau(ind_tetr,x_init,x) 
+                        t_pass = tau*dt_dtau(ind_tetr,x_init,x) * dble(sign_rhs)
+                        !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                        !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                     endif
                     boole_t_finished = .true.
                     vpar=z(4)
@@ -2255,7 +2267,9 @@ if(diag_pusher_tetra_rk)   print *,"Error - Final processing: Can't calculate po
                     if(boole_dt_dtau) then
                         t_pass = tau*dt_dtau_const
                     else
-                        t_pass = tau*dt_dtau(ind_tetr,x_init,x) 
+                        t_pass = tau*dt_dtau(ind_tetr,x_init,x) * dble(sign_rhs)
+                        !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                        !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                     endif
                     boole_t_finished = .true.
                     vpar=z(4)
@@ -2341,7 +2355,9 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
                 if(boole_dt_dtau) then
                     t_pass = tau*dt_dtau_const
                 else
-                    t_pass = tau*dt_dtau(ind_tetr,x_init,x) 
+                    t_pass = tau*dt_dtau(ind_tetr,x_init,x) * dble(sign_rhs)
+                    !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+                    !In the upper case it is already treated in the initialization. -->dt_dta() is an external function instead.
                 endif
                 boole_t_finished = .false.
                 vpar=z(4)
