@@ -3089,7 +3089,7 @@ module par_adiab_inv_poly_mod
         integer, intent(in)                 :: poly_order,file_id_vpar_0,file_id_J_par,file_id_e_tot,n_skip_vpar_0
         double precision, intent(in)        :: t_pass,vpar_in,vpar_end
         logical, intent(in)                 :: boole_J_par,boole_poincare_vpar_0,boole_e_tot
-        double precision                    :: tau,a44,b4,tau_part1
+        double precision                    :: a44,b4,tau_part1
         double precision, dimension(4)      :: z
         double precision, dimension(3)      :: x
         integer                             :: i, turning_index
@@ -3099,8 +3099,8 @@ module par_adiab_inv_poly_mod
 !
         nskip = n_skip_vpar_0
 !
-        !Convert t_pass to tau
-        tau = t_pass/dt_dtau_const
+!        !Convert t_pass to tau
+!        tau = t_pass/dt_dtau_const
 !
         !Select matrix and vector elements that are use for v_parallel integration
         a44 = amat(4,4)
@@ -3114,7 +3114,6 @@ print*, 'z0 number', i
 print*, intermediate_z0_list(:,i)
 print*, tau_steps_list(i)
 enddo
-print*, 'total tau', tau
 print*, 'J_par before', par_adiab_inv
 endif
 endif
