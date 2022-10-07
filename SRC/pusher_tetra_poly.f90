@@ -20,6 +20,11 @@ module pusher_tetra_poly_mod
 
     implicit none
 !
+    !change those for adaptive step sizes, probably allocatable
+    double precision, dimension(:), allocatable, public, protected            :: tau_steps_list
+    double precision, dimension(:,:), allocatable, public, protected          :: intermediate_z0_list
+    integer, public, protected                                                :: number_of_integration_steps
+!
     private
 !    
     integer                             :: iface_init
@@ -37,11 +42,6 @@ module pusher_tetra_poly_mod
                                0.d0, 0.d0, 1.d0, 0.d0, &
                                0.d0, 0.d0, 0.d0, 1.d0 ], [4,4])
 !
-    !change those for adaptive step sizes, probably allocatable
-    double precision, dimension(:), allocatable           :: tau_steps_list
-    double precision, dimension(:,:), allocatable         :: intermediate_z0_list
-    integer                                               :: number_of_integration_steps
-!
     !Diagnostics for adaptive step scheme (only useable for one particle calculation)
     double precision, dimension(:,:), allocatable         :: total_fluctuation_report, single_step_fluctuation_report, &
                                                            & closure_fluctuation_report
@@ -53,7 +53,8 @@ module pusher_tetra_poly_mod
     !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps,sign_rhs)
 !
     public :: pusher_tetra_poly,initialize_const_motion_poly, &
-        & Quadratic_Solver2, Cubic_Solver, Quartic_Solver,analytic_integration_without_precomp,energy_tot_func
+        & Quadratic_Solver2, Cubic_Solver, Quartic_Solver,energy_tot_func, &
+        & set_integration_coef_manually
 !   
     contains
 !
@@ -3076,9 +3077,12 @@ module par_adiab_inv_poly_mod
         !           the quantities from last pushing
 !        
         use poly_without_precomp_mod, only: amat,b
-        use pusher_tetra_poly_mod, only: dt_dtau_const,z_init,ind_tetr,analytic_integration_without_precomp, &
-                                                & energy_tot_func
+        use pusher_tetra_poly_mod, only: dt_dtau_const,z_init,ind_tetr, &
+                                                & energy_tot_func, &
+                                                number_of_integration_steps, intermediate_z0_list, tau_steps_list, &
+                                                & set_integration_coef_manually
         use tetra_physics_mod, only: particle_mass,tetra_physics
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
 !  
         implicit none
 !
@@ -3088,6 +3092,10 @@ module par_adiab_inv_poly_mod
         double precision                    :: tau,a44,b4,tau_part1
         double precision, dimension(4)      :: z
         double precision, dimension(3)      :: x
+        integer                             :: i, turning_index
+!
+        !If particle was lost and the recording quantities deallocated -> no further calculations (here for safety)
+        if (.not.allocated(intermediate_z0_list)) return
 !
         nskip = n_skip_vpar_0
 !
@@ -3098,23 +3106,53 @@ module par_adiab_inv_poly_mod
         a44 = amat(4,4)
         b4 = b(4)
 !
+if(diag_pusher_tetry_poly_adaptive) then
+if(number_of_integration_steps.gt.1) then
+print*, '----------------------------------'
+do i = 1, number_of_integration_steps
+print*, 'z0 number', i
+print*, intermediate_z0_list(:,i)
+print*, tau_steps_list(i)
+enddo
+print*, 'total tau', tau
+print*, 'J_par before', par_adiab_inv
+endif
+endif
         !Trace banana tips
         if((vpar_end.gt.0.d0).and.(vpar_in.lt.0.d0)) then
             !Find exact root of vpar(tau)  --> tau_part1 is the "time" inside the tetrahedron until $v=\parallel$ = 0
-            tau_part1 = tau_vpar_root(poly_order,a44,b4,vpar_in)
-            
-            if(tau_part1.gt.tau) print *, 'Error'
+            !turning_index = findloc(intermediate_z0_list(4,1:number_of_integration_steps) .gt. 0.0d0, .TRUE.) - 1
+            turning_index = findloc(intermediate_z0_list(4,1:number_of_integration_steps) .gt. 0.0d0, .TRUE., dim = 1) - 1
+            if (turning_index.eq.0) then
+                !as then vpar > 0 at tetrahedron entry, which conflicts vpar_in < 0 of above
+                print*, 'Error in par_adiab_inv_poly_mod: orbit already bounced before entering!'
+                stop
+            endif
+            !If findloc does not find any match, aka orbit turned in LAST step -> returns 0 -> turning_index = -1
+            if (turning_index.eq.-1) turning_index = number_of_integration_steps
+!
+            !Find now the root on the relevant orbit section determined above, to get the order-consistent result
+            tau_part1 = tau_vpar_root(poly_order,a44,b4,intermediate_z0_list(4,turning_index))
+!    
+            if(tau_part1.gt.tau_steps_list(turning_index)) print *, 'Error in par_adiab_inv_poly_mod: bounce happens after section?'
 !
             !Integrate par_adiab_inv exactly until root of vpar(tau)
-            par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_part1,vpar_in)*dt_dtau_const  
-        
+            do i = 1, turning_index - 1
+                par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_steps_list(i), & 
+                                                                & intermediate_z0_list(4,i))*dt_dtau_const
+            enddo !integrating UP to turning point (before turn)
+            !And finish from the turning index to the actual bounce
+            par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_part1, & 
+                                                            & intermediate_z0_list(4,turning_index))*dt_dtau_const
+!
             if(counter_banana_mappings.gt.1) then
                 if(counter_banana_mappings/nskip*nskip.eq.counter_banana_mappings) then
-
 !                    
                     !Poloidal projection of Poincaré sections at $v=\parallel$ = 0
-                    z = z_init
-                    call analytic_integration_without_precomp(poly_order,z,tau_part1)
+                    !Need again to integrate from turning point to actual bounce
+                    z = intermediate_z0_list(:,turning_index)
+                    call set_integration_coef_manually(poly_order,z)
+                    call analytic_integration_external(poly_order,z,tau_part1)
                     x=z(1:3)+tetra_physics(ind_tetr)%x1
 !
                     ! write coordinates for poincare cuts
@@ -3142,11 +3180,29 @@ module par_adiab_inv_poly_mod
 !
             !Start to integrate par_adiab_inv for new bounce period
             par_adiab_inv = 0.d0
-            par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau-tau_part1,0.d0)*dt_dtau_const 
+            !The new period starts at the bounce, so we finish the rest of the turning section
+            par_adiab_inv = par_adiab_inv + &
+                            & par_adiab_tau(poly_order,a44,b4,tau_steps_list(turning_index)-tau_part1,0.d0)*dt_dtau_const
+            !And we then the remaining steps of total tetrahedron orbit
+            do i = turning_index + 1, number_of_integration_steps
+                par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_steps_list(i), & 
+                                                                & intermediate_z0_list(4,i))*dt_dtau_const
+            enddo !integrating FROM end of turning section to the end of the total tetrahedron orbit
         else    
             !Compute parallel adiabatic invariant as a function of time
-            par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau,vpar_in)*dt_dtau_const    
-        endif     
+            do i = 1, number_of_integration_steps
+                par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_steps_list(i), & 
+                                                                & intermediate_z0_list(4,i))*dt_dtau_const
+            enddo !stepwise integration over whole tetrahedron orbit    
+        endif
+!
+if(diag_pusher_tetry_poly_adaptive) then
+if(number_of_integration_steps .gt. 1) then
+print*, 'J_par after', par_adiab_inv
+print*, 'turning_index', turning_index
+print*, 'Bounce?', (vpar_end.gt.0.d0).and.(vpar_in.lt.0.d0)
+endif  
+endif 
 !  
     end subroutine par_adiab_inv_tetra_poly
 !
@@ -3235,6 +3291,39 @@ module par_adiab_inv_poly_mod
 !
     end function tau_vpar_root
 !        
+    subroutine analytic_integration_external(poly_order,z,tau)
+!
+        use poly_without_precomp_mod
+!
+        implicit none
+!
+        integer, intent(in)                          :: poly_order
+        double precision, intent(in)                 :: tau
+        double precision, dimension(4),intent(inout) :: z
+        double precision                             :: tau2_half,tau3_sixth,tau4_twentyfourth
+!
+        !In contrast to the poly_pusher_mod counterpart, this integrator DOES NOT change the orbit recording quantities (for safety)
+        if(poly_order.ge.1) then
+            z = z + tau*(b+amat_in_z)
+        endif
+!
+        if(poly_order.ge.2) then
+            tau2_half = tau**2*0.5d0
+            z = z + tau2_half*(amat_in_b + amat2_in_z)
+        endif
+!
+        if(poly_order.ge.3) then
+            tau3_sixth = tau**3/6.d0
+            z = z + tau3_sixth*(amat2_in_b + amat3_in_z)
+        endif
+
+        if(poly_order.ge.4) then
+            tau4_twentyfourth = tau**4/24.d0
+            z = z + tau4_twentyfourth *(amat3_in_b + amat4_in_z)
+        endif
+!
+    end subroutine analytic_integration_external
+!
 end module
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
