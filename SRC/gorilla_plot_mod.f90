@@ -406,8 +406,8 @@ module gorilla_plot_mod
             print *,'GORILLA Plotting: Loaded input data from gorilla_plot.inp'
 !
             if(boole_J_par) then
-                if(i_time_tracing_option.eq.2) print *, 'WARNING: Time evolution for J_par is computed in zeroth order.' &
-                                                        & 'Whereas, Time evolution of orbit is computed exactly.' &
+                if(i_time_tracing_option.eq.2) print *, 'WARNING: Time evolution for J_par is computed in zeroth order.', &
+                                                        & 'Whereas, Time evolution of orbit is computed exactly.', &
                                                         & 'For consistency, set i_time_tracing_option to 1.'
             endif
 !
