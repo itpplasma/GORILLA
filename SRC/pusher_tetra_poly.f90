@@ -3164,6 +3164,7 @@ endif
                     !$omp critical
                         if(boole_J_par) then
                             write(file_id_J_par,*) counter_banana_mappings,par_adiab_inv
+print *, 'par_adiab_inv', par_adiab_inv
                         endif
                     !$omp end critical
 !
@@ -3209,6 +3210,8 @@ endif
 !   
     function par_adiab_tau(poly_order,a44,b4,tau,vpar_in)
 !
+        use pusher_tetra_poly_mod, only: sign_rhs
+!
         implicit none
 !
         integer                  :: poly_order
@@ -3231,7 +3234,10 @@ endif
                             & + 1.d0/60.d0*tau**5*(7.d0*a44**2*b4**2+15.d0*a44**3*b4*vpar_in + 8.d0*a44**4*vpar_in**2)
 ! 
         end select
-!        
+!
+        !Sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+        par_adiab_tau = par_adiab_tau * dble(sign_rhs)
+!
     end function par_adiab_tau
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
