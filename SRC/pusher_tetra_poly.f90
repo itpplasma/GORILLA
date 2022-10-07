@@ -3235,9 +3235,6 @@ endif
 ! 
         end select
 !
-        !Sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
-        par_adiab_tau = par_adiab_tau * dble(sign_rhs)
-!
     end function par_adiab_tau
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
