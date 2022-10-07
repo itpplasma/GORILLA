@@ -29,7 +29,7 @@ module pusher_tetra_poly_mod
 !    
     integer                             :: iface_init
     integer, public, protected          :: ind_tetr
-    integer                             :: sign_rhs
+    integer, public, protected          :: sign_rhs
     double precision                    :: perpinv2,vmod0
     double precision, public, protected :: perpinv,dt_dtau_const,bmod0
     double precision                    :: t_remain
