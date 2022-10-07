@@ -3164,7 +3164,6 @@ endif
                     !$omp critical
                         if(boole_J_par) then
                             write(file_id_J_par,*) counter_banana_mappings,par_adiab_inv
-print *, 'par_adiab_inv', par_adiab_inv
                         endif
                     !$omp end critical
 !
