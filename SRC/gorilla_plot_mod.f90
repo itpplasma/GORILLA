@@ -433,7 +433,7 @@ module gorilla_plot_mod
                                                  & counter_vpar_0_mappings, counter_tetrahedron_passes)
 !
             use supporting_functions_mod, only: bmod_func, energy_tot_func, vperp_func, p_phi_func
-            use pusher_tetra_rk_mod, only: find_tetra,pusher_tetra_rk,initialize_const_motion_rk
+            use pusher_tetra_rk_mod, only: pusher_tetra_rk,initialize_const_motion_rk
             use pusher_tetra_poly_mod, only: pusher_tetra_poly,initialize_const_motion_poly
             use tetra_physics_poly_precomp_mod , only: make_precomp_poly_perpinv, initialize_boole_precomp_poly_perpinv, &
                 &alloc_precomp_poly_perpinv
@@ -442,7 +442,7 @@ module gorilla_plot_mod
             use par_adiab_inv_poly_mod, only: par_adiab_inv_tetra_poly,counter_banana_mappings_poly => counter_banana_mappings
             use par_adiab_inv_rk_mod, only: par_adiab_inv_tetra_rk,counter_banana_mappings_rk => counter_banana_mappings
             use gorilla_settings_mod, only: ipusher, poly_order
-            use orbit_timestep_gorilla_mod, only: check_coordinate_domain
+            use orbit_timestep_gorilla_mod, only: find_tetra, check_coordinate_domain
 !
             implicit none
 !
