@@ -42,6 +42,9 @@
     integer, public, protected :: i_precomp
     logical, public, protected :: boole_guess
 !
+    !Time tracing options
+    integer, public, protected :: i_time_tracing_option
+!
     !additional optional orbit quantities
     logical, public, protected :: boole_time_Hamiltonian
     logical, public, protected :: boole_gyrophase
@@ -76,7 +79,8 @@
                         & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
                         & non_axi_noise_eps_A, boole_helical_pert, helical_pert_eps_Aphi, helical_pert_m_fourier, &
                         & helical_pert_n_fourier, boole_time_Hamiltonian, boole_gyrophase, &
-                        & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps
+                        & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps, &
+                        & i_time_tracing_option
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type
 !
@@ -91,7 +95,21 @@
             print *,'GORILLA: Loaded input data from gorilla.inp'
 !
             call load_boole_array_optional_quantities
-!            
+!
+            !Dependencies of input parameters
+            if( i_time_tracing_option.eq.2 ) then
+                if (ipusher.ne.2) then
+                    print *, 'ERROR: When Hamiltonian time tracing is activated, set ipusher to 2 in gorilla.inp.'
+                    stop
+                endif
+            endif
+!
+            !Gyrophase requires Hamiltonian time evolution (At least, the current implementation requires that)
+            if ( boole_gyrophase.and.(.not.boole_time_Hamiltonian)) then
+                print *, 'ERROR: When gyro-phase computation is activated, set boole_time_Hamiltonian to TRUE in gorilla.inp.'
+                stop
+            endif
+!
         end subroutine load_gorilla_inp
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
