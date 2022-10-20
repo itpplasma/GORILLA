@@ -23,7 +23,7 @@
 close all
 
 %Predefinig options for calculation
-total_orbit_time = 1d1;
+total_orbit_time = -1d1;
 desired_delta_energy = 1.0d-10;
 
 
@@ -388,7 +388,7 @@ energy_fluctuation_full_orbit_adaptive_data(:,2) = abs(e_tot_full_orbit_adaptive
 
 figure('Renderer', 'painters', 'Position', [1288 37 1214 580])
 subplot(1,2,1)
-energy_fluctuation_full_orbit_data(:,1) = e_tot_full_orbit_data(2:end,1)-e_tot_full_orbit_data(1:end-1,1);
+energy_fluctuation_full_orbit_data(:,1) = abs(e_tot_full_orbit_data(2:end,1)-e_tot_full_orbit_data(1:end-1,1));
 plot(energy_fluctuation_full_orbit_data(1:n_skip_e_tot_fluctuation_full_orbit:end,1),energy_fluctuation_full_orbit_data(1:n_skip_e_tot_fluctuation_full_orbit:end,2),MarkerEnergyFluctuation,'MarkerSize',MarkerSizeEnergyFluctuation,'MarkerEdgeColor',order2Color,'MarkerFaceColor',order2Color)
 tit = title(['Energy fluctuation (order 2)'],'Interpreter','latex');
 xlab = xlabel(xlabel_txt,'Interpreter','latex');
@@ -398,7 +398,7 @@ xlab.FontSize = FontSize;
 ylab.FontSize = FontSize;
 
 subplot(1,2,2)
-energy_fluctuation_full_orbit_adaptive_data(:,1) = e_tot_full_orbit_adaptive_data(2:end,1)-e_tot_full_orbit_adaptive_data(1:end-1,1);
+energy_fluctuation_full_orbit_adaptive_data(:,1) = abs(e_tot_full_orbit_adaptive_data(2:end,1)-e_tot_full_orbit_adaptive_data(1:end-1,1));
 plot(energy_fluctuation_full_orbit_adaptive_data(1:n_skip_e_tot_fluctuation_full_orbit:end,1),energy_fluctuation_full_orbit_adaptive_data(1:n_skip_e_tot_fluctuation_full_orbit:end,2),MarkerEnergyFluctuation,'MarkerSize',MarkerSizeEnergyFluctuation,'MarkerEdgeColor',adaptiveColor,'MarkerFaceColor',adaptiveColor);
 tit = title(['Energy fluctuation (adaptive/order 2)'],'Interpreter','latex');
 xlab = xlabel(xlabel_txt,'Interpreter','latex');

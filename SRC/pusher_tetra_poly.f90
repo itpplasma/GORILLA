@@ -3082,6 +3082,7 @@ module par_adiab_inv_poly_mod
                                                 number_of_integration_steps, intermediate_z0_list, tau_steps_list, &
                                                 & set_integration_coef_manually
         use tetra_physics_mod, only: particle_mass,tetra_physics
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
 !  
         implicit none
 !
@@ -3117,10 +3118,10 @@ print*, 'J_par before', par_adiab_inv
 endif
 endif
         !Trace banana tips
-        if((vpar_end.lt.0.d0).and.(vpar_in.gt.0.d0)) then
+        if((vpar_end.gt.0.d0).and.(vpar_in.lt.0.d0)) then
             !Find exact root of vpar(tau)  --> tau_part1 is the "time" inside the tetrahedron until $v=\parallel$ = 0
             !turning_index = findloc(intermediate_z0_list(4,1:number_of_integration_steps) .gt. 0.0d0, .TRUE.) - 1
-            turning_index = findloc(intermediate_z0_list(4,1:number_of_integration_steps) .lt. 0.0d0, .TRUE., dim = 1) - 1
+            turning_index = findloc(intermediate_z0_list(4,1:number_of_integration_steps) .gt. 0.0d0, .TRUE., dim = 1) - 1
             if (turning_index.eq.0) then
                 !as then vpar > 0 at tetrahedron entry, which conflicts vpar_in < 0 of above
                 print*, 'Error in par_adiab_inv_poly_mod: orbit already bounced before entering!'

@@ -27,5 +27,5 @@ start_pos_x1_beg = 0.5 ,
 start_pos_x1_end = 0.9 ,
 start_pos_x2 = 0 ,
 start_pos_x3 = 0.63 ,
-total_orbit_time = 1 ,
+total_orbit_time = -1 ,
 /

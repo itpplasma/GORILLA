@@ -129,7 +129,7 @@ tetra_grid.read();
         gorilla_plot.GORILLA_PLOT_NML.i_orbit_options = 2;
 
     %Total individual orbit flight time for plotting
-        gorilla_plot.GORILLA_PLOT_NML.total_orbit_time = 2;
+        gorilla_plot.GORILLA_PLOT_NML.total_orbit_time = -2;
 
     %Total Energy of particle in eV
         gorilla_plot.GORILLA_PLOT_NML.energy_eV_start = 3000;

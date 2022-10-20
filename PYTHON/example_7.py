@@ -25,7 +25,7 @@ mpl.rcdefaults()
 # -----------------------------------------------------------------------------------------------------------------------
 
 # Predefinig options for calculation
-total_orbit_time = 1E1
+total_orbit_time = -1E1
 desired_delta_energy = 1E-10
 
 # Initialize used paths and files
@@ -407,7 +407,7 @@ e_tot_fluctuation_fig = plt.figure(figsize=figsize)
 ax1 = e_tot_fluctuation_fig.add_subplot(121)
 e_tot_fluctuation = np.zeros(np.shape(e_tot_full_orbit))
 e_tot_fluctuation = np.delete(e_tot_fluctuation,-1,0)
-e_tot_fluctuation[:,0] = e_tot_full_orbit[1:,0] - e_tot_full_orbit[0:-1,0]
+e_tot_fluctuation[:,0] = abs(e_tot_full_orbit[1:,0] - e_tot_full_orbit[0:-1,0])
 e_tot_fluctuation[:,1] = abs(e_tot_full_orbit[1:,1]/e_tot_full_orbit[0:-1,1] -1)
 e_tot_fluctuation_plot = ax1.plot(e_tot_fluctuation[0:-1:n_skip_e_tot_fluctuation,0],e_tot_fluctuation[0:-1:n_skip_e_tot_fluctuation,1],
                     MarkerEnergyFluctuation, markersize = MarkerSizeEnergyFluctuation, color = order2Color, label = 'order 2')
@@ -418,7 +418,7 @@ ax1.set_title(r'Energy fluctuation (order 2)')
 ax2 = e_tot_fluctuation_fig.add_subplot(122)
 e_tot_fluctuation_adaptive = np.zeros(np.shape(e_tot_full_orbit_adaptive))
 e_tot_fluctuation_adaptive = np.delete(e_tot_fluctuation_adaptive,-1,0)
-e_tot_fluctuation_adaptive[:,0] = e_tot_full_orbit_adaptive[1:,0] - e_tot_full_orbit_adaptive[0:-1,0]
+e_tot_fluctuation_adaptive[:,0] = abs(e_tot_full_orbit_adaptive[1:,0] - e_tot_full_orbit_adaptive[0:-1,0])
 e_tot_fluctuation_adaptive[:,1] = abs(e_tot_full_orbit_adaptive[1:,1]/e_tot_full_orbit_adaptive[0:-1,1] -1)
 e_tot_fluctuation_plot_adaptive = ax2.plot(e_tot_fluctuation_adaptive[0:-1:n_skip_e_tot_fluctuation,0],e_tot_fluctuation_adaptive[0:-1:n_skip_e_tot_fluctuation,1],
                     MarkerEnergyFluctuation, markersize = MarkerSizeEnergyFluctuation, color = adaptiveColor, label = 'order 2 (adaptive)')
