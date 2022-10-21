@@ -42,10 +42,6 @@ module pusher_tetra_poly_mod
                                0.d0, 0.d0, 1.d0, 0.d0, &
                                0.d0, 0.d0, 0.d0, 1.d0 ], [4,4])
 !
-    !Diagnostics for adaptive step scheme (only useable for one particle calculation)
-    double precision, dimension(:,:), allocatable         :: total_fluc_report, step_fluc_report
-    integer                                               :: report_index
-!
     !$OMP THREADPRIVATE(ind_tetr,iface_init,perpinv,perpinv2,dt_dtau_const,bmod0,t_remain,x_init,  &
     !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps,sign_rhs)
 !
@@ -916,6 +912,9 @@ endif
                                                                & delta_energy_start, delta_energy_minimum, & 
                                                                & tau_prime, tau_collected, tau_exit, tau_minimum, tau_buffer
         double precision                                      :: delta_energy_step, energy_current_step, energy_previous_step
+        !Diagnostics for adaptive step scheme (only useable for one particle calculation)
+        double precision, dimension(:,:), allocatable         :: total_fluc_report, step_fluc_report
+        integer                                               :: report_index
 !
         !Save current z0 and stepped back global integration counter
         z_start_adaptive = intermediate_z0_list(:,number_of_integration_steps)

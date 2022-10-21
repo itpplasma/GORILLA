@@ -2898,7 +2898,7 @@ module par_adiab_inv_rk_mod
         z = z_init
 !
         !Trace banana tips
-        if((vpar_end.lt.0.d0).and.(vpar_in.gt.0.d0)) then
+        if((vpar_end.gt.0.d0).and.(vpar_in.lt.0.d0)) then
 !
             !Compute integral of $v_\parallel^2$ and position z until $vpar = 0$
             call calc_par_adiab_until_root(tau,z,par_adiab_tau,tau_part1)
