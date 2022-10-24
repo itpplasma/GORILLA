@@ -442,7 +442,8 @@ module gorilla_plot_mod
             use par_adiab_inv_poly_mod, only: par_adiab_inv_tetra_poly,counter_banana_mappings_poly => counter_banana_mappings
             use par_adiab_inv_rk_mod, only: par_adiab_inv_tetra_rk,counter_banana_mappings_rk => counter_banana_mappings
             use gorilla_settings_mod, only: ipusher, poly_order
-            use orbit_timestep_gorilla_mod, only: find_tetra, check_coordinate_domain
+            use orbit_timestep_gorilla_mod, only: check_coordinate_domain
+            use find_tetra_mod, only: find_tetra
 !
             implicit none
 !

@@ -24,6 +24,8 @@
     helical_pert_n_fourier = 2,
     boole_time_Hamiltonian = .false. ,
     boole_gyrophase = .false. ,
+    boole_vpar_int = .false. ,
+    boole_vpar2_int = .false. ,
     boole_adaptive_time_steps = .false. ,
     desired_delta_energy = 1.E-10 ,
     max_n_intermediate_steps = 10000 ,

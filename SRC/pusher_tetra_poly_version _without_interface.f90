@@ -20,63 +20,10 @@ module pusher_tetra_poly_mod
 
     implicit none
 !
-    interface poly_multiplication
-    pure function scalar_multiplication_without_precomp(scalar_coef_1,scalar_coef_2)
-        implicit none
-        double precision, dimension(:), intent(in)           :: scalar_coef_1,scalar_coef_2
-        double precision, dimension(:), allocatable          :: scalar_multiplication_without_precomp
-    end function scalar_multiplication_without_precomp
-!
-    pure function vector_multiplication_without_precomp(scalar_coef,vector_coef)
-        implicit none
-        double precision, dimension(:), intent(in)           :: scalar_coef
-        double precision, dimension(:,:), intent(in)         :: vector_coef
-        double precision, dimension(:,:), allocatable        :: vector_multiplication_without_precomp
-        end function vector_multiplication_without_precomp
-!
-    pure function tensor_multiplication_without_precomp(vector_coef_1,vector_coef_2)
-        implicit none
-        double precision, dimension(:,:), intent(in)         :: vector_coef_1,vector_coef_2
-        double precision, dimension(:,:,:), allocatable      :: tensor_multiplication_without_precomp
-        end function tensor_multiplication_without_precomp
-    end interface poly_multiplication
-!
-    interface moment_integration
-    pure function scalar_integral_without_precomp(poly_order,tau,scalar_coef)
-        implicit none
-        integer, intent(in)                                  :: poly_order
-        double precision, intent(in)                         :: tau
-        double precision, dimension(:), intent(in)           :: scalar_coef
-        double precision                                     :: scalar_integral_without_precomp
-    end function scalar_integral_without_precomp
-!
-    pure function vector_integral_without_precomp(poly_order,tau,vector_coef)
-        implicit none
-        integer, intent(in)                                   :: poly_order
-        double precision, intent(in)                          :: tau
-        double precision, dimension(:,:), intent(in)          :: vector_coef
-        double precision, dimension(:), allocatable           :: vector_integral_without_precomp
-    end function vector_integral_without_precomp
-!
-    pure function tensor_integral_without_precomp(poly_order,tau,tensor_coef)
-        implicit none
-        integer, intent(in)                             :: poly_order
-        double precision, intent(in)                    :: tau
-        double precision, dimension(:,:,:), intent(in)  :: tensor_coef
-        double precision, dimension(:,:), allocatable   :: tensor_integral_without_precomp
-    end function tensor_integral_without_precomp
-    end interface moment_integration
-!
-    !change those for adaptive step sizes, probably allocatable
-    double precision, dimension(:), allocatable, public, protected            :: tau_steps_list
-    double precision, dimension(:,:), allocatable, public, protected          :: intermediate_z0_list
-    integer, public, protected                                                :: number_of_integration_steps
-!
     private
 !    
     integer                             :: iface_init
     integer, public, protected          :: ind_tetr
-    integer, public, protected          :: sign_rhs
     double precision                    :: perpinv2,vmod0
     double precision, public, protected :: perpinv,dt_dtau_const,bmod0
     double precision                    :: t_remain
@@ -85,16 +32,27 @@ module pusher_tetra_poly_mod
     double precision                    :: k1, k3
     double precision,parameter          :: eps_tau = 100.d0
     double precision, dimension(4,4)    :: unity_matrix4 = reshape( [ 1.d0, 0.d0, 0.d0, 0.d0, &
-                                0.d0, 1.d0, 0.d0, 0.d0, & 
-                                0.d0, 0.d0, 1.d0, 0.d0, &
-                                0.d0, 0.d0, 0.d0, 1.d0 ], [4,4])
+                               0.d0, 1.d0, 0.d0, 0.d0, & 
+                               0.d0, 0.d0, 1.d0, 0.d0, &
+                               0.d0, 0.d0, 0.d0, 1.d0 ], [4,4])
+!
+    !change those for adaptive step sizes, probably allocatable
+    double precision, dimension(:), allocatable           :: tau_steps_list
+    double precision, dimension(:,:), allocatable         :: intermediate_z0_list
+    integer                                               :: number_of_integration_steps
+!
+    !Diagnostics for adaptive step scheme (only useable for one particle calculation)
+    double precision, dimension(:,:), allocatable         :: total_fluctuation_report, single_step_fluctuation_report, &
+                                                           & closure_fluctuation_report
+    integer                                               :: report_entry_index, number_reports
+    integer, parameter                                    :: max_number_reports = 1, minimum_partition_number = 9000
+    logical                                               :: boole_collect_data
 !
     !$OMP THREADPRIVATE(ind_tetr,iface_init,perpinv,perpinv2,dt_dtau_const,bmod0,t_remain,x_init,  &
-    !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps,sign_rhs)
+    !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps)
 !
     public :: pusher_tetra_poly,initialize_const_motion_poly, &
-        & Quadratic_Solver2, Cubic_Solver, Quartic_Solver,analytic_integration_without_precomp, &
-        & poly_multiplication_coef, moment_integration,set_integration_coef_manually
+        & Quadratic_Solver2, Cubic_Solver, Quartic_Solver,analytic_integration_without_precomp,energy_tot_func
 !   
     contains
 !
@@ -134,20 +92,35 @@ module pusher_tetra_poly_mod
                     !if no adaptive scheme -> just two steps in total
                     allocate(tau_steps_list(2),intermediate_z0_list(4,2))
                 endif
-!
-if(report_pusher_tetry_poly_adaptive) then
-open(124, file='./total_fluc_report.dat')
-open(118, file='./step_fluc_report.dat')
+if (report_pusher_tetry_poly_adaptive) then
+allocate(total_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),2), & 
+& single_step_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),3), &
+& closure_fluctuation_report(max_number_reports*(max_n_intermediate_steps+1),3))
+report_entry_index = 0
+number_reports = 0
 endif
-
             elseif(option .eq. 1) then
-                deallocate(tau_steps_list,intermediate_z0_list)
 !
-if(report_pusher_tetry_poly_adaptive) then
-close(124)
-close(118)
+if (report_pusher_tetry_poly_adaptive) then
+open(123, file='./total_fluctuation_report.dat')
+do k = 1, report_entry_index
+write(123,*) total_fluctuation_report(k,:)
+end do
+close(123)
+open(123, file='./single_step_fluctuation_report.dat')
+do k = 1, report_entry_index
+write(123,*) single_step_fluctuation_report(k,:)
+end do
+close(123)
+open(123, file='./closure_fluctuation_report.dat')
+do k = 1, report_entry_index
+write(123,*) closure_fluctuation_report(k,:)
+end do
+close(123)
+deallocate(total_fluctuation_report,single_step_fluctuation_report,closure_fluctuation_report)
 endif
 !
+                deallocate(tau_steps_list,intermediate_z0_list)
             endif
 !            
         end subroutine manage_intermediate_steps_arrays
@@ -156,9 +129,7 @@ endif
 !
         subroutine initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
 !
-            use tetra_physics_mod, only: tetra_physics, sign_sqg
-            use gorilla_settings_mod, only: boole_strong_electric_field
-            use supporting_functions_mod, only: bmod_func, phi_elec_func, v2_E_mod_func
+            use tetra_physics_mod, only: tetra_physics
 !
             implicit none
 !
@@ -171,9 +142,6 @@ endif
 !    
             ind_tetr=ind_tetr_inout           !Save the index of the tetrahedron locally
 !
-            !Sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
-            sign_rhs = sign_sqg * int(sign(1.d0,t_remain))
-!
             z_init(1:3)=x-tetra_physics(ind_tetr)%x1       !x is the entry point of the particle into the tetrahedron in (R,phi,z)-coordinates
 !
             z_init(4)=vpar                         !Transform to z_init: 1st vertex of tetrahdron is new origin
@@ -185,26 +153,19 @@ endif
 !
             !Tetrahedron constants
             dt_dtau_const = tetra_physics(ind_tetr)%dt_dtau_const
-!
-            !Multiply with sign of rhs - ensures that tau is ALWAYS positive inside the algorithm
-            dt_dtau_const = dt_dtau_const*dble(sign_rhs)
 !    
             !Module of B at the entry point of the particle
-            bmod0 = bmod_func(z_init(1:3),ind_tetr) !tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z_init(1:3))
+            bmod0 = bmod_func(z_init(1:3)) !tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z_init(1:3))
 !
             !Phi at the entry point of the particle
-            phi_elec = phi_elec_func(z_init(1:3),ind_tetr)   !tetra_physics(ind_tetr)%Phi1+sum(tetra_physics(ind_tetr)%gPhi*z_init(1:3))
+            phi_elec = phi_elec_func(z_init(1:3))   !tetra_physics(ind_tetr)%Phi1+sum(tetra_physics(ind_tetr)%gPhi*z_init(1:3))
 !
             !Auxiliary quantities
             vperp2 = -2.d0*perpinv*bmod0
             vpar2 = vpar**2
-            !This is the total speed viewed in the MOVING FRAME of ExB drift (here it only acts as a coefficient for the EOM-set)
-            !For physical estimates v_E is considered seperately anyway
             vmod0 = sqrt(vpar2+vperp2)
 !
             k1 = vperp2+vpar2+2.d0*perpinv*tetra_physics(ind_tetr)%bmod1
-            !Adding in +dx*grad(v2emod) to k1 helper-coefficiant for strong electric field case
-            if (boole_strong_electric_field) k1 = k1 + (v2_E_mod_func(z_init(1:3),ind_tetr) - tetra_physics(ind_tetr)%v2Emod_1)
             k3 = tetra_physics(ind_tetr)%Phi1-phi_elec
 !
         end subroutine initialize_pusher_tetra_poly
@@ -215,10 +176,10 @@ endif
                         & boole_t_finished,iper_phi,optional_quantities)
 !
             use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
-            use gorilla_diag_mod,  only: diag_pusher_tetry_poly
+            use gorilla_diag_mod,only: diag_pusher_tetry_poly
             use pusher_tetra_func_mod, only: pusher_handover2neighbour
             use gorilla_settings_mod, only: i_precomp, boole_guess, optional_quantities_type, boole_array_optional_quantities, &
-                                    &  boole_adaptive_time_steps, i_time_tracing_option
+                                    &  boole_adaptive_time_steps
 !
             implicit none
 !
@@ -243,13 +204,9 @@ endif
             logical                                               :: boole_analytical_approx,boole_face_correct
             logical                                               :: boole_trouble_shooting
             double precision, dimension(4,4)                      :: operator_b,operator_z_init
-            double precision, allocatable                         :: t_hamiltonian
-            double precision, dimension(:), allocatable           :: t_hamiltonian_list
-            integer                                               :: i_step_root
-            double precision                                      :: t_remain_new
 !         
             call initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
-            !In case of first call of orbit integration -> initialize the intermediate_steps_array
+            !In case of first call of orbit integration -> inialize the intermediate_steps_array
             if (.not.(allocated(tau_steps_list).OR.allocated(intermediate_z0_list))) call manage_intermediate_steps_arrays(0)
 !
             !initialise the module variables number_of_integration_steps, tau_steps_list and intermediate_z0_list
@@ -378,7 +335,7 @@ if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: normal veloc
 if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
 !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !!!!!!!!SECOND ATTEMPT WITHOUT GUESSES PLUS RESCALING IN 2nd ORDER!!!!!!!!!!!
+            !!!!!!!!!!!!!!!!SECOND ATTEMPT WITHOUT GUESSES PLUS RESCALE!!!!!!!!!!!!!!!!!!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
@@ -396,10 +353,10 @@ if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
                 !Analytical calculation of orbit parameter to pass tetrahdron
                 if(poly_order.eq.2) then
                     call analytic_approx(poly_order,i_precomp,boole_faces, &
-                                        & 1,z,iface_new,tau,boole_analytical_approx)
+                                       & 1,z,iface_new,tau,boole_analytical_approx)
                 else        
                     call analytic_approx(poly_order,i_precomp,boole_faces, &
-                                        & i_scaling,z,iface_new,tau,boole_analytical_approx)
+                                       & i_scaling,z,iface_new,tau,boole_analytical_approx)
                 endif
 !
                 !Analytical result does not exist.
@@ -484,104 +441,39 @@ endif
             !Final processing
             x=z(1:3)+tetra_physics(ind_tetr)%x1
             vpar=z(4)
-!
-            !Compute passing time dependent on time tracing option
-            select case(i_time_tracing_option)
-                !Time tracing in 0th order - dt_dtau = const.
-                case(1)
-                    t_pass = tau*dt_dtau_const
-                !Hamiltonian time tracing with computation of polynomial
-                case(2)
-!
-                    !Track Hamiltonian time for root finding operation
-                    allocate(t_hamiltonian_list(number_of_integration_steps+1))
-                    t_hamiltonian_list(1) = 0.d0
-                    allocate(t_hamiltonian)
-                    t_hamiltonian = 0.d0
-!
-                    !loop over number_of_integration_steps
-                    do i = 1,number_of_integration_steps
-                        !Calculate Hamiltonian time
-                        call calc_t_hamiltonian(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), t_hamiltonian)
-!
-                        !Track Hamiltonian time
-                        t_hamiltonian_list(i+1) = t_hamiltonian
-                    enddo
-!
-                    t_pass = t_hamiltonian
-            end select
+            t_pass = tau*dt_dtau_const
 !
 if(diag_pusher_tetry_poly) print *, 'tau total',tau
 if(diag_pusher_tetry_poly) print *, 't_pass',t_pass
-!if(diag_pusher_tetry_poly) then
-!    print *, 't_remain',t_remain
-!    if (t_remain .lt. 0) stop
-!    if (t_pass .lt. 0) stop
-!endif
+if(diag_pusher_tetry_poly) then
+    print *, 't_remain',t_remain
+    if (t_remain .lt. 0) stop
+    if (t_pass .lt. 0) stop
+endif
+
 !
-            !Particle stops inside the tetrahedron - Absolute value is used, because negative time can be allowed
-            if(abs(t_pass).ge.abs(t_remain)) then
+            !Particle stops inside the tetrahedron
+            if(t_pass.ge.t_remain) then
 !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !!!!!!!FOURTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL IN REMAINING TIME!!!!!!!
+            !!!!!!!FORTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL IN REMAINING TIME!!!!!!!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-                !Case selection dependent on time tracing option
-                select case(i_time_tracing_option)
-                    !Time tracing in 0th order - dt_dtau = const.
-                    case(1)
+                !Set z back to z_init
+                z = z_init
 !
-                        !Set z back to z_init
-                        z = z_init
+                !If vnorm was corrected or intermediate steps taken, coefficients need to be computed again.
+                if(number_of_integration_steps .gt. 1) then
+                    iface_new = iface_init
 !
-                        !If vnorm was corrected or intermediate steps taken, coefficients need to be computed again.
-                        if(number_of_integration_steps .gt. 1) then
-                            iface_new = iface_init
+                    call set_integration_coef_manually(poly_order,z)
+                endif
 !
-                            call set_integration_coef_manually(poly_order,z)
-                        endif
+                !And reset the integration step counter
+                number_of_integration_steps = 0
 !
-                        !And reset the integration step counter
-                        number_of_integration_steps = 0
-!
-                        !Compute orbit parameter tau from t_remain
-                        tau = t_remain/dt_dtau_const
-!
-                    !Hamiltonian time tracing with computation of polynomial
-                    case(2)
-!
-                        !Find integration step in which t_hamiltonian exceeds t_remain
-                        !Absolute value is used, because negative time can be allowed
-                        i_step_root =  findloc(abs(t_hamiltonian_list).gt.abs(t_remain),.true.,dim=1)
-!
-                        !Set orbit back to i-th integration step
-                        z = intermediate_z0_list(:,i_step_root - 1)
-                        call set_integration_coef_manually(poly_order,z)
-                        number_of_integration_steps = i_step_root - 2
-                        iface_new = iface_init ! (just in case)
-!
-                        !Find tau corresponding to root of t_Hamiltonian
-                        t_remain_new = t_remain - t_hamiltonian_list(i_step_root-1)
-                        call get_t_hamiltonian_root(poly_order,z,t_remain_new,tau)
-!
-                        !Fail save: consistency check due to order reduction in root solving operation in the case of 5th order
-                        if(tau.gt.tau_steps_list(i_step_root - 1)) then
-                            print *, 'Warning: Final t_hamiltonian step in 0th order for avoiding inconsistency.'
-                            tau = t_remain_new/dt_dtau_const
-                        endif
-!
-!print *, 'Warning: tau', tau, 'tau_steps_list',tau_steps_list(i_step_root - 1)
-!print *, 'number_of_integration_steps', number_of_integration_steps
-!print *, 'tau_steps_list',tau_steps_list
-!print *, 'tau_steps_list * dt_dtau',tau_steps_list*dt_dtau_const
-!print *, 't_hamiltonian_list',t_hamiltonian_list
-!print *, 't_remain',t_remain
-!print *, 't_remain_new',t_remain_new
-!print *, 'i_step_root', i_step_root
-!print *, 'intermediate_z0_list',intermediate_z0_list
-!
-                end select
-                
+                !Compute orbit parameter tau from t_remain
+                tau = t_remain/dt_dtau_const
 if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
 !
                 !Integrate trajectory analytically from start until t_remain
@@ -610,14 +502,6 @@ if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
                     z_save = z(1:3)
                     x=z(1:3)+tetra_physics(ind_tetr)%x1
                     vpar=z(4)
-!
-                    !Difference in between t_pass and t_hamiltonian:
-!
-                    ! t_pass: expresses the used time of integration including possible error due to order reduction (only relevant
-                    ! if poly_order = 4) which is necessary for analytical root finding in the 5th order
-                    !
-                    ! t_hamiltonian: order consistent computation of Hamiltonian time elapsed
-                    ! Due to above described order reduction, t_hamiltonian might sligthly differ from t_step
                     t_pass = t_remain
 !                    
                 else    !Time step finishes while particle is outside the tetrahedron (Wrong face was predicted, but logically true)
@@ -644,24 +528,7 @@ endif
                     !Final processing
                     x=z(1:3)+tetra_physics(ind_tetr)%x1
                     vpar=z(4)
-!
-                    !Case selection dependent on time tracing option
-                    select case(i_time_tracing_option)
-                        !Time tracing in 0th order - dt_dtau = const.
-                        case(1)
-                            t_pass = tau*dt_dtau_const
-                        !Hamiltonian time tracing with computation of polynomial
-                        case(2)
-                            !Compute Hamiltonian time for the final step
-                            t_hamiltonian = 0.d0
-!
-                            !Redo loop over number_of_integration_steps
-                            do i = 1,number_of_integration_steps
-                                call calc_t_hamiltonian(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), t_hamiltonian)
-                            enddo
-!
-                            t_pass = t_hamiltonian
-                    end select
+                    t_pass = tau*dt_dtau_const
 !
                     !Save relative coordinates after pushing
                     z_save = z(1:3)
@@ -671,7 +538,7 @@ endif
                 endif
 !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !!!!!!!!!!!!END OF FOURTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL!!!!!!!!!!!!!
+            !!!!!!!!!!!!END OF FORTH ATTEMPT IF PARTICLE DOES NOT LEAVE CELL!!!!!!!!!!!!!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
             !Normal orbit that passes the whole tetrahedron
@@ -691,12 +558,8 @@ endif
                     call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
                 enddo
             endif
-!
             !If finished particle integration, deallocate the intermediate_steps_array (get also deallocated in previous instances if lost particle)
             if(boole_t_finished) call manage_intermediate_steps_arrays(1)
-!
-            !Deallocation
-            if(i_time_tracing_option.eq.2) deallocate(t_hamiltonian_list,t_hamiltonian)
 !
         end subroutine pusher_tetra_poly
 !
@@ -718,7 +581,6 @@ endif
                 if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
                     boole_face_correct = .false.
 if(diag_pusher_tetry_poly) print *, 'Error: three planes'
-if(diag_pusher_tetry_poly) print *, 'face', k,'normal_distance',normal_distance_func(z(1:3),k)
                 endif        
             enddo
 
@@ -857,8 +719,7 @@ if(diag_pusher_tetry_poly)  print *, 'Error: Tau is out of safety boundary'
                                             &  iface_inout_adaptive, tau, z, boole_face_correct)
 !
         use gorilla_settings_mod, only: desired_delta_energy, max_n_intermediate_steps
-        use gorilla_diag_mod, only: diag_pusher_tetry_poly, report_pusher_tetry_poly_adaptive
-        use supporting_functions_mod, only: energy_tot_func
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly
 !
         implicit none
 !
@@ -871,16 +732,13 @@ if(diag_pusher_tetry_poly)  print *, 'Error: Tau is out of safety boundary'
         double precision, dimension(4), intent(inout)         :: z
         logical, intent(inout)                                :: boole_face_correct
 !
-        double precision                                      :: energy_start, energy_current, delta_energy_current, tau_save_report
-        double precision, dimension(4)                        :: z0, z_save_report
-        integer                                               :: number_of_integration_steps_save_report, &
-                                                                & iface_inout_adaptive_save_report
-        logical                                               :: boole_face_correct_save_report                        
+        double precision                                      :: energy_start, energy_current, delta_energy_current
+        double precision, dimension(4)                        :: z0
 !
         if ((desired_delta_energy .le. 0)) then
             print*, 'Error: The control setting desired_delta_energy is invalid! Check the limits in gorilla.inp!'
             stop
-        elseif ((max_n_intermediate_steps .lt. 2)) then
+        elseif ((max_n_intermediate_steps .lt. 1)) then
             print*, 'Error: The control setting max_n_intermediate_steps is invalid! Check the limits in gorilla.inp!'
             stop
         endif
@@ -894,44 +752,24 @@ if(diag_pusher_tetry_poly) print*, 'z', z
         elseif (.not.boole_passing) then
             call check_three_planes(z,0,boole_face_correct)
         else
-            print*, 'Error: Non valid value for boole_passing of overhead_adaptive_time_step()!' 
+            print*, 'Error: Non valid value for boole_passing of overhead_adaptive_time_step()!'
             stop
         endif
         if (.not.boole_face_correct) return
 !
         z0 = intermediate_z0_list(:,number_of_integration_steps)
-        energy_start = energy_tot_func(z0,perpinv,ind_tetr)
-        energy_current = energy_tot_func(z,perpinv,ind_tetr)
-        delta_energy_current = abs(1-energy_current/energy_start)
-!
 if(diag_pusher_tetry_poly) print*, 'z0', z0
+        energy_start = energy_tot_func(z0)
+        energy_current = energy_tot_func(z)
 if(diag_pusher_tetry_poly) print*, 'energy_current', energy_current
 if(diag_pusher_tetry_poly) print*, 'energy_start', energy_start
-if(report_pusher_tetry_poly_adaptive) then
-!Save the non-adaptive end results -> in report mode, the actual orbit is not changed by th adaptive scheme!
-z_save_report = z
-tau_save_report = tau
-number_of_integration_steps_save_report = number_of_integration_steps
-boole_face_correct_save_report = boole_face_correct
-iface_inout_adaptive_save_report = iface_inout_adaptive
-endif
-!
+        delta_energy_current = abs(1-energy_current/energy_start)
         !If energy fluctuating too strong -> start recursive adaptive scheme
         if (delta_energy_current .gt. desired_delta_energy) then
 if(diag_pusher_tetry_poly) print*, 'Adaptive Stepsize equidistant was called'
             call adaptive_time_steps_equidistant(poly_order, i_scaling, boole_guess_adaptive, boole_passing, &
                                 & delta_energy_current, iface_inout_adaptive, tau, z, boole_face_correct)
         endif
-!
-if(report_pusher_tetry_poly_adaptive) then
-!Restore non-adaptive results (report mode does not change orbit!)
-z = z_save_report
-tau = tau_save_report
-number_of_integration_steps = number_of_integration_steps_save_report
-tau_steps_list(number_of_integration_steps) = tau
-boole_face_correct = boole_face_correct_save_report
-iface_inout_adaptive = iface_inout_adaptive_save_report
-endif
 !
     end subroutine overhead_adaptive_time_steps
 !
@@ -942,7 +780,6 @@ endif
 !
         use gorilla_settings_mod, only: i_precomp, desired_delta_energy, max_n_intermediate_steps
         use gorilla_diag_mod,only: diag_pusher_tetry_poly_adaptive, report_pusher_tetry_poly_adaptive
-        use supporting_functions_mod, only: energy_tot_func
 !
         implicit none
 !
@@ -962,19 +799,16 @@ endif
                                                                 & eta_minimum, eta_buffer
         integer                                               :: iface_new_adaptive, number_of_integration_steps_start_adaptive
         logical                                               :: boole_analytical_approx, boole_exit_tetrahedron, & 
-                                                                & boole_energy_check, boole_reached_minimum
+                                                               & boole_energy_check, boole_reached_minimum
         double precision                                      :: energy_start_adaptive, energy_current, &
-                                                                & delta_energy_start, delta_energy_minimum, & 
-                                                                & tau_prime, tau_collected, tau_exit, tau_minimum, tau_buffer
-        double precision                                      :: delta_energy_step, energy_current_step, energy_previous_step
-        !Diagnostics for adaptive step scheme (only useable for one particle calculation)
-        double precision, dimension(:,:), allocatable         :: total_fluc_report, step_fluc_report
-        integer                                               :: report_index
+                                                               & delta_energy_start, delta_energy_minimum, & 
+                                                               & tau_prime, tau_collected, tau_exit, tau_minimum, tau_buffer
 !
         !Save current z0 and stepped back global integration counter
         z_start_adaptive = intermediate_z0_list(:,number_of_integration_steps)
         number_of_integration_steps_start_adaptive = number_of_integration_steps - 1
-        energy_start_adaptive = energy_tot_func(z_start_adaptive,perpinv,ind_tetr)
+        energy_start_adaptive = energy_tot_func(z_start_adaptive)
+if(report_pusher_tetry_poly_adaptive) boole_collect_data = .false.
 if(diag_pusher_tetry_poly_adaptive) print*, '------------------------'
 !
         !Set up for Partition procedure
@@ -984,30 +818,37 @@ if(diag_pusher_tetry_poly_adaptive) print*, '------------------------'
         delta_energy_start = delta_energy_current
         delta_energy_minimum = delta_energy_current
 !
-if (report_pusher_tetry_poly_adaptive) then
-!Intialize report quantities for this instance of adaptive scheme
-if((.not. allocated(step_fluc_report)) .OR. (.not. allocated(total_fluc_report))) then
-allocate(total_fluc_report(max_n_intermediate_steps+100,2), step_fluc_report(max_n_intermediate_steps+100,2))
-endif
-report_index = 1
-step_fluc_report(report_index,1) = eta
-step_fluc_report(report_index,2) = delta_energy_current
-total_fluc_report(report_index,1) = eta
-total_fluc_report(report_index,2) = delta_energy_current
-endif
-!
         !Loop over possible equidistant splittings (eta changing depending on the current energy error, with uppper limit a priori set)
         PARTITION: do while (eta .lt. max_n_intermediate_steps)
 !
             !If did not succeed (aka not left the loop) -> try to update number of steps
             !and try again, if not yet at maximal number of intermediate steps or passed minimum
-            call adaptive_time_steps_update_eta(poly_order,delta_energy_current,eta)
+            call update_eta(poly_order,delta_energy_current,eta)
 !
             !Set up for redo of the minimum run
             if (boole_reached_minimum) then
                 eta = eta_minimum
                 tau = tau_minimum
             endif
+!
+if (report_pusher_tetry_poly_adaptive) then
+if(.not.boole_collect_data.AND.(eta.gt.minimum_partition_number)) then
+boole_collect_data = .true.
+number_reports = number_reports + 1
+report_entry_index = report_entry_index + 1
+eta = 1
+delta_energy_current = delta_energy_start
+single_step_fluctuation_report(report_entry_index,1) = eta
+single_step_fluctuation_report(report_entry_index,2) = delta_energy_current
+single_step_fluctuation_report(report_entry_index,3) = tau
+total_fluctuation_report(report_entry_index,1) = eta
+total_fluctuation_report(report_entry_index,2) = delta_energy_current
+closure_fluctuation_report(report_entry_index,1) = eta
+closure_fluctuation_report(report_entry_index,2) = delta_energy_current
+closure_fluctuation_report(report_entry_index,3) = 1
+cycle PARTITION
+endif
+endif
 !
             !Set up for every partition trial; boole_face_correct can be set true here as adaptive is before the consistency checks
             z = z_start_adaptive
@@ -1046,7 +887,6 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: Left tetr
                             return
                         endif
                         z = intermediate_z0_list(:,number_of_integration_steps)
-                        number_of_integration_steps = number_of_integration_steps - 1
                         boole_exit_tetrahedron = .true.
                         exit STEPWISE
                     endif
@@ -1057,16 +897,19 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: Left tetr
                 eta_extended = i
 !
 if (report_pusher_tetry_poly_adaptive) then
-!Collecting single step fluctuation data
+if (boole_collect_data ) then
 if (i.eq.1) then
-report_index = report_index + 1
-step_fluc_report(report_index,2) = 0
-energy_current_step = energy_start_adaptive
+report_entry_index = report_entry_index + 1
+single_step_fluctuation_report(report_entry_index,1) = 0
+single_step_fluctuation_report(report_entry_index,2) = 0
+single_step_fluctuation_report(report_entry_index,3) = tau_prime
 endif
-energy_previous_step = energy_current_step
-energy_current_step = energy_tot_func(z,perpinv,ind_tetr)
-delta_energy_step = abs(1 - energy_current_step/energy_previous_step)
-step_fluc_report(report_index,2) = step_fluc_report(report_index,2) + delta_energy_step
+single_step_fluctuation_report(report_entry_index,1) = & 
+& single_step_fluctuation_report(report_entry_index,1) + 1
+single_step_fluctuation_report(report_entry_index,2) = &
+& single_step_fluctuation_report(report_entry_index,2) + abs(1-energy_tot_func(z)/ & 
+& energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
+endif
 endif
 !
                 !The only reason to not use the guessing scheme is to avoid nipping out of orbits (ensure order-consistency)
@@ -1078,7 +921,7 @@ endif
                     !Analytical result does not exist can therefore not close cell orbit
                     ! -> "return" leaves orbit (falsely, therefore boole set to false) inside of tetrahedron
                     if(.not.boole_analytical_approx) then
-if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: no analytical solution'
+                        if(diag_pusher_tetry_poly_adaptive) print *, 'Error in adaptive steps: no analytical solution'
                         boole_face_correct = .false.
                         return
                     endif
@@ -1119,8 +962,30 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive step closure: tau_exit', 
             tau_collected = tau_collected + tau_prime
 !
             !Check if energy fluctuation was successfully decreased
-            energy_current = energy_tot_func(z,perpinv,ind_tetr)
+            energy_current = energy_tot_func(z)
             delta_energy_current = abs(1-energy_current/energy_start_adaptive)
+!
+if (report_pusher_tetry_poly_adaptive) then
+delta_energy_minimum = delta_energy_current*2 !Circumvent the minimum approach to collect more data
+if (boole_collect_data) then
+single_step_fluctuation_report(report_entry_index,2) = &
+& single_step_fluctuation_report(report_entry_index,2) + abs(1-energy_tot_func(z)/ & 
+& energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
+single_step_fluctuation_report(report_entry_index,1) = & 
+& single_step_fluctuation_report(report_entry_index,1) + 1
+!Forming the average of the single step error done in this partition  
+single_step_fluctuation_report(report_entry_index,2) = & 
+& single_step_fluctuation_report(report_entry_index,2) / & 
+& single_step_fluctuation_report(report_entry_index,1)
+total_fluctuation_report(report_entry_index,2) = delta_energy_current
+total_fluctuation_report(report_entry_index,1) = single_step_fluctuation_report(report_entry_index,1)
+closure_fluctuation_report(report_entry_index,1) = single_step_fluctuation_report(report_entry_index,1)
+closure_fluctuation_report(report_entry_index,2) = abs(1-energy_tot_func(z)/ & 
+& energy_tot_func(intermediate_z0_list(:,number_of_integration_steps)))
+closure_fluctuation_report(report_entry_index,3) = & 
+& tau_prime/single_step_fluctuation_report(report_entry_index,3)
+endif
+endif
 !
             !Update tau/eta actually needed to travers tetrahedron (for final result or for better approx in another iteration)
             !The buffer variables are used to 1:1 save the minimum run, as it was achieved now (even if the tau/eta was off, only the result matters not how we got to it!)
@@ -1128,23 +993,6 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive step closure: tau_exit', 
             tau_buffer = tau
             eta = eta_extended + 1
             tau = tau_collected
-!
-if (report_pusher_tetry_poly_adaptive) then
-!Finish up on data of this partition (average of step-fluctuation)
-!And circumvent the exit mechanisms to collect more data
-boole_energy_check = .true.
-energy_previous_step = energy_current_step
-energy_current_step = energy_tot_func(z,perpinv,ind_tetr)
-delta_energy_step = abs(1 - energy_current_step/energy_previous_step)
-step_fluc_report(report_index,2) = step_fluc_report(report_index,2) + delta_energy_step
-step_fluc_report(report_index,1) = eta_extended + 1 
-step_fluc_report(report_index,2) = step_fluc_report(report_index,2) / (eta_extended + 1)
-total_fluc_report(report_index,2) = delta_energy_current
-total_fluc_report(report_index,1) = eta_extended + 1
-eta = eta_buffer
-tau = tau_buffer
-cycle PARTITION
-endif
 !
             !There is an effective minimum that can be achieved by decreasing the timesteps
             !After that the error actually increases/osscilates -> we only use the monoton decrease
@@ -1160,8 +1008,8 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energ
                     boole_energy_check = .true.
                     exit PARTITION
                 endif
-            elseif(delta_energy_current.gt.delta_energy_minimum) then
-                !If we see that our new step choice has INCREASED the energy, we redo the minimum partition and stop
+            else
+                !If we see that our new step choice has INCREASED the energy, we redo the last partition and stop
                 boole_reached_minimum = .true.
                 cycle PARTITION
             endif !energy check
@@ -1173,33 +1021,33 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'delta_energy_minimum', delta_energ
         !If could not satisfy energy conservation with scheme, notify user
         if (.not.boole_energy_check) then
             print *, 'Error in adaptive steps equidistant: energy conservation could not be fullfilled!'
-            print *, 'delta_energy_minimum', delta_energy_minimum
-            print *, 'eta_minimum', eta_minimum
-            print *, 'tau_minimum', tau_minimum
+if(diag_pusher_tetry_poly_adaptive)print*, 'delta_energy_minimum', delta_energy_minimum
 if(diag_pusher_tetry_poly_adaptive) stop
         endif 
 !
 if (report_pusher_tetry_poly_adaptive) then
-!Write data of this instance of adaptive scheme into report files
-report_index = report_index + 1
-step_fluc_report(report_index,:) = -1
-total_fluc_report(report_index,:) = -1
-do k = 1, report_index
-write(124,*) total_fluc_report(k,:)
-end do
-do k = 1, report_index
-write(118,*) step_fluc_report(k,:)
-end do
-deallocate(total_fluc_report,step_fluc_report)
+if (boole_collect_data) then
+if (number_reports.ge.max_number_reports) then
+if (diag_pusher_tetry_poly_adaptive) print*, eta
+if (diag_pusher_tetry_poly_adaptive) print*, boole_exit_tetrahedron
+call manage_intermediate_steps_arrays(1)
+print *, 'Collected enough data for adaptive scheme report!'
+stop
+endif
+report_entry_index = report_entry_index + 1
+single_step_fluctuation_report(report_entry_index,:) = -1
+total_fluctuation_report(report_entry_index,:) = -1
+closure_fluctuation_report(report_entry_index,:) = -1
+endif
 endif
 !
     end subroutine adaptive_time_steps_equidistant
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine adaptive_time_steps_update_eta(poly_order,delta_energy_current,eta)
+    subroutine update_eta(poly_order,delta_energy_current,eta)
 !
-        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive, report_pusher_tetry_poly_adaptive
+        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
         use gorilla_settings_mod, only: desired_delta_energy, max_n_intermediate_steps
 !
         implicit none
@@ -1212,21 +1060,15 @@ endif
         double precision                            :: scale_factor, max_scale_factor
         double precision, parameter                 :: threshold = 1.d0, min_step_error = 1E-15, additive_increase = 1 !default 1,1E-15,10
 !
-if (report_pusher_tetry_poly_adaptive)  then 
-    !To get more data points, do not optimal scaling
-    if (delta_energy_current/eta .lt. min_step_error) then
-        eta = ceiling(eta*2.d0**(1.d0/4.d0))
-    else
-        eta = ceiling(eta*2.d0**(1.d0/2.d0))
-    endif
-    eta = min(eta,max_n_intermediate_steps)
+if (boole_collect_data)  then 
+    eta = eta + 100
     return
 endif
         scale_factor = (delta_energy_current/desired_delta_energy)**(1.0d0/poly_order)
         max_scale_factor = (delta_energy_current/(min_step_error*eta))**(1.0d0/(poly_order+1))
 if (diag_pusher_tetry_poly_adaptive) print*, 'scale factor', scale_factor
 if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_factor
-        if ((scale_factor .gt. threshold) .AND. (max_scale_factor .gt. threshold)) then
+       if ((scale_factor .gt. threshold) .AND. (max_scale_factor .gt. threshold)) then
             scale_factor = min(scale_factor,max_scale_factor)
             eta = min(ceiling(eta*scale_factor),max_n_intermediate_steps)
         elseif (scale_factor .gt. threshold) then
@@ -1235,7 +1077,7 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_facto
             eta = eta + additive_increase
         endif !Choice of next number of steps
 !
-    end subroutine adaptive_time_steps_update_eta
+    end subroutine update_eta
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !    
@@ -1512,7 +1354,6 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
         subroutine analytic_coeff_without_precomp(poly_order,boole_faces,z,coef_mat)
 !
             use tetra_physics_mod, only: tetra_physics,cm_over_e
-            use gorilla_settings_mod, only: boole_strong_electric_field
             use constants, only: clight
             use poly_without_precomp_mod
 !
@@ -1541,19 +1382,6 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             amat(4,4) = perpinv*cm_over_e*tetra_physics(ind_tetr)%spalpmat &
                         - clight* tetra_physics(ind_tetr)%spbetmat
             amat(1:3,4) = tetra_physics(ind_tetr)%curlA
-!
-            if (boole_strong_electric_field) then
-                b(1:3) = b(1:3) - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gv2Emodxh1 !and also the modification of k1 done by initialization
-                b(4) = b(4) + cm_over_e*perpinv*tetra_physics(ind_tetr)%gBxcurlvE - clight*tetra_physics(ind_tetr)%gPhixcurlvE &
-                            & - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gv2EmodxcurlvE - 0.5d0*tetra_physics(ind_tetr)%gv2EmodxcurlA
-                amat(1:3,1:3) = amat(1:3,1:3) - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gammat
-                amat(4,4) = amat(4,4) - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%spgammat
-                amat(1:3,4) = amat(1:3,4) + cm_over_e*tetra_physics(ind_tetr)%curlvE
-            endif !boole_stron_electric_fields (adding additional terms to the coefficiants)
-!
-            !Multiply amat and b with appropriate sign (which ensures that tau remains positive inside the algorithm)
-            amat = amat * dble(sign_rhs)
-            b = b * dble(sign_rhs)
 !
             dist1= -tetra_physics(ind_tetr)%dist_ref
 !
@@ -1632,9 +1460,9 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
             if(i_precomp.eq.1) then
                 b(1:3)= ( tetra_physics(ind_tetr)%curlh*(k1) &
-                        + perpinv*tetra_physics(ind_tetr)%gBxh1 )*cm_over_e &
-                        - clight*(2.d0*(k3)*tetra_physics(ind_tetr)%curlh &
-                        + tetra_physics(ind_tetr)%gPhixh1)
+                      + perpinv*tetra_physics(ind_tetr)%gBxh1 )*cm_over_e &
+                      - clight*(2.d0*(k3)*tetra_physics(ind_tetr)%curlh &
+                      + tetra_physics(ind_tetr)%gPhixh1)
 !
                 b(4)=perpinv*tetra_physics(ind_tetr)%gBxcurlA-clight/cm_over_e*tetra_physics(ind_tetr)%gPhixcurlA
             endif
@@ -1657,16 +1485,16 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
                     select case(i_precomp)
                         case(1)
                             coef_mat(n,2) = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) + &
-                                            & sum(tetra_physics(ind_tetr)%anorm(:,n) * b(1:3))
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) + &
+                                          & sum(tetra_physics(ind_tetr)%anorm(:,n) * b(1:3))
                         case(2)
                             coef_mat(n,2) = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) + &
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * z) + &
 !
-                                            & tetra_physics_poly4(ind_tetr)%anorm_in_b0(n) + &
-                                            & k1 * tetra_physics_poly4(ind_tetr)%anorm_in_b1(n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_b2(n) + &
-                                            & k3 * tetra_physics_poly4(ind_tetr)%anorm_in_b3(n)
+                                          & tetra_physics_poly4(ind_tetr)%anorm_in_b0(n) + &
+                                          & k1 * tetra_physics_poly4(ind_tetr)%anorm_in_b1(n) + &
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_b2(n) + &
+                                          & k3 * tetra_physics_poly4(ind_tetr)%anorm_in_b3(n)
                     end select
                 enddo
             endif
@@ -1677,24 +1505,24 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
                     select case(i_precomp)
                         case(1)
                             coef_mat(n,3) = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat2_0(:,n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_1(:,n) + &
-                                            & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_2(:,n)) * z) + &
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_1(:,n) + &
+                                          & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_2(:,n)) * z) + &
 !
-                                            & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * b)
+                                          & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,n) + &
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,n)) * b)
                         case(2)
                             coef_mat(n,3) = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat2_0(:,n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_1(:,n) + &
-                                            & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_2(:,n)) * z) + &
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_1(:,n) + &
+                                          & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_2(:,n)) * z) + &
 !
-                                            & tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0_in_b0(n) + &
-                                            & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b0(n) + &
-                                            & k1 * (tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0_in_b1(n) + &
-                                            & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b1(n)) + &
-                                            & perpinv * (tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0_in_b2(n) + &
-                                            & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b2(n)) + &
-                                            & k3 * (tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0_in_b3(n) + &
-                                            & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b3(n))
+                                          & tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0_in_b0(n) + &
+                                          & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b0(n) + &
+                                          & k1 * (tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0_in_b1(n) + &
+                                          & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b1(n)) + &
+                                          & perpinv * (tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0_in_b2(n) + &
+                                          & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b2(n)) + &
+                                          & k3 * (tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0_in_b3(n) + &
+                                          & perpinv*tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1_in_b3(n))
                     end select
                 enddo
             endif
@@ -1708,13 +1536,13 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
                     select case(i_precomp)
                         case(1)
                             coef_mat(n,4) = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat3_0(:,n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_1(:,n) + &
-                                            & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_2(:,n) + &
-                                            & perpinv3 * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_3(:,n)) * z) + &
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_1(:,n) + &
+                                          & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_2(:,n) + &
+                                          & perpinv3 * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_3(:,n)) * z) + &
 !
-                                            & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat2_0(:,n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_1(:,n) + &
-                                            & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_2(:,n)) * b)
+                                          & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat2_0(:,n) + &
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_1(:,n) + &
+                                          & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat2_2(:,n)) * b)
                     end select
                 enddo
             endif
@@ -1728,15 +1556,15 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
                     select case(i_precomp)
                         case(1)
                             coef_mat(n,5) = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat4_0(:,n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat4_1(:,n) + &
-                                            & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat4_2(:,n) + &
-                                            & perpinv3 * tetra_physics_poly4(ind_tetr)%anorm_in_amat4_3(:,n) + &
-                                            & perpinv4 * tetra_physics_poly4(ind_tetr)%anorm_in_amat4_4(:,n)) * z) + &
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat4_1(:,n) + &
+                                          & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat4_2(:,n) + &
+                                          & perpinv3 * tetra_physics_poly4(ind_tetr)%anorm_in_amat4_3(:,n) + &
+                                          & perpinv4 * tetra_physics_poly4(ind_tetr)%anorm_in_amat4_4(:,n)) * z) + &
 !
-                                            & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat3_0(:,n) + &
-                                            & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_1(:,n) + &
-                                            & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_2(:,n) + &
-                                            & perpinv3 * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_3(:,n)) * b)
+                                          & sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat3_0(:,n) + &
+                                          & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_1(:,n) + &
+                                          & perpinv2 * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_2(:,n) + &
+                                          & perpinv3 * tetra_physics_poly4(ind_tetr)%anorm_in_amat3_3(:,n)) * b)
                     end select
                 enddo
             endif
@@ -1758,7 +1586,7 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             double precision                    :: dist1
             double precision, dimension(4,poly_order+1)      :: coef_mat
 !
-                !Precompute quatities dependent on perpinv
+             !Precompute quatities dependent on perpinv
 !             if(.not.boole_precomp_analytic(ind_tetr)) call make_precomp_poly_perpinv(ind_tetr)
 !
             dist1= -tetra_physics(ind_tetr)%dist_ref
@@ -1812,10 +1640,6 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
 !
     subroutine Quadratic_Solver(i_scaling,a,b,c,dtau)
 !
-        use gorilla_diag_mod, only: diag_pusher_tetry_poly
-!
-        implicit none
-!
         integer, intent(in) :: i_scaling
         double precision, intent(in)  :: a,b,c
         double precision,intent(out)                :: dtau
@@ -1824,7 +1648,7 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             case(0)
                 call Quadratic_Solver1(a,b,c,dtau)
             case DEFAULT
-if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
+                print *, 'New quadratic solver is called.'
                 call Quadratic_Solver2(a,b,c,dtau)
         end select
                     
@@ -2073,6 +1897,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         subroutine analytic_integration_without_precomp(poly_order,z,tau)
 !
             use poly_without_precomp_mod
+            use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
 !
             implicit none
 !
@@ -2148,10 +1973,8 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
             type(optional_quantities_type)    :: optional_quantities
 !
-            optional_quantities%t_hamiltonian = 0.d0
-            optional_quantities%gyrophase = 0.d0
-            optional_quantities%vpar_int = 0.d0
-            optional_quantities%vpar2_int = 0.d0
+            optional_quantities%t_hamiltonian = 0
+            optional_quantities%gyrophase = 0
 !
         end subroutine initialise_optional_quantities
 !
@@ -2159,8 +1982,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
     subroutine calc_optional_quantities(poly_order,z0,tau,optional_quantities)
 !
-        use gorilla_settings_mod, only: boole_time_Hamiltonian, boole_gyrophase, boole_vpar_int, boole_vpar2_int, &
-                                        & optional_quantities_type
+        use gorilla_settings_mod, only: boole_time_Hamiltonian, boole_gyrophase, optional_quantities_type
         use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
 !
         implicit none
@@ -2181,31 +2003,25 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
         !recalculate polynomial coefficients (tensors) if more than one integration step was performed
         if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
+
+        !Optional computation of Hamiltonian time
+        if(boole_time_Hamiltonian) then
 !
             allocate(x_coef(3,poly_order+1))
             allocate(vpar_coef(poly_order+1))
+            allocate(x_vpar_coef(3,poly_order+1))
 !
             call z_series_coef(poly_order,z0,x_coef,vpar_coef)
-!
-        !Optional computation of Hamiltonian time
-        if(boole_time_hamiltonian) then
-!
-            allocate(x_vpar_coef(3,poly_order+1))
 !
             call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
             call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
             call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
 !
             delta_t_hamiltonian = hamiltonian_time(ind_tetr)%h1_in_curlA * tau + &
-            & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * moment_integration(poly_order,tau,vpar_coef)+&
-            & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * moment_integration(poly_order,tau,x_coef) ) + &
+            & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * scalar_integral_without_precomp(poly_order,tau,vpar_coef)+&
+            & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * vector_integral_without_precomp(poly_order,tau,x_coef) ) + &
             & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
-            & moment_integration(poly_order,tau,x_vpar_coef))
-!
-            !Multiply delta_t_hamiltonian with appropriate sign (We require that tau remains positive inside the algorithm)
-            delta_t_hamiltonian = delta_t_hamiltonian * dble(sign_rhs)
-!
-!            call calc_t_hamiltonian(poly_order,z0,tau,delta_t_hamiltonian)
+            & vector_integral_without_precomp(poly_order,tau,x_vpar_coef))
 !
             optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + delta_t_hamiltonian
 !
@@ -2217,268 +2033,29 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
                     & 1.d0/cm_over_e * tetra_physics(ind_tetr)%bmod1 * delta_t_hamiltonian + &
 !
                     !First term
-                    & 1.d0/cm_over_e * sum( tetra_physics(ind_tetr)%gb * moment_integration(poly_order,tau,x_coef) ) *&
-                    & hamiltonian_time(ind_tetr)%h1_in_curlA * dble(sign_rhs) + &
+                    & 1.d0/cm_over_e * sum( tetra_physics(ind_tetr)%gb * vector_integral_without_precomp(poly_order,tau,x_coef) ) *&
+                    & hamiltonian_time(ind_tetr)%h1_in_curlA + &
 !
                     !Second term
-                    & sum(moment_integration(poly_order,tau,x_vpar_coef) * tetra_physics(ind_tetr)%gb ) * &
-                    & hamiltonian_time(ind_tetr)%h1_in_curlh * dble(sign_rhs)+ &
+                    & sum(vector_integral_without_precomp(poly_order,tau,x_vpar_coef) * tetra_physics(ind_tetr)%gb ) * &
+                    & hamiltonian_time(ind_tetr)%h1_in_curlh + &
 !
                     !Third term
-                    & 1.d0/cm_over_e * sum( matmul( moment_integration(poly_order,tau,poly_multiplication(x_coef,x_coef)) , &
-                    & hamiltonian_time(ind_tetr)%vec_mismatch_der ) * tetra_physics(ind_tetr)%gb) * dble(sign_rhs) + &
+                    & 1.d0/cm_over_e * sum( matmul( tensor_integral_without_precomp(poly_order,tau,x_coef,x_coef) , &
+                    & hamiltonian_time(ind_tetr)%vec_mismatch_der ) * tetra_physics(ind_tetr)%gb) + &
 !
                     !Fourth term
-                    & sum( matmul( moment_integration(poly_order,tau,poly_multiplication(x_coef,x_vpar_coef)), &
-                    & hamiltonian_time(ind_tetr)%vec_parcurr_der ) *  tetra_physics(ind_tetr)%gb) * dble(sign_rhs) &
+                    & sum( matmul( tensor_integral_without_precomp(poly_order,tau,x_coef,x_vpar_coef), &
+                    & hamiltonian_time(ind_tetr)%vec_parcurr_der ) *  tetra_physics(ind_tetr)%gb) &
                 & )
-!
 
             endif ! gyrophase
 !            
-            deallocate(x_coef,x_vpar_coef)
+            deallocate(x_coef,vpar_coef,x_vpar_coef)
 !
         endif ! time_Hamiltonian
 !
-        if (boole_vpar_int) then 
-            optional_quantities%vpar_int = optional_quantities%vpar_int + moment_integration(poly_order,tau,vpar_coef)
-! print*, 'vpar:',vpar_coef, tau, moment_integration(poly_order,tau,vpar_coef)
-        endif
-        !
-        if (boole_vpar2_int) then
-            optional_quantities%vpar2_int = optional_quantities%vpar2_int  + &
-                                            & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))
-! print*, 'vpar2', poly_multiplication(vpar_coef,vpar_coef), tau, & 
-! moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))
-!
-        endif
-!
-        deallocate(vpar_coef)
-!
     end subroutine calc_optional_quantities
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    subroutine calc_t_hamiltonian(poly_order,z0,tau,t_hamiltonian)
-!
-        use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
-!
-        implicit none
-!
-        integer, intent(in)                             :: poly_order
-        double precision, intent(in)                    :: tau
-        double precision, dimension(4), intent(in)      :: z0
-        double precision, intent(inout)                 :: t_hamiltonian
-!
-        double precision                                :: delta_t_hamiltonian
-        double precision, dimension(:,:), allocatable   :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable     :: vpar_coef
-!
-        !recalculate polynomial coefficients (tensors) if more than one integration step was performed
-        if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
-
-        allocate(x_coef(3,poly_order+1))
-        allocate(vpar_coef(poly_order+1))
-        allocate(x_vpar_coef(3,poly_order+1))
-!
-        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
-!
-        call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
-        call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
-        call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
-!
-        delta_t_hamiltonian = hamiltonian_time(ind_tetr)%h1_in_curlA * tau + &
-        & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * moment_integration(poly_order,tau,vpar_coef)+&
-        & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * moment_integration(poly_order,tau,x_coef) ) + &
-        & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
-        & moment_integration(poly_order,tau,x_vpar_coef))
-!
-        !Multiply delta_t_hamiltonian with appropriate sign (We require that tau remains positive inside the algorithm)
-        delta_t_hamiltonian = delta_t_hamiltonian * dble(sign_rhs)
-!
-        t_hamiltonian = t_hamiltonian + delta_t_hamiltonian
-!
-        deallocate(x_coef,vpar_coef,x_vpar_coef)
-!
-    end subroutine calc_t_hamiltonian
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    subroutine calc_t_hamiltonian_by_order(poly_order,z0,tau,delta_t_hamiltonian)
-!
-        use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
-!
-        implicit none
-!
-        integer, intent(in)                             :: poly_order
-        double precision, dimension(4), intent(in)      :: z0
-        double precision, intent(in)                    :: tau
-        double precision, intent(out)                   :: delta_t_hamiltonian
-        double precision, dimension(:,:), allocatable   :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable     :: vpar_coef
-        double precision                                :: a_coef, b_coef, c_coef, d_coef, e_coef
-
-!
-        !recalculate polynomial coefficients (tensors) if more than one integration step was performed
-        !if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
-!
-        allocate(x_coef(3,poly_order+1))
-        allocate(vpar_coef(poly_order+1))
-        allocate(x_vpar_coef(3,poly_order+1))
-!
-        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
-!
-        call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
-        call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
-        call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
-!
-        !Input for Root Solver
-        !f(tau) = a/24 * tau**4 + b/6 * tau**3 + c/2 * tau**2 + d * tau + e
-!
-        a_coef = (1.d0/5.d0) * ( &
-        & vpar_coef(5) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-        & sum ( x_coef(:,5) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-        & cm_over_e * sum (x_vpar_coef(:,5) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-        & )
-!
-        b_coef = (1.d0/4.d0) * ( &
-        & vpar_coef(4) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-        & sum ( x_coef(:,4) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-        & cm_over_e * sum (x_vpar_coef(:,4) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-        & )
-!
-        c_coef = (1.d0/3.d0) * ( &
-        & vpar_coef(3) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-        & sum ( x_coef(:,3) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-        & cm_over_e * sum (x_vpar_coef(:,3) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-        & )
-!
-        d_coef = 0.5d0 *(  &
-        & vpar_coef(2) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-        & sum ( x_coef(:,2) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-        & cm_over_e * sum (x_vpar_coef(:,2) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-        & )
-!
-        e_coef = ( &
-        & hamiltonian_time(ind_tetr)%h1_in_curlA + &
-        & vpar_coef(1) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-        & sum( x_coef(:,1) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-        & cm_over_e * sum( x_vpar_coef(:,1) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-        & )
-!
-        delta_t_hamiltonian = &
-!        & tau**5 * a_coef + &
-        & tau**4 * b_coef + &
-        & tau**3 * c_coef + &
-        & tau**2 * d_coef + &
-        & tau * e_coef
-!
-        deallocate(x_coef,vpar_coef,x_vpar_coef)
-!
-    end subroutine calc_t_hamiltonian_by_order
-
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    subroutine get_t_hamiltonian_root(poly_order,z0,t_remain,tau_t_hamiltonian_root)
-!
-        use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
-!
-        implicit none
-!
-        integer, intent(in)                                     :: poly_order
-        double precision, dimension(4), intent(in)              :: z0
-        double precision, intent(in)                            :: t_remain
-        double precision, intent(out)                           :: tau_t_hamiltonian_root
-        double precision                                        :: a_coef, b_coef, c_coef, d_coef, e_coef
-        double precision, dimension(:,:), allocatable           :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable             :: vpar_coef
-!
-        !recalculate polynomial coefficients (tensors) if more than one integration step was performed
-        !if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
-!
-        allocate(x_coef(3,poly_order+1))
-        allocate(vpar_coef(poly_order+1))
-        allocate(x_vpar_coef(3,poly_order+1))
-!
-        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
-!
-        call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
-        call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
-        call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
-!
-        !Coefficient for Root Solver
-        !t_hamiltonian(tau) = a * tau**5 + b * tau**4 + c * tau**3 + d * tau**2 + e * tau - t_remain == 0
-!
-        !We neglect the 5th order term in the root solving operation in order to be analytical.
-        !This is only relevant in the "final" tetrahedron of a time step.
-!
-        !t_hamiltonian(tau) = b * tau**4 + c * tau**3 + d * tau**2 + e * tau - t_remain == 0
-!
-        e_coef = ( &
-        & hamiltonian_time(ind_tetr)%h1_in_curlA + &
-        & vpar_coef(1) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-        & sum( x_coef(:,1) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-        & cm_over_e * sum( x_vpar_coef(:,1) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-        & )
-!
-        if(poly_order.ge.1) then
-            d_coef = 0.5d0 *(  &
-            & vpar_coef(2) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-            & sum ( x_coef(:,2) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-            & cm_over_e * sum (x_vpar_coef(:,2) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-            & )
-        endif
-!
-        if(poly_order.ge.2) then
-            c_coef = (1.d0/3.d0) * ( &
-            & vpar_coef(3) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-            & sum ( x_coef(:,3) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-            & cm_over_e * sum (x_vpar_coef(:,3) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-            & )
-        endif
-!
-        if(poly_order.ge.3) then
-            b_coef = (1.d0/4.d0) * ( &
-            & vpar_coef(4) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-            & sum ( x_coef(:,4) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-            & cm_over_e * sum (x_vpar_coef(:,4) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-            & )
-        endif
-!
-!        a_coef = (1.d0/5.d0) * ( &
-!        & vpar_coef(5) * cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh + &
-!        & sum ( x_coef(:,5) * hamiltonian_time(ind_tetr)%vec_mismatch_der(:) ) + &
-!        & cm_over_e * sum (x_vpar_coef(:,5) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
-!        & )
-!
-        deallocate(x_coef,vpar_coef,x_vpar_coef)
-!
-        !Manipulate coefficients for root solvers
-        !f(tau) = b/24 * tau**4 + c/6 * tau**3 + d/2 * tau**2 + e * tau - t_remain == 0
-!
-        !t_remain = t_remain
-        !e_coef = e_coef
-        if(poly_order.ge.1) d_coef = 2.d0 * d_coef
-        if(poly_order.ge.2) c_coef = 6.d0 * c_coef
-        if(poly_order.ge.3) b_coef = 24.d0 * b_coef
-!
-        !Multiply delta_t_hamiltonian with appropriate sign (We require that tau remains positive inside the algorithm)
-        e_coef = e_coef * sign_rhs
-        if(poly_order.ge.1) d_coef = d_coef * sign_rhs
-        if(poly_order.ge.2) c_coef = c_coef * sign_rhs
-        if(poly_order.ge.3) b_coef = b_coef * sign_rhs
-!
-        !Find root
-        select case(poly_order)
-            case(1)
-                call Quadratic_Solver2(d_coef,e_coef,-t_remain,tau_t_hamiltonian_root)
-            case(2)
-                call Cubic_Solver(c_coef,d_coef,e_coef,-t_remain,tau_t_hamiltonian_root)
-            case(3,4)
-                call Quartic_Solver(0,b_coef,c_coef,d_coef,e_coef,-t_remain,tau_t_hamiltonian_root)
-        end select
-!
-    end subroutine get_t_hamiltonian_root
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -2575,6 +2152,94 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+    pure function scalar_integral_without_precomp(poly_order,tau,scalar_coef)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(:), intent(in)      :: scalar_coef
+!
+        double precision                                :: scalar_integral_without_precomp
+!
+        if(poly_order.ge.1) then
+            scalar_integral_without_precomp = scalar_coef(1)*tau + tau**2 * 0.5d0 * scalar_coef(2)
+        endif
+!
+        if(poly_order.ge.2) then
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**3/3.d0 * scalar_coef(3)
+        endif
+!
+        if(poly_order.ge.3) then
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**4/4.d0 * scalar_coef(4)
+        endif
+!
+        if(poly_order.ge.4) then
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**5/5.d0 * scalar_coef(5)
+        endif
+!
+    end function scalar_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function vector_integral_without_precomp(poly_order,tau,vector_coef)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(:,:), intent(in)    :: vector_coef
+!
+        double precision, dimension(3)                  :: vector_integral_without_precomp
+!
+        integer                                         :: i
+!
+        forall(i = 1:3) vector_integral_without_precomp(i) = scalar_integral_without_precomp(poly_order,tau,vector_coef(i,:))
+!
+    end function vector_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function tensor_integral_without_precomp(poly_order,tau,vector_coef_1,vector_coef_2)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(:,:), intent(in)    :: vector_coef_1,vector_coef_2
+!
+        double precision, dimension(3,3)                :: tensor_integral_without_precomp
+        double precision, dimension(:), allocatable     :: tensor_component_coef
+        integer :: j,k
+!
+        allocate(tensor_component_coef(poly_order+1))
+!
+        do j = 1,3
+            do k = 1,3
+!
+                !Compute convolution of coefficient for one component
+                call poly_multiplication_coef(vector_coef_1(j,:),vector_coef_2(k,:),tensor_component_coef)
+!
+                tensor_integral_without_precomp(j,k) = scalar_integral_without_precomp(poly_order,tau,tensor_component_coef)
+!
+            enddo
+        enddo
+!
+        deallocate(tensor_component_coef)
+!
+    end function tensor_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
         subroutine analytic_integration_with_precomp(poly_order,i_precomp,z,tau)
 !
             use tetra_physics_poly_precomp_mod, only: tetra_physics_poly4
@@ -2614,7 +2279,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
                     select case(i_precomp)
                         case(1)
                             operator_b = tau*unity_matrix4 + tau2_half*(perpinv*tetra_physics_poly4(ind_tetr)%amat1_1(:,:) + &
-                                        & tetra_physics_poly4(ind_tetr)%amat1_0(:,:))
+                                       & tetra_physics_poly4(ind_tetr)%amat1_0(:,:))
 !
                             !Integration of trajectory (analytic 2nd order)
                             z = z + matmul(operator_b,b) + matmul(operator_z_init,z)
@@ -2632,7 +2297,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
                         !Integration of trajectory (analytic 2nd order)
                         z = z + operator_b_in_b + matmul(operator_z_init,z)
-                    end select
+                   end select
 !
                 case(3)
 
@@ -2649,14 +2314,14 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
                     select case(i_precomp)
                         case(1)
                             operator_b = tau*unity_matrix4 + tau2_half*(perpinv*tetra_physics_poly4(ind_tetr)%amat1_1 + &
-                                        & tetra_physics_poly4(ind_tetr)%amat1_0) + &
-                                        & tau3_sixth*(perpinv2*tetra_physics_poly4(ind_tetr)%amat2_2 + &
-                                        & perpinv*tetra_physics_poly4(ind_tetr)%amat2_1 + &
-                                        & tetra_physics_poly4(ind_tetr)%amat2_0)
+                                       & tetra_physics_poly4(ind_tetr)%amat1_0) + &
+                                       & tau3_sixth*(perpinv2*tetra_physics_poly4(ind_tetr)%amat2_2 + &
+                                       & perpinv*tetra_physics_poly4(ind_tetr)%amat2_1 + &
+                                       & tetra_physics_poly4(ind_tetr)%amat2_0)
 !
                             !Integration of trajectory (analytic 3rd order)
                             z = z + matmul(operator_b,b) + matmul(operator_z_init,z)
-                    end select
+                   end select
 !
                 case(4)
 
@@ -2678,18 +2343,18 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
                     select case(i_precomp)
                         case(1)
                             operator_b = tau*unity_matrix4 + tau2_half*(perpinv*tetra_physics_poly4(ind_tetr)%amat1_1 + &
-                                        & tetra_physics_poly4(ind_tetr)%amat1_0) + &
-                                        & tau3_sixth*(perpinv2*tetra_physics_poly4(ind_tetr)%amat2_2 + &
-                                        & perpinv*tetra_physics_poly4(ind_tetr)%amat2_1 + &
-                                        & tetra_physics_poly4(ind_tetr)%amat2_0) + &
-                                        & tau4_twentyfourth*(perpinv3*tetra_physics_poly4(ind_tetr)%amat3_3 + &
-                                        & perpinv2*tetra_physics_poly4(ind_tetr)%amat3_2 + &
-                                        & perpinv*tetra_physics_poly4(ind_tetr)%amat3_1 + &
-                                        & tetra_physics_poly4(ind_tetr)%amat3_0)
+                                       & tetra_physics_poly4(ind_tetr)%amat1_0) + &
+                                       & tau3_sixth*(perpinv2*tetra_physics_poly4(ind_tetr)%amat2_2 + &
+                                       & perpinv*tetra_physics_poly4(ind_tetr)%amat2_1 + &
+                                       & tetra_physics_poly4(ind_tetr)%amat2_0) + &
+                                       & tau4_twentyfourth*(perpinv3*tetra_physics_poly4(ind_tetr)%amat3_3 + &
+                                       & perpinv2*tetra_physics_poly4(ind_tetr)%amat3_2 + &
+                                       & perpinv*tetra_physics_poly4(ind_tetr)%amat3_1 + &
+                                       & tetra_physics_poly4(ind_tetr)%amat3_0)
 !
                             !Integration of trajectory (analytic 4th order)
                             z = z + matmul(operator_b,b) + matmul(operator_z_init,z)
-                    end select
+                   end select
             end select
 !
         end subroutine analytic_integration_with_precomp
@@ -2734,6 +2399,54 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         end subroutine analytic_integration_with_precomp_perpinv
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        function bmod_func(z123)
+!
+            use tetra_physics_mod, only: tetra_physics
+!
+            implicit none
+!
+            double precision :: bmod_func
+            double precision, dimension(3),intent(in) :: z123
+!
+            bmod_func = tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z123)
+!        
+        end function bmod_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!        
+        function phi_elec_func(z123)
+!
+            use tetra_physics_mod, only: tetra_physics
+!
+            implicit none
+!
+            double precision :: phi_elec_func
+            double precision, dimension(3),intent(in) :: z123
+!
+            phi_elec_func = tetra_physics(ind_tetr)%Phi1 + sum(tetra_physics(ind_tetr)%gPhi*z123)
+!        
+        end function phi_elec_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!   
+        function energy_tot_func(z)
+!
+            use tetra_physics_mod, only: tetra_physics,particle_mass,particle_charge
+!
+            implicit none
+!
+            double precision                :: energy_tot_func,vperp
+            double precision, dimension(4)  :: z
+!
+            !Compute vperp
+            vperp=sqrt(2.d0*abs(perpinv)*( tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z(1:3)) ))
+!
+            energy_tot_func = particle_mass/2.d0*(vperp**2 + z(4)**2) + particle_charge*phi_elec_func(z(1:3))
+!       
+        end function energy_tot_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !    
     function normal_distance_func(z123,iface)
 !
@@ -2757,10 +2470,9 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
     function normal_velocity_func(z,iface)
 !        
         use tetra_physics_poly_precomp_mod, only: tetra_physics_poly4,tetra_physics_poly1
-        use tetra_physics_mod, only: tetra_physics, cm_over_e
+        use tetra_physics_mod, only: tetra_physics
         use poly_without_precomp_mod, only: b
-        use gorilla_settings_mod, only: i_precomp, boole_strong_electric_field
-        use constants, only: clight
+        use gorilla_settings_mod, only: i_precomp
 !
         implicit none
 !        
@@ -2769,18 +2481,12 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         double precision                            :: normal_velocity_func
 !
         if(i_precomp.eq.0) then
-            normal_velocity_func = (sum((-clight*tetra_physics_poly1(ind_tetr)%anorm_in_betmat(:,iface) + &
-                        & perpinv*cm_over_e*tetra_physics_poly1(ind_tetr)%anorm_in_alpmat(:,iface)) * z(1:3)) + &
-                        & tetra_physics_poly1(ind_tetr)%anorm_in_betvec(iface) * z(4)) * dble(sign_rhs) + &
+            normal_velocity_func = sum((tetra_physics_poly1(ind_tetr)%anorm_in_amat1_0(:,iface) + &
+                        & perpinv * tetra_physics_poly1(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) + &
                         & sum(tetra_physics(ind_tetr)%anorm(:,iface) * b(1:3))
-            if(boole_strong_electric_field) then
-                normal_velocity_func = normal_velocity_func + & 
-                                    &   (sum(- 0.5d0*cm_over_e*tetra_physics_poly1(ind_tetr)%anorm_in_gammat(:,iface) * z(1:3)) &
-                                    &   + cm_over_e*tetra_physics_poly1(ind_tetr)%anorm_in_gamvec(iface) * z(4)) * dble(sign_rhs) 
-            endif
         else
             normal_velocity_func = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,iface) + &
-                                    & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) * dble(sign_rhs) + &
+                                    & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) + &
                                     & sum(tetra_physics(ind_tetr)%anorm(:,iface) * b(1:3))
         endif
 !        
@@ -2793,7 +2499,6 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         use tetra_physics_mod, only: tetra_physics,cm_over_e
         use tetra_grid_settings_mod, only: grid_size
         use constants, only : clight
-        use gorilla_settings_mod, only: boole_strong_electric_field
 !
         implicit none
 !
@@ -2807,12 +2512,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         vperp2 = -2.d0*perpinv*bmod0
 !
         !ExB drift velocity
-        !Only in case of strong electric field mode, ExB drift directly calculated during tetra_physics-setup
-        if (boole_strong_electric_field) then
-            vd_ExB = tetra_physics(ind_tetr)%v_E_mod_average
-        else
-            vd_ExB = abs(clight/bmod0*tetra_physics(ind_tetr)%Er_mod)
-        endif
+        vd_ExB = abs(clight/bmod0*tetra_physics(ind_tetr)%Er_mod)
         boole_vd_ExB = .true.
         if(vd_ExB.eq.0.d0) boole_vd_ExB = .false.
 !
@@ -3011,7 +2711,7 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting: Safety margin'
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-end module pusher_tetra_poly_mod
+end module
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! 
@@ -3038,81 +2738,45 @@ module par_adiab_inv_poly_mod
         !           the quantities from last pushing
 !        
         use poly_without_precomp_mod, only: amat,b
-        use supporting_functions_mod, only: energy_tot_func
-        use pusher_tetra_poly_mod, only: dt_dtau_const,z_init,ind_tetr, perpinv, &
-                                                number_of_integration_steps, intermediate_z0_list, tau_steps_list, &
-                                                & set_integration_coef_manually
+        use pusher_tetra_poly_mod, only: dt_dtau_const,z_init,ind_tetr,analytic_integration_without_precomp, &
+                                                & energy_tot_func
         use tetra_physics_mod, only: particle_mass,tetra_physics
-        use gorilla_diag_mod, only: diag_pusher_tetry_poly_adaptive
 !  
         implicit none
 !
         integer, intent(in)                 :: poly_order,file_id_vpar_0,file_id_J_par,file_id_e_tot,n_skip_vpar_0
         double precision, intent(in)        :: t_pass,vpar_in,vpar_end
         logical, intent(in)                 :: boole_J_par,boole_poincare_vpar_0,boole_e_tot
-        double precision                    :: a44,b4,tau_part1
+        double precision                    :: tau,a44,b4,tau_part1
         double precision, dimension(4)      :: z
         double precision, dimension(3)      :: x
-        integer                             :: i, turning_index
-!
-        !If particle was lost and the recording quantities deallocated -> no further calculations (here for safety)
-        if (.not.allocated(intermediate_z0_list)) return
 !
         nskip = n_skip_vpar_0
 !
-!        !Convert t_pass to tau
-!        tau = t_pass/dt_dtau_const
+        !Convert t_pass to tau
+        tau = t_pass/dt_dtau_const
 !
         !Select matrix and vector elements that are use for v_parallel integration
         a44 = amat(4,4)
         b4 = b(4)
 !
-if(diag_pusher_tetry_poly_adaptive) then
-if(number_of_integration_steps.gt.1) then
-print*, '----------------------------------'
-do i = 1, number_of_integration_steps
-print*, 'z0 number', i
-print*, intermediate_z0_list(:,i)
-print*, tau_steps_list(i)
-enddo
-print*, 'J_par before', par_adiab_inv
-endif
-endif
         !Trace banana tips
         if((vpar_end.gt.0.d0).and.(vpar_in.lt.0.d0)) then
             !Find exact root of vpar(tau)  --> tau_part1 is the "time" inside the tetrahedron until $v=\parallel$ = 0
-            !turning_index = findloc(intermediate_z0_list(4,1:number_of_integration_steps) .gt. 0.0d0, .TRUE.) - 1
-            turning_index = findloc(intermediate_z0_list(4,1:number_of_integration_steps) .gt. 0.0d0, .TRUE., dim = 1) - 1
-            if (turning_index.eq.0) then
-                !as then vpar > 0 at tetrahedron entry, which conflicts vpar_in < 0 of above
-                print*, 'Error in par_adiab_inv_poly_mod: orbit already bounced before entering!'
-                stop
-            endif
-            !If findloc does not find any match, aka orbit turned in LAST step -> returns 0 -> turning_index = -1
-            if (turning_index.eq.-1) turning_index = number_of_integration_steps
-!
-            !Find now the root on the relevant orbit section determined above, to get the order-consistent result
-            tau_part1 = tau_vpar_root(poly_order,a44,b4,intermediate_z0_list(4,turning_index))
-!    
-            if(tau_part1.gt.tau_steps_list(turning_index)) print *, 'Error in par_adiab_inv_poly_mod: bounce happens after section?'
+            tau_part1 = tau_vpar_root(poly_order,a44,b4,vpar_in)
+            
+            if(tau_part1.gt.tau) print *, 'Error'
 !
             !Integrate par_adiab_inv exactly until root of vpar(tau)
-            do i = 1, turning_index - 1
-                par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_steps_list(i), & 
-                                                                & intermediate_z0_list(4,i))*dt_dtau_const
-            enddo !integrating UP to turning point (before turn)
-            !And finish from the turning index to the actual bounce
-            par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_part1, & 
-                                                            & intermediate_z0_list(4,turning_index))*dt_dtau_const
-!
+            par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_part1,vpar_in)*dt_dtau_const  
+        
             if(counter_banana_mappings.gt.1) then
                 if(counter_banana_mappings/nskip*nskip.eq.counter_banana_mappings) then
+
 !                    
                     !Poloidal projection of Poincaré sections at $v=\parallel$ = 0
-                    !Need again to integrate from turning point to actual bounce
-                    z = intermediate_z0_list(:,turning_index)
-                    call set_integration_coef_manually(poly_order,z)
-                    call analytic_integration_external(poly_order,z,tau_part1)
+                    z = z_init
+                    call analytic_integration_without_precomp(poly_order,z,tau_part1)
                     x=z(1:3)+tetra_physics(ind_tetr)%x1
 !
                     ! write coordinates for poincare cuts
@@ -3130,7 +2794,7 @@ endif
 !
                     !$omp critical
                         if(boole_e_tot) then
-                            write(file_id_e_tot,*) counter_banana_mappings,energy_tot_func(z,perpinv,ind_tetr)
+                            write(file_id_e_tot,*) counter_banana_mappings,energy_tot_func(z)
                         endif
                     !$omp end critical
                     !print *, 'banana bounces:', counter_banana_mappings
@@ -3140,37 +2804,17 @@ endif
 !
             !Start to integrate par_adiab_inv for new bounce period
             par_adiab_inv = 0.d0
-            !The new period starts at the bounce, so we finish the rest of the turning section
-            par_adiab_inv = par_adiab_inv + &
-                            & par_adiab_tau(poly_order,a44,b4,tau_steps_list(turning_index)-tau_part1,0.d0)*dt_dtau_const
-            !And we then the remaining steps of total tetrahedron orbit
-            do i = turning_index + 1, number_of_integration_steps
-                par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_steps_list(i), & 
-                                                                & intermediate_z0_list(4,i))*dt_dtau_const
-            enddo !integrating FROM end of turning section to the end of the total tetrahedron orbit
+            par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau-tau_part1,0.d0)*dt_dtau_const 
         else    
             !Compute parallel adiabatic invariant as a function of time
-            do i = 1, number_of_integration_steps
-                par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau_steps_list(i), & 
-                                                                & intermediate_z0_list(4,i))*dt_dtau_const
-            enddo !stepwise integration over whole tetrahedron orbit    
-        endif
-!
-if(diag_pusher_tetry_poly_adaptive) then
-if(number_of_integration_steps .gt. 1) then
-print*, 'J_par after', par_adiab_inv
-print*, 'turning_index', turning_index
-print*, 'Bounce?', (vpar_end.gt.0.d0).and.(vpar_in.lt.0.d0)
-endif  
-endif 
+            par_adiab_inv = par_adiab_inv + par_adiab_tau(poly_order,a44,b4,tau,vpar_in)*dt_dtau_const    
+        endif     
 !  
     end subroutine par_adiab_inv_tetra_poly
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !   
     function par_adiab_tau(poly_order,a44,b4,tau,vpar_in)
-!
-        use pusher_tetra_poly_mod, only: sign_rhs
 !
         implicit none
 !
@@ -3194,7 +2838,7 @@ endif
                             & + 1.d0/60.d0*tau**5*(7.d0*a44**2*b4**2+15.d0*a44**3*b4*vpar_in + 8.d0*a44**4*vpar_in**2)
 ! 
         end select
-!
+!        
     end function par_adiab_tau
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -3211,7 +2855,7 @@ endif
 !
 
         !Compute coefficients for vpar(t)==0 root finding
-        !f(tau)  = a + b*tau + c/2 * tau^2 + d/6 * tau^3 + e/24 * tau^4
+        !f(tau)  = a + b*tau + c/2 * tau^2 + d/6 * tau^3 + e/24 * tau^5
 !
         i_scaling = 0
 !
@@ -3253,196 +2897,86 @@ endif
 !
     end function tau_vpar_root
 !        
-    subroutine analytic_integration_external(poly_order,z,tau)
+end module
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+module vperp2_integral_mod
+!
+!WARNING: This module and its functions and routines were never tested and only written conceptually.
+!
+    implicit none
+!
+    private
+!
+    public :: vperp2_integral_tetra
+!
+    contains
+!    
+    function vperp2_integral_tetra(poly_order,t_pass)
+        !WARNING: This subroutine CAN ONLY BE CALLED directly after pusher, when modules still contain
+        !           the quantities from last pushing
+!        
+        use pusher_tetra_poly_mod, only: ind_tetr,perpinv,dt_dtau_const,bmod0
+        use tetra_physics_mod, only: tetra_physics
+!
+        implicit none
+!        
+        integer                         :: poly_order
+        double precision                :: vperp2_integral_tetra,tau,t_pass
+!
+        !Convert t_pass to tau
+        tau = t_pass/dt_dtau_const
+!
+        !Integral of vper^2(tau) over dwell time-orbit parameter
+        vperp2_integral_tetra = -2.d0*perpinv*( bmod0*tau &
+                            & + sum(tetra_physics(ind_tetr)%gB * x_integral_tetra(poly_order,tau)) )
+!
+        !Integral of vper^2(time)
+        vperp2_integral_tetra = vperp2_integral_tetra*dt_dtau_const
+! 
+    end function vperp2_integral_tetra
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function x_integral_tetra(poly_order,tau)
 !
         use poly_without_precomp_mod
+        use pusher_tetra_poly_mod, only: z_init
 !
         implicit none
 !
-        integer, intent(in)                          :: poly_order
-        double precision, intent(in)                 :: tau
-        double precision, dimension(4),intent(inout) :: z
-        double precision                             :: tau2_half,tau3_sixth,tau4_twentyfourth
+        integer, parameter                  :: n_dim=3
+        integer                             :: poly_order
+        double precision, dimension(n_dim)  :: x_integral_tetra
+        double precision                    :: tau,tau2_half,tau3_sixth,tau4_twelvth,tau5_hundredtwentyth
 !
-        !In contrast to the poly_pusher_mod counterpart, this integrator DOES NOT change the orbit recording quantities (for safety)
-        if(poly_order.ge.1) then
-            z = z + tau*(b+amat_in_z)
-        endif
+            if(poly_order.ge.1) then
+                tau2_half = tau**2*0.5d0
+                x_integral_tetra(1:n_dim) = z_init(1:n_dim)*tau + tau2_half*(b(1:n_dim)+amat_in_z(1:n_dim))
+            endif
 !
-        if(poly_order.ge.2) then
-            tau2_half = tau**2*0.5d0
-            z = z + tau2_half*(amat_in_b + amat2_in_z)
-        endif
+            if(poly_order.ge.2) then
+                tau3_sixth = tau**3/6.d0
+                x_integral_tetra(1:n_dim) = x_integral_tetra(1:n_dim) + tau3_sixth*(amat_in_b(1:n_dim) &
+                                          & + amat2_in_z(1:n_dim))
+            endif
 !
-        if(poly_order.ge.3) then
-            tau3_sixth = tau**3/6.d0
-            z = z + tau3_sixth*(amat2_in_b + amat3_in_z)
-        endif
-
-        if(poly_order.ge.4) then
-            tau4_twentyfourth = tau**4/24.d0
-            z = z + tau4_twentyfourth *(amat3_in_b + amat4_in_z)
-        endif
+            if(poly_order.ge.3) then
+                tau4_twelvth = tau**4/12.d0
+                x_integral_tetra(1:n_dim) = x_integral_tetra(1:n_dim) + tau4_twelvth*(amat2_in_b(1:n_dim) &
+                                          & + amat3_in_z(1:n_dim))
+            endif
 !
-    end subroutine analytic_integration_external
+            if(poly_order.ge.4) then
+                tau5_hundredtwentyth = tau**5/120.d0
+                x_integral_tetra(1:n_dim) = x_integral_tetra(1:n_dim) + tau5_hundredtwentyth *(amat3_in_b(1:n_dim) &
+                                          & + amat4_in_z(1:n_dim))  
+            endif
 !
-end module par_adiab_inv_poly_mod
+    end function x_integral_tetra
 !
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-pure function scalar_multiplication_without_precomp(scalar_coef_1,scalar_coef_2)
-use pusher_tetra_poly_mod, only: poly_multiplication_coef
-implicit none
-double precision, dimension(:), intent(in)           :: scalar_coef_1,scalar_coef_2
-double precision, dimension(:), allocatable          :: scalar_multiplication_without_precomp
-integer                                              :: k
-!
-k = maxval((/size(scalar_coef_1),size(scalar_coef_2)/))
-allocate(scalar_multiplication_without_precomp(k))
-call poly_multiplication_coef(scalar_coef_1,scalar_coef_2,scalar_multiplication_without_precomp)
-!
-end function scalar_multiplication_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-pure function vector_multiplication_without_precomp(scalar_coef,vector_coef)
-use pusher_tetra_poly_mod, only: poly_multiplication_coef
-implicit none
-double precision, dimension(:), intent(in)           :: scalar_coef
-double precision, dimension(:,:), intent(in)         :: vector_coef
-double precision, dimension(:), allocatable          :: scalar_coef_res
-integer                                              :: i,j,k
-double precision, dimension(:,:), allocatable        :: vector_multiplication_without_precomp
-!
-j = size(vector_coef(:,1))
-k = maxval((/size(vector_coef(1,:)),size(scalar_coef)/))
-allocate(scalar_coef_res(k))
-allocate(vector_multiplication_without_precomp(j,k))
-!
-do i = 1,j
-        call poly_multiplication_coef(scalar_coef,vector_coef(i,:),scalar_coef_res)
-        vector_multiplication_without_precomp(i,:) = scalar_coef_res
-enddo
-deallocate(scalar_coef_res)
-end function vector_multiplication_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-pure function tensor_multiplication_without_precomp(vector_coef_1,vector_coef_2)
-use pusher_tetra_poly_mod, only: poly_multiplication_coef
-implicit none
-double precision, dimension(:,:), intent(in)         :: vector_coef_1,vector_coef_2
-integer                                              :: i,j,k,l,m
-double precision, dimension(:), allocatable          :: scalar_coef_res
-double precision, dimension(:,:,:), allocatable      :: tensor_multiplication_without_precomp
-!
-k = size(vector_coef_1(:,1))
-l = size(vector_coef_2(:,1))
-m = maxval((/size(vector_coef_1(1,:)),size(vector_coef_2(1,:))/))
-allocate(scalar_coef_res(m))
-allocate(tensor_multiplication_without_precomp(k,l,m))
-!
-        do i = 1,k
-            do j = 1,l
-                call poly_multiplication_coef(vector_coef_1(i,:),vector_coef_2(j,:),scalar_coef_res)
-                tensor_multiplication_without_precomp(i,j,:) = scalar_coef_res
-            enddo
-        enddo
-deallocate(scalar_coef_res)
-!
-end function tensor_multiplication_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-pure function scalar_integral_without_precomp(poly_order,tau,scalar_coef)
-!
-        !This function shall only be called within the subroutine "calc_optional_quantities"
-        !Values in modules are used that need to be precomputed/set in that subroutine.
-!
-        implicit none
-!
-        integer, intent(in)                                  :: poly_order
-        double precision, intent(in)                         :: tau
-        double precision, dimension(:), intent(in)           :: scalar_coef
-
-        double precision                                     :: scalar_integral_without_precomp
-!
-        if(poly_order.ge.1) then
-            scalar_integral_without_precomp = scalar_coef(1)*tau + tau**2 * 0.5d0 * scalar_coef(2)
-        endif
-!
-        if(poly_order.ge.2) then
-            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**3/3.d0 * scalar_coef(3)
-        endif
-!
-        if(poly_order.ge.3) then
-            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**4/4.d0 * scalar_coef(4)
-        endif
-!
-        if(poly_order.ge.4) then
-            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**5/5.d0 * scalar_coef(5)
-        endif
-!
-    end function scalar_integral_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-!
-    pure function vector_integral_without_precomp(poly_order,tau,vector_coef)
-!
-        !This function shall only be called within the subroutine "calc_optional_quantities"
-        !Values in modules are used that need to be precomputed/set in that subroutine.
-    !
-    use pusher_tetra_poly_mod, only: moment_integration
-!
-        implicit none
-
-        
-!
-        integer, intent(in)                                   :: poly_order
-        double precision, intent(in)                          :: tau
-        double precision, dimension(:,:), intent(in)          :: vector_coef
-!
-        double precision, dimension(:), allocatable           :: vector_integral_without_precomp
-!
-        integer                                               :: i,m
-!
-        m = size(vector_coef(:,1))
-        allocate(vector_integral_without_precomp(m))
-        do i = 1,m
-        vector_integral_without_precomp(i) = moment_integration(poly_order,tau,vector_coef(i,:))
-        enddo
-!
-    end function vector_integral_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    pure function tensor_integral_without_precomp(poly_order,tau,tensor_coef)
-!
-        !This function shall only be called within the subroutine "calc_optional_quantities"
-        !Values in modules are used that need to be precomputed/set in that subroutine.
-!
-    use pusher_tetra_poly_mod, only: moment_integration
-        implicit none
-!
-        integer, intent(in)                             :: poly_order
-        double precision, intent(in)                    :: tau
-        double precision, dimension(:,:,:), intent(in)  :: tensor_coef
-!
-        double precision, dimension(:,:), allocatable   :: tensor_integral_without_precomp
-        integer :: j,k,m,n
-!
-        m = size(tensor_coef(:,1,1))
-        n = size(tensor_coef(1,:,1))
-        allocate(tensor_integral_without_precomp(m,n))
-!
-        do j = 1,m
-            do k = 1,n
-                tensor_integral_without_precomp(j,k) = moment_integration(poly_order,tau,tensor_coef(j,k,:))
-            enddo
-        enddo
-!
-    end function tensor_integral_without_precomp
+end module    
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

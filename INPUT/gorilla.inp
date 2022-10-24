@@ -127,8 +127,10 @@
 !------------------------------------------------------------------------------------------------------------!
 !
  !Switches to calculate optional quantities
- boole_time_Hamiltonian = .false. ,
+ boole_time_hamiltonian = .false. ,
  boole_gyrophase = .false. ,
+ boole_vpar_int = .false. ,
+ boole_vpar2_int = .false. ,
 !
 !------------------------------------------------------------------------------------------------------------!
 !
@@ -150,6 +152,11 @@
 !
 !------------------------------------------------------------------------------------------------------------!
 !
+  !boolean for precalculation of rectangular grid to improve find_tetra (sensible for n_particles >> 1)
+  boole_grid_for_find_tetra = .true.
+!
+!------------------------------------------------------------------------------------------------------------!
+!
  !In the guiding center theory of the default implementation the electric field is assumed to be weak 
  !compared to the magnetic field. In case of the investigation of impurities in WEST geometry
  !(Soledge3X-EIRENE, cylindrical coordinates only) additional terms have to be included in the dynamics
@@ -161,7 +168,7 @@
 !
  !Switch for saving electric field and drift to .dat-files
  boole_save_electric = .false. ,
-
+!
  !Filenames for storing electric field and drift velocity
  filename_electric_field = 'electric_field.dat',
  filename_electric_drift = 'electric_drift.dat'

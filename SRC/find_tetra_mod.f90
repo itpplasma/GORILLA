@@ -25,7 +25,7 @@ module find_tetra_mod
 !
         use constants, only: pi, eps
         use tetra_grid_mod, only: verts_rphiz, verts_sthetaphi, tetra_grid, ntetr
-        use tetra_grid_settings_mod, only: grid_size, grid_kind
+        use tetra_grid_settings_mod, only: grid_size, grid_kind, n_field_periods
         use tetra_physics_mod, only: tetra_physics, coord_system
         !use pusher_tetra_poly_mod, only: normal_distance_func
 !
@@ -39,8 +39,7 @@ module find_tetra_mod
         double precision, dimension(:,:), allocatable  :: verts_abc
 !
 print*, 'grid_for_find_tetra started'
-        a_factor = 2
-        c_factor = 2
+        a_factor = 4
         boole_reduce_entries = .true.
         boole_axi_symmetry = .false.
 !
@@ -66,23 +65,34 @@ print*, 'grid_for_find_tetra started'
         cmin = minval(verts_abc(ind_c,:)) - 2*eps
         cmax = maxval(verts_abc(ind_c,:)) + 2*eps
         if (boole_axi_symmetry) bmax = 2*pi/grid_size(ind_b)
+        if (coord_system.eq.2) then
+            cmin = -2*eps
+            cmax = 2*pi + 2*eps
+        endif
 !
         na = grid_size(ind_a)*a_factor
+        delta_a = (amax - amin)/na
+!
+        c_factor = maxval((/nint((cmax-cmin)/(grid_size(ind_c)*delta_a)),1/))
         nc = grid_size(ind_c)*c_factor
 !
         if (grid_kind.eq.4) then
             na = 200*a_factor
+            delta_a = (amax - amin)/na
+            c_factor = maxval((/nint((cmax-cmin)/(200*delta_a)),1/))
             nc = 200*c_factor
             boole_axi_symmetry = .true.
         endif
         !boole_axi_symmetry = .false.
 !
-        delta_a = (amax - amin)/na
         delta_c = (cmax - cmin)/nc
 !
-        b_factor = maxval((/nint(2*pi/(grid_size(ind_b)*((delta_a+delta_c)/2))),1/))
+        b_factor = maxval((/nint(2*pi/(grid_size(ind_b)*n_field_periods*((delta_a+delta_c)/2))),1/))
+        b_factor = b_factor*n_field_periods
+!
         nb = grid_size(ind_b)*b_factor
         delta_b = 2*pi/nb
+print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta_b, delta_c
 !
         max_nb = nb
         if (boole_axi_symmetry) max_nb = b_factor
@@ -100,7 +110,8 @@ print*, 'grid_for_find_tetra started'
         if (boole_axi_symmetry) maxtetr = ntetr/grid_size(2)
 !
         !$OMP PARALLEL DEFAULT(NONE) &
-        !$OMP& SHARED(maxtetr,verts_abc,ind_a,ind_b,ind_c,amin,cmin,delta_a,delta_b,delta_c,tetra_grid,na,nb,nc,entry_counter) &
+        !$OMP& SHARED(maxtetr,verts_abc,ind_a,ind_b,ind_c,amin,cmin,delta_a,delta_b,delta_c,tetra_grid,na,nb,nc,entry_counter, &
+        !$OMP& grid_size,n_field_periods,coord_system) &
         !$OMP& PRIVATE(i,tetr_amin,tetr_amax,tetr_cmin,tetr_cmax,steps_a,steps_b,steps_c,box_index,a,b,c)
         !$OMP DO
         do i = 1, maxtetr
@@ -108,6 +119,11 @@ print*, 'grid_for_find_tetra started'
             tetr_amax = maxval(verts_abc(ind_a,tetra_grid(i)%ind_knot([1,2,3,4]))) + eps
             tetr_cmin = minval(verts_abc(ind_c,tetra_grid(i)%ind_knot([1,2,3,4]))) - eps
             tetr_cmax = maxval(verts_abc(ind_c,tetra_grid(i)%ind_knot([1,2,3,4]))) + eps
+!
+            if ((coord_system.eq.2).and.((tetr_cmax-tetr_cmin).gt.(2*pi/(grid_size(ind_c))+eps))) then !correct the case when theta is 0 but should be 2*pi
+                tetr_cmin = tetr_cmax
+                tetr_cmax = 2*pi
+            endif
 !
             steps_a(1) = int((tetr_amin-amin)/delta_a) + 1
             steps_a(2) = int((tetr_amax-amin)/delta_a) + 1
@@ -144,7 +160,7 @@ print*, 'grid_for_find_tetra started'
 !
         !$OMP PARALLEL DEFAULT(NONE) &
         !$OMP& SHARED(maxtetr,verts_abc,ind_a,ind_b,ind_c,amin,cmin,delta_a,delta_b,delta_c,tetra_grid,na,nb,nc,entry_counter, &
-        !$OMP& equidistant_grid) &
+        !$OMP& equidistant_grid,grid_size,n_field_periods,coord_system,num_hexahedra) &
         !$OMP& PRIVATE(i,tetr_amin,tetr_amax,tetr_cmin,tetr_cmax,steps_a,steps_b,steps_c,box_index,a,b,c)
         !$OMP DO
         do i = 1, maxtetr
@@ -152,6 +168,11 @@ print*, 'grid_for_find_tetra started'
             tetr_amax = maxval(verts_abc(ind_a,tetra_grid(i)%ind_knot([1,2,3,4])))
             tetr_cmin = minval(verts_abc(ind_c,tetra_grid(i)%ind_knot([1,2,3,4])))
             tetr_cmax = maxval(verts_abc(ind_c,tetra_grid(i)%ind_knot([1,2,3,4])))
+!
+            if ((coord_system.eq.2).and.((tetr_cmax-tetr_cmin).gt.(2*pi/(grid_size(ind_c))+eps))) then !correct the case when theta is 0 but should be 2*pi
+                tetr_cmin = tetr_cmax
+                tetr_cmax = 2*pi
+            endif
 !
             steps_a(1) = int((tetr_amin-amin)/delta_a) + 1
             steps_a(2) = int((tetr_amax-amin)/delta_a) + 1
@@ -204,7 +225,8 @@ print*, 'grid_for_find_tetra started'
             half_diagonal = sqrt(delta_a**2+delta_b**2+delta_c**2) + eps
 !
             !$OMP PARALLEL DEFAULT(NONE) &
-            !$OMP& SHARED(num_hexahedra,entry_counter,box_centres,tetra_physics,equidistant_grid,half_diagonal,num_columns) &
+            !$OMP& SHARED(num_hexahedra,entry_counter,box_centres,tetra_physics,equidistant_grid,half_diagonal,num_columns, &
+            !$OMP& ind_a,ind_b,ind_c,verts_abc,tetra_grid) &
             !$OMP& PRIVATE(i,index_change,k,current_box_centre,m,normalisations,normal_distances)
             !$OMP DO
             do i = 1,num_hexahedra
@@ -223,7 +245,22 @@ print*, 'grid_for_find_tetra started'
                     normal_distances(1) = normal_distances(1) + &
                                           tetra_physics(equidistant_grid(i,k+index_change))%dist_ref/normalisations(1)
                     if (any(normal_distances.lt.-half_diagonal)) then
-                        equidistant_grid(i,k+index_change:num_columns) = (/equidistant_grid(i,k+index_change+1:num_columns),-1/)
+! if ((equidistant_grid(i,k+index_change).eq.94857).and.(i.eq.255634)) then
+!     print*, 'got xou', normal_distances, half_diagonal
+!     print*, verts_abc(ind_a,tetra_grid(94857)%ind_knot([1,2,3,4]))
+!     print*, verts_abc(ind_b,tetra_grid(94857)%ind_knot([1,2,3,4]))
+!     print*, verts_abc(ind_c,tetra_grid(94857)%ind_knot([1,2,3,4]))
+!     print*, m
+!     print*, tetra_physics(equidistant_grid(i,k+index_change))%anorm(:,4)/normalisations(4)
+!     print*, tetra_physics(equidistant_grid(i,k+index_change))%anorm(:,4)
+!     print*, normalisations
+!     print*, normal_distances
+!     print*, tetra_physics(equidistant_grid(i,k+index_change))%dist_ref
+!     print*, current_box_centre
+!     print*, tetra_physics(equidistant_grid(i,k+index_change))%x1
+!     print*, box_centres(i,:)
+! endif
+!                         equidistant_grid(i,k+index_change:num_columns) = (/equidistant_grid(i,k+index_change+1:num_columns),-1/)
                         entry_counter(i) = entry_counter(i) - 1
                         index_change = index_change -1
                     elseif (all(normal_distances.gt.half_diagonal)) then
@@ -239,7 +276,7 @@ print*, 'grid_for_find_tetra started'
 !
 PRINT*, 'average number of entries after reduction is: ', sum(entry_counter), 'divided by', num_hexahedra, ' = ', &
 dble(sum(entry_counter))/dble(num_hexahedra)
-PRINT*, 'delta_a, delta_b, delta_c and b_factor are:  ', delta_a,delta_b,delta_c,b_factor
+!PRINT*, 'delta_a, delta_b, delta_c and b_factor are:  ', delta_a,delta_b,delta_c,b_factor
         endif
 !
 PRINT*, 'grid_for_find_tetra finished'
@@ -267,7 +304,7 @@ PRINT*, 'grid_for_find_tetra finished'
         integer, intent(out) :: ind_tetr_out,iface
 !
         integer :: ir,iphi,iz,ind_search_tetra, indtetr_start, ind_normdist, ind_tetr_save
-        integer :: ind_plane_tetra_start, ind_phi_hexa, ntetr_in_plane, numerical_corr
+        integer :: ind_plane_tetra_start, ind_phi_hexa, ntetr_in_plane, numerical_corr_plus, numerical_corr_minus
         integer :: nr, nphi,nphi_tetr, nphi_hexa, nz
         integer :: iper_phi
         integer :: n_plane_conv, l, counter_vnorm_pos, iface_new, iface_new_save, i_tetra_try, i
@@ -282,7 +319,8 @@ PRINT*, 'grid_for_find_tetra finished'
         integer, dimension(:), allocatable :: ind_tetr_tried
 !
         ! Initialize numerical correction
-        numerical_corr = 0
+        numerical_corr_plus = 0
+        numerical_corr_minus = 0
 !
         !Calculation of search domain depending on grid_kind
         select case(grid_kind)
@@ -321,6 +359,7 @@ PRINT*, 'grid_for_find_tetra finished'
                 if (coord_system.eq.2) ind_b = 3
 !
                 nphi_tetr = grid_size(ind_b)
+                nphi = nphi_tetr 
                 ntetr_in_plane = ntetr/nphi_tetr !number of tetrahedra in a slice which is delimited by two phi=const. planes (with phi2-phi1 = 1*delta_phi)
 !
                 !if(present(boole_grid_for_find_tetra)) then
@@ -336,8 +375,6 @@ PRINT*, 'grid_for_find_tetra finished'
 !
                     nphi_hexa = nphi_tetr*b_factor
                     ind_phi_hexa = int(x(ind_b)*nphi_hexa/(2.d0*pi/n_field_periods))
-                    if(abs(x(ind_b)*nphi_hexa/(2.d0*pi/n_field_periods) - &
-                    &  dble(ind_phi_hexa)).gt.(1.d0-eps)) numerical_corr = 1
 !
                     a = (x(ind_a)-amin)/delta_a + 1
                     b = (x(ind_b)-bmin)/delta_b + 1
@@ -345,22 +382,33 @@ PRINT*, 'grid_for_find_tetra finished'
                     hexahedron_index = (b-1)*na*nc + (c-1)*na + a
                     if (boole_axi_symmetry) hexahedron_index = (b-int((b-1)/b_factor)*b_factor-1)*na*nc + (c-1)*na + a
 !
-                    if ((b.eq.nb).or.((b.eq.b_factor).and.boole_axi_symmetry)) numerical_corr = 0 !num_correction is not carried out if we are in the last phi slice
+                    if(abs(x(ind_b)*nphi_hexa/(2.d0*pi/n_field_periods) - dble(ind_phi_hexa)).gt.(1.d0-eps)) then
+                        numerical_corr_plus = 1
+                        if ((b.eq.nb).or.((b.eq.b_factor).and.boole_axi_symmetry)) numerical_corr_plus = 0 !numerical_corr_plus is not carried out if we are in the last phi slice
+                    endif
+                    if((abs(x(ind_b)*nphi_hexa/(2.d0*pi/n_field_periods) - dble(ind_phi_hexa)).lt.eps).and.(b.gt.1)) then !numerical_corr_minus is not carried out if we are in the first phi slice
+                        numerical_corr_minus = 1
+                    endif
+if ((numerical_corr_minus.eq.1).or.(numerical_corr_plus.eq.1)) print*, 'hello'
+!
                     ntetr_searched = entry_counter(hexahedron_index) + & 
-                                                    & numerical_corr*entry_counter(hexahedron_index + numerical_corr*na*nc)
+                                    & numerical_corr_plus*entry_counter(hexahedron_index + numerical_corr_plus*na*nc) + &
+                                    & numerical_corr_minus*entry_counter(hexahedron_index - numerical_corr_minus*na*nc)
                     if (ntetr_searched.eq.0) then
-                        print*, 'starting position is out of computation domain'
+                        !print*, 'starting position is out of computation domain'
                         ind_tetr_out = -1
                         iface = -1
                         return
                     endif
                 else
                     ind_plane_tetra_start = int(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods))
-                    if(abs(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods) - &
-                    &  dble(ind_plane_tetra_start)).gt.(1.d0-eps)) numerical_corr = 1
+                    if(abs(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods) - dble(ind_plane_tetra_start)).gt.(1.d0-eps).and. &
+                        & (ind_plane_tetra_start.lt.nphi)) numerical_corr_plus = 1
+                    if((abs(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods) - dble(ind_plane_tetra_start)).lt.eps).and. &
+                        & (ind_plane_tetra_start.gt.1)) numerical_corr_minus = 1
 !
                     indtetr_start = ind_plane_tetra_start*ntetr_in_plane +1
-                    ntetr_searched = ntetr_in_plane*(1+numerical_corr)
+                    ntetr_searched = ntetr_in_plane*(1+numerical_corr_plus+numerical_corr_minus)
                 endif
         end select
 !
@@ -371,19 +419,22 @@ PRINT*, 'grid_for_find_tetra finished'
                 if (i.le.entry_counter(hexahedron_index)) then
                     ind_search_tetra = equidistant_grid(hexahedron_index,i)
                 else
-                    ind_search_tetra = equidistant_grid(hexahedron_index + na*nc,i - entry_counter(hexahedron_index))
+                    ind_search_tetra = equidistant_grid(hexahedron_index + numerical_corr_plus*na*nc - numerical_corr_minus*na*nc, &
+                                       & i - entry_counter(hexahedron_index))
                 endif
                 if (boole_axi_symmetry) then
                     ind_search_tetra = ind_search_tetra + int(((b-1)/b_factor))*ntetr_in_plane
                 endif
             else
-                ind_search_tetra = indtetr_start + i -1
+                ind_search_tetra = indtetr_start + i - 1 - numerical_corr_minus*ntetr/nphi
             endif
 !
             if (isinside(ind_search_tetra,x)) then !inside tetrahedron
 !
             ind_tetr_out = ind_search_tetra
             iface = 0
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
             do ind_normdist = 1,4 !calculate distances
                 if (ind_normdist .ne. 1) then
@@ -496,6 +547,8 @@ PRINT*, 'grid_for_find_tetra finished'
 !
             endif ! n_plane_conv.gt.0
 !
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
             exit !this means the tetrahedron was found
 !
             else !not inside
@@ -505,13 +558,33 @@ PRINT*, 'grid_for_find_tetra finished'
         enddo
 !
         if (ind_tetr_out .eq. -1) then
-            print *, ' in start_tetra: Starting tetrahedron was not found.'
+            !print *, ' in start_tetra: Starting tetrahedron was not found.'
             ! open(35, file = 'outliers.dat',position = 'append')
             !     write(35,'(2ES20.10E4)') x(1), x(3)
             ! close(35)
+            ! print*, 'x = ', x
+            ! print*, 'hexahedron_index = ', hexahedron_index
+            ! print*, box_centres(hexahedron_index,ind_a)-delta_a/2,box_centres(hexahedron_index,ind_a)+delta_a/2, &
+            ! box_centres(hexahedron_index,ind_b)-delta_b/2,box_centres(hexahedron_index,ind_b)+delta_b/2, &
+            ! box_centres(hexahedron_index,ind_c)-delta_c/2,box_centres(hexahedron_index,ind_c)+delta_c/2
+            ! print*, equidistant_grid(hexahedron_index,:)
+            ! do i = 1,6
+            !     print*, isinside(94680+i,x)
+            ! enddo
+            ! do i = 1,12
+            !     print*, isinside(94854+i,x)
+            ! enddo
+            ! do i = 1,6
+            !     print*, isinside(95034+i,x)
+            ! enddo
+            ! print*, (x(ind_c)-cmin)/delta_c + 1
+            ! print*, int((x(ind_c)-cmin)/delta_c + 1)
+            ! print*, (cmax-cmin)/delta_c
+            ! print*, cmin + 54*delta_c, cmin + 55*delta_c, delta_c
+            ! print*, a,b,c,na,nb,nc,(b-1)*na*nc + (c-1)*na + a
+            ! print*, boole_axi_symmetry, b_factor, n_field_periods, amin, amax, bmin, bmax, cmin, cmax
             return
         endif
 !
     end subroutine find_tetra
-
 end module find_tetra_mod

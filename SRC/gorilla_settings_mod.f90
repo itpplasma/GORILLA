@@ -10,6 +10,8 @@
         sequence
         double precision :: t_hamiltonian     !real time of tetrahedron passing
         double precision :: gyrophase         !gyrophase of particle
+        double precision :: vpar_int
+        double precision :: vpar2_int
     end type optional_quantities_type
 !
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -48,7 +50,9 @@
     !additional optional orbit quantities
     logical, public, protected :: boole_time_Hamiltonian
     logical, public, protected :: boole_gyrophase
-    logical, public, protected, dimension(2) :: boole_array_optional_quantities
+    logical, public, protected :: boole_vpar_int
+    logical, public, protected :: boole_vpar2_int
+    logical, public, protected, dimension(4) :: boole_array_optional_quantities
 !
     !Processing of particle handover to tetrahedron neighbour
     integer, public, protected :: handover_processing_kind
@@ -79,14 +83,17 @@
     character*64,public,protected :: filename_electric_field
     character*64,public,protected :: filename_electric_drift
 !
+    !Boolean for precalculation of rectangular grid to improve find_tetra (sensible for n_particles >> 1)
+    logical, public, protected :: boole_grid_for_find_tetra
+!
     !Namelist for Gorilla input
     NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
                         & boole_pusher_ode45, boole_dt_dtau, boole_newton_precalc, poly_order, i_precomp, boole_guess, &
                         & rel_err_ode45,boole_periodic_relocation,handover_processing_kind, boole_axi_noise_vector_pot, &
                         & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
                         & non_axi_noise_eps_A, boole_helical_pert, helical_pert_eps_Aphi, helical_pert_m_fourier, &
-                        & helical_pert_n_fourier, boole_time_Hamiltonian, boole_gyrophase, &
-                        & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps, &
+                        & helical_pert_n_fourier, boole_time_Hamiltonian, boole_gyrophase, boole_vpar_int, boole_vpar2_int, &
+                        & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps, boole_grid_for_find_tetra, &
                         & i_time_tracing_option, &
                         & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift
 !
@@ -142,6 +149,8 @@
 
             boole_array_optional_quantities(1) = boole_time_Hamiltonian
             boole_array_optional_quantities(2) = boole_gyrophase
+            boole_array_optional_quantities(3) = boole_vpar_int
+            boole_array_optional_quantities(4) = boole_vpar2_int
 
         end subroutine load_boole_array_optional_quantities
 !

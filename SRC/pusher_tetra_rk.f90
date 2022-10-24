@@ -7,9 +7,8 @@ module pusher_tetra_rk_mod
     integer                          :: sign_t_step_save
     integer                          :: iface_init
     integer,public,protected         :: ind_tetr
-    double precision                 :: B0,perpinv2,vmod_init
+    double precision                 :: B0,perpinv,perpinv2,vmod_init
     double precision,public,protected:: spamat,dt_dtau_const,dist_min
-    double precision, public         :: perpinv
     double precision                 :: dist1,dist_max,t_remain
     double precision, dimension(3)   :: gradB,x_init
     double precision, dimension(3),public,protected   :: Bvec
@@ -2512,7 +2511,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
         use tetra_physics_poly_precomp_mod, only: tetra_physics_poly4
 !
         implicit none
-!        
+!      
         integer, intent(in)                         :: iface
         double precision, dimension(4), intent(in)  :: z
         double precision                            :: normal_acceleration_analytic

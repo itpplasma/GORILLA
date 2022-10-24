@@ -1199,8 +1199,7 @@ enddo
 !
       !$OMP PARALLEL &
       !$OMP& DO DEFAULT(NONE) &
-      !$OMP& SHARED(ntetr,tetra_grid,tetra_physics) &
-      !$OMP& FIRSTPRIVATE(counter_wrong_cases) &
+      !$OMP& SHARED(ntetr,tetra_grid,tetra_physics,counter_wrong_cases) &
       !$OMP& PRIVATE(i,j,neighbour_tetra,neighbour_face)
         do i = 1,ntetr
 !
