@@ -153,7 +153,8 @@
 !------------------------------------------------------------------------------------------------------------!
 !
   !boolean for precalculation of rectangular grid to improve find_tetra (sensible for n_particles >> 1)
-  boole_grid_for_find_tetra = .true.
+  boole_grid_for_find_tetra = .true. ,
+  a_factor = 4 ,
 !
 !------------------------------------------------------------------------------------------------------------!
 !

@@ -2244,7 +2244,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
             optional_quantities%vpar_int = optional_quantities%vpar_int + moment_integration(poly_order,tau,vpar_coef)
 ! print*, 'vpar:',vpar_coef, tau, moment_integration(poly_order,tau,vpar_coef)
         endif
-        !
+!
         if (boole_vpar2_int) then
             optional_quantities%vpar2_int = optional_quantities%vpar2_int  + &
                                             & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))

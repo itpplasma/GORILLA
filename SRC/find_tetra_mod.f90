@@ -12,7 +12,7 @@ module find_tetra_mod
     integer, dimension(:,:), allocatable           :: equidistant_grid
     integer, dimension(:), allocatable             :: entry_counter
     logical                                        :: boole_axi_symmetry
-    integer                                        :: a,b,c, a_factor, b_factor, c_factor,na, nb, nc, max_nb
+    integer                                        :: a,b,c, b_factor, c_factor,na, nb, nc, max_nb
     integer                                        :: ind_a, ind_b, ind_c
     double precision                               :: amin, amax, cmin, cmax, bmin, bmax, delta_a, delta_b, delta_c
     double precision, dimension(:,:), allocatable  :: box_centres, save_box_centres
@@ -27,6 +27,7 @@ module find_tetra_mod
         use tetra_grid_mod, only: verts_rphiz, verts_sthetaphi, tetra_grid, ntetr
         use tetra_grid_settings_mod, only: grid_size, grid_kind, n_field_periods
         use tetra_physics_mod, only: tetra_physics, coord_system
+        use gorilla_settings_mod, only: a_factor
         !use pusher_tetra_poly_mod, only: normal_distance_func
 !
         implicit none            
@@ -39,7 +40,6 @@ module find_tetra_mod
         double precision, dimension(:,:), allocatable  :: verts_abc
 !
 print*, 'grid_for_find_tetra started'
-        a_factor = 4
         boole_reduce_entries = .true.
         boole_axi_symmetry = .false.
 !
@@ -206,6 +206,7 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
 !
  PRINT*, 'average number of entries before reduction is: ', sum(entry_counter), 'divided by', num_hexahedra, ' = ', &
  dble(sum(entry_counter))/dble(num_hexahedra)
+ print*, 'entry counter before reduction is ', entry_counter(14129)
 !
         if (boole_reduce_entries) then
             do a = 1,na!fill 1st column (R in cylindrical coordinates, s in flux coordinates)
@@ -245,24 +246,14 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
                     normal_distances(1) = normal_distances(1) + &
                                           tetra_physics(equidistant_grid(i,k+index_change))%dist_ref/normalisations(1)
                     if (any(normal_distances.lt.-half_diagonal)) then
-! if ((equidistant_grid(i,k+index_change).eq.94857).and.(i.eq.255634)) then
-!     print*, 'got xou', normal_distances, half_diagonal
-!     print*, verts_abc(ind_a,tetra_grid(94857)%ind_knot([1,2,3,4]))
-!     print*, verts_abc(ind_b,tetra_grid(94857)%ind_knot([1,2,3,4]))
-!     print*, verts_abc(ind_c,tetra_grid(94857)%ind_knot([1,2,3,4]))
-!     print*, m
-!     print*, tetra_physics(equidistant_grid(i,k+index_change))%anorm(:,4)/normalisations(4)
-!     print*, tetra_physics(equidistant_grid(i,k+index_change))%anorm(:,4)
-!     print*, normalisations
-!     print*, normal_distances
-!     print*, tetra_physics(equidistant_grid(i,k+index_change))%dist_ref
-!     print*, current_box_centre
-!     print*, tetra_physics(equidistant_grid(i,k+index_change))%x1
-!     print*, box_centres(i,:)
-! endif
-!                         equidistant_grid(i,k+index_change:num_columns) = (/equidistant_grid(i,k+index_change+1:num_columns),-1/)
+                        equidistant_grid(i,k+index_change:num_columns) = (/equidistant_grid(i,k+index_change+1:num_columns),-1/)
                         entry_counter(i) = entry_counter(i) - 1
                         index_change = index_change -1
+! if (i.eq.14129) then
+!     print*, 'hello', normal_distances, half_diagonal
+!     print*, entry_counter(14129)
+!     print*, equidistant_grid(14129,:)
+! endif
                     elseif (all(normal_distances.gt.half_diagonal)) then
                         equidistant_grid(i,1) = equidistant_grid(i,k+index_change)
                         equidistant_grid(i,2:num_columns) = -1
@@ -277,6 +268,7 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
 PRINT*, 'average number of entries after reduction is: ', sum(entry_counter), 'divided by', num_hexahedra, ' = ', &
 dble(sum(entry_counter))/dble(num_hexahedra)
 !PRINT*, 'delta_a, delta_b, delta_c and b_factor are:  ', delta_a,delta_b,delta_c,b_factor
+print*, 'entry counter after reduction is ', entry_counter(14129)
         endif
 !
 PRINT*, 'grid_for_find_tetra finished'
@@ -395,9 +387,30 @@ if ((numerical_corr_minus.eq.1).or.(numerical_corr_plus.eq.1)) print*, 'hello'
                                     & numerical_corr_plus*entry_counter(hexahedron_index + numerical_corr_plus*na*nc) + &
                                     & numerical_corr_minus*entry_counter(hexahedron_index - numerical_corr_minus*na*nc)
                     if (ntetr_searched.eq.0) then
-                        !print*, 'starting position is out of computation domain'
+!print*, 'starting position is out of computation domain'
                         ind_tetr_out = -1
                         iface = -1
+! print*, 'hexahedron_index = ', hexahedron_index
+! print*, box_centres(hexahedron_index,ind_a)-delta_a/2,box_centres(hexahedron_index,ind_a)+delta_a/2, &
+! box_centres(hexahedron_index,ind_b)-delta_b/2,box_centres(hexahedron_index,ind_b)+delta_b/2, &
+! box_centres(hexahedron_index,ind_c)-delta_c/2,box_centres(hexahedron_index,ind_c)+delta_c/2
+! print*, equidistant_grid(hexahedron_index,:)
+! print*, entry_counter(hexahedron_index)
+! do i = 1,6
+!     print*, isinside(94680+i,x)
+! enddo
+! do i = 1,12
+!     print*, isinside(94854+i,x)
+! enddo
+! do i = 1,6
+!     print*, isinside(95034+i,x)
+! enddo
+! print*, (x(ind_c)-cmin)/delta_c + 1
+! print*, int((x(ind_c)-cmin)/delta_c + 1)
+! print*, (cmax-cmin)/delta_c
+! print*, cmin + 54*delta_c, cmin + 55*delta_c, delta_c
+! print*, a,b,c,na,nb,nc,(b-1)*na*nc + (c-1)*na + a
+! print*, boole_axi_symmetry, b_factor, n_field_periods, amin, amax, bmin, bmax, cmin, cmax
                         return
                     endif
                 else
@@ -563,26 +576,6 @@ if ((numerical_corr_minus.eq.1).or.(numerical_corr_plus.eq.1)) print*, 'hello'
             !     write(35,'(2ES20.10E4)') x(1), x(3)
             ! close(35)
             ! print*, 'x = ', x
-            ! print*, 'hexahedron_index = ', hexahedron_index
-            ! print*, box_centres(hexahedron_index,ind_a)-delta_a/2,box_centres(hexahedron_index,ind_a)+delta_a/2, &
-            ! box_centres(hexahedron_index,ind_b)-delta_b/2,box_centres(hexahedron_index,ind_b)+delta_b/2, &
-            ! box_centres(hexahedron_index,ind_c)-delta_c/2,box_centres(hexahedron_index,ind_c)+delta_c/2
-            ! print*, equidistant_grid(hexahedron_index,:)
-            ! do i = 1,6
-            !     print*, isinside(94680+i,x)
-            ! enddo
-            ! do i = 1,12
-            !     print*, isinside(94854+i,x)
-            ! enddo
-            ! do i = 1,6
-            !     print*, isinside(95034+i,x)
-            ! enddo
-            ! print*, (x(ind_c)-cmin)/delta_c + 1
-            ! print*, int((x(ind_c)-cmin)/delta_c + 1)
-            ! print*, (cmax-cmin)/delta_c
-            ! print*, cmin + 54*delta_c, cmin + 55*delta_c, delta_c
-            ! print*, a,b,c,na,nb,nc,(b-1)*na*nc + (c-1)*na + a
-            ! print*, boole_axi_symmetry, b_factor, n_field_periods, amin, amax, bmin, bmax, cmin, cmax
             return
         endif
 !

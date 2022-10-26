@@ -85,6 +85,7 @@
 !
     !Boolean for precalculation of rectangular grid to improve find_tetra (sensible for n_particles >> 1)
     logical, public, protected :: boole_grid_for_find_tetra
+    integer, public :: a_factor
 !
     !Namelist for Gorilla input
     NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
@@ -94,6 +95,7 @@
                         & non_axi_noise_eps_A, boole_helical_pert, helical_pert_eps_Aphi, helical_pert_m_fourier, &
                         & helical_pert_n_fourier, boole_time_Hamiltonian, boole_gyrophase, boole_vpar_int, boole_vpar2_int, &
                         & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps, boole_grid_for_find_tetra, &
+                        & a_factor, &
                         & i_time_tracing_option, &
                         & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift
 !
