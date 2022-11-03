@@ -154,7 +154,7 @@ However, GORILLA itself can be run without these packages. They are only used to
 
 ## Examples
 
-Five examples for plotting Poincaré cuts, full guiding-center orbits (in plasma core or edge regions) and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_6`. There, the necessary soft links are already created and the input files are given, and runs are started with
+Five examples for plotting Poincaré cuts, full guiding-center orbits (in plasma core or edge regions) and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_7`. There, the necessary soft links are already created and the input files are given, and runs are started with
 ```
 ./test_gorilla_main.x   #if the build was done with make
 ```
@@ -166,7 +166,7 @@ To avoid hyperthreading issues, it is beneficial to limit the number of threads 
 the number of actual CPU cores via the environment variable `$OMP_NUM_THREADS`.
 Detailed descriptions of the respective input files can be found in `INPUT`.
 After appropriate compilation of GORILLA, the code can be executed in all of these 6 example folders, respectively.
-For the visualization of the output of these five examples, appropriate plotting methods for Python 3 are at disposal at `PYTHON/plot_example_1.py` - `PYTHON/plot_example_6.py`.
+For the visualization of the output of these five examples, appropriate plotting methods for Python 3 are at disposal at `PYTHON/plot_example_1.py` - `PYTHON/plot_example_7.py`.
 
 ### Example 1
 * Compute a collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle.
@@ -186,7 +186,7 @@ For the visualization of the output of these five examples, appropriate plotting
 * Compute a collisionless guiding-center orbit with GORILLA for a passing Deuterium particle.
 * Use a field-aligned grid for an axisymmetric tokamak equilibrium (g-file)
 * Use the GORILLA polynomial option with order K = 3.
-* Create a figure with the Poincaré plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
+* Create a figure with the Poincaré plots ($\varphi$ = 0) in cylindrical and symmetry flux coordinates.
 * Compute the normalized toroidal angular momentum as a function of toroidal mappings.
 
 ### Example 4
@@ -204,10 +204,17 @@ For the visualization of the output of these five examples, appropriate plotting
  * Construct a 3D extension of the SOLEDGE3X-EIRENE 2D-mesh for an axisymmetric tokamak equilibrium (g-file).
  * Plot the 2D projection of the guiding-center orbits on the original SOLEDGE3X-EIRENE grid.
 
+### Example 7:
+ * Compute collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle with adaptive scheme.
+ * Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
+ * Create a figure with the Poincaré plots ($\varphi$ = 0) in cylindrical and symmetry flux coordinates.
+ * Compute the normalized parallel adiabatic invariant as a function of banana bounces.
+ * Plot fluctuation and evolution of energy over the bounces.
+
 
 ### Generation of input files and plotting in MATLAB and Python
-A detailed explanation of all examples (1-6) including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN` and `EXAMPLES/PYTHON_RUN`) and plotting of the results with MATLAB and Python can be found in the folders `MATLAB` and `PYTHON`, respectively.
-Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge-Kutta 4 are compared in case of examples 1-3. For examples 5-6 orbits for both trapped and passing particles are calculated.
+A detailed explanation of all examples (1-7) including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN` and `EXAMPLES/PYTHON_RUN`) and plotting of the results with MATLAB and Python can be found in the folders `MATLAB` and `PYTHON`, respectively.
+Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge-Kutta 4 are compared in case of examples 1-3. For examples 5-6 orbits for both trapped and passing particles are calculated. For example 7 an additional, in-depth comparison between adaptive and non-adaptive scheme is performed.
 
 
 ## Tests and coverage

@@ -3,7 +3,7 @@
 """
 Created on Thu Sep 21 11:17:37 2022
 
-Example 6:
+Example 7:
  * Compute collisionless guiding-center orbit with GORILLA for a trapped Deuterium particle with/without adaptive scheme.
  * Use a field-aligned grid for a non-axisymmetric VMEC MHD equilibrium.
  * Create a figure with the Poincar� plots (\varphi = 0) in cylindrical and symmetry flux coordinates.
