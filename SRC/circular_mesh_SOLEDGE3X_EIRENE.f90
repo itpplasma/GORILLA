@@ -67,6 +67,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
 !
     use tetra_grid_settings_mod, only: triangles_SOLEDGE3X_EIRENE_filename
     use circular_mesh, only: wrap_idx_inplace
+    use gorilla_diag_mod, only: diag_mesh_SOLEDGE3X_EIRENE
 !
     integer, intent(in) :: n_slices,verts_per_slice
     double precision, dimension(:,:), intent(in) :: points_rphiz 
@@ -92,6 +93,14 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     do i = 1,verts_per_slice
         call vector_potential_rz(points_rphiz(1,i),points_rphiz(3,i),A_phi_vec(i))
     enddo
+!
+if (diag_mesh_SOLEDGE3X_EIRENE) then
+open(123, file='./MESH_CHECK/poloidal_flux.dat')
+do i = 1,verts_per_slice
+    write(123,*) points_rphiz(1,i),points_rphiz(3,i),A_phi_vec(i)
+enddo
+close(123)
+endif
 !
     file_id_triangles = 502
     filename_triangles = triangles_SOLEDGE3X_EIRENE_filename
@@ -220,7 +229,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     call repair(count_connected,triangle_type,mask_r,mask_phi,mask_theta,verts_per_slice,verts,neighbours,neighbour_faces)
 !
 ! Optional Diagnostics: Check if all prisms of the plane are now properly connected after repair and save report of results
-if (.false.) then 
+if (diag_mesh_SOLEDGE3X_EIRENE) then 
     call connect_plane_SOLEDGE3X_EIRENE(tetras_per_slice,verts,neighbours,neighbour_faces,count_connected_repaired)
     call repair_report(count_connected,count_connected_repaired, triangle_type,old_triangle_type)
     print*, 'Finished repair-report!'
