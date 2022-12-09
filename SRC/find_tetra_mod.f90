@@ -12,7 +12,7 @@ module find_tetra_mod
     integer, dimension(:,:), allocatable           :: equidistant_grid
     integer, dimension(:), allocatable             :: entry_counter
     logical                                        :: boole_axi_symmetry
-    integer                                        :: a,b,c, b_factor, c_factor,na, nb, nc, max_nb
+    integer                                        :: a,b,c,na, nb, nc, max_nb
     integer                                        :: ind_a, ind_b, ind_c
     double precision                               :: amin, amax, cmin, cmax, bmin, bmax, delta_a, delta_b, delta_c
     double precision, dimension(:,:), allocatable  :: box_centres, save_box_centres
@@ -27,7 +27,7 @@ module find_tetra_mod
         use tetra_grid_mod, only: verts_rphiz, verts_sthetaphi, tetra_grid, ntetr
         use tetra_grid_settings_mod, only: grid_size, grid_kind, n_field_periods
         use tetra_physics_mod, only: tetra_physics, coord_system
-        use gorilla_settings_mod, only: a_factor
+        use gorilla_settings_mod, only: a_factor, b_factor, c_factor
         !use pusher_tetra_poly_mod, only: normal_distance_func
 !
         implicit none            
@@ -38,7 +38,9 @@ module find_tetra_mod
         double precision, dimension(4)                 :: normal_distances, normalisations
         double precision, dimension(3)                 :: current_box_centre
         double precision, dimension(:,:), allocatable  :: verts_abc
+        integer :: t1, t2, clock_max, clock_rate1, clock_rate2
 !
+call system_clock (t1, clock_rate1, clock_max)
 print*, 'grid_for_find_tetra started'
         boole_reduce_entries = .true.
         boole_axi_symmetry = .false.
@@ -73,7 +75,7 @@ print*, 'grid_for_find_tetra started'
         na = grid_size(ind_a)*a_factor
         delta_a = (amax - amin)/na
 !
-        c_factor = maxval((/nint((cmax-cmin)/(grid_size(ind_c)*delta_a)),1/))
+        if (c_factor.eq.0) c_factor = maxval((/nint((cmax-cmin)/(grid_size(ind_c)*delta_a)),1/))
         nc = grid_size(ind_c)*c_factor
 !
         if (grid_kind.eq.4) then
@@ -87,7 +89,7 @@ print*, 'grid_for_find_tetra started'
 !
         delta_c = (cmax - cmin)/nc
 !
-        b_factor = maxval((/nint(2*pi/(grid_size(ind_b)*n_field_periods*((delta_a+delta_c)/2))),1/))
+        if (b_factor.eq.0) b_factor = maxval((/nint(2*pi/(grid_size(ind_b)*n_field_periods*sqrt((delta_a**2+delta_c**2)/2))),1/))
         b_factor = b_factor*n_field_periods
 !
         nb = grid_size(ind_b)*b_factor
@@ -97,6 +99,7 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
         max_nb = nb
         if (boole_axi_symmetry) max_nb = b_factor
         num_hexahedra = na*max_nb*nc
+!print*, 'num_hexahedra = ', num_hexahedra, na, max_nb, nc, na*nc, na*max_nb, max_nb*nc, na*max_nb*nc
 !
         allocate(entry_counter(num_hexahedra))
         allocate(box_centres(num_hexahedra,3))
@@ -206,7 +209,11 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
 !
  PRINT*, 'average number of entries before reduction is: ', sum(entry_counter), 'divided by', num_hexahedra, ' = ', &
  dble(sum(entry_counter))/dble(num_hexahedra)
- print*, 'entry counter before reduction is ', entry_counter(14129)
+ call system_clock (t2, clock_rate2, clock_max)
+ print*, 'elapsed real time for basic grid is: ', real(t2-t1)/real(clock_rate2)
+ print*, clock_max, clock_rate1, clock_rate2
+!
+call system_clock (t1, clock_rate1, clock_max)
 !
         if (boole_reduce_entries) then
             do a = 1,na!fill 1st column (R in cylindrical coordinates, s in flux coordinates)
@@ -223,7 +230,7 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
                 enddo
             enddo
 !
-            half_diagonal = sqrt(delta_a**2+delta_b**2+delta_c**2) + eps
+            half_diagonal = sqrt(delta_a**2+delta_b**2+delta_c**2)/2 + eps
 !
             !$OMP PARALLEL DEFAULT(NONE) &
             !$OMP& SHARED(num_hexahedra,entry_counter,box_centres,tetra_physics,equidistant_grid,half_diagonal,num_columns, &
@@ -268,17 +275,19 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
 PRINT*, 'average number of entries after reduction is: ', sum(entry_counter), 'divided by', num_hexahedra, ' = ', &
 dble(sum(entry_counter))/dble(num_hexahedra)
 !PRINT*, 'delta_a, delta_b, delta_c and b_factor are:  ', delta_a,delta_b,delta_c,b_factor
-print*, 'entry counter after reduction is ', entry_counter(14129)
         endif
 !
 PRINT*, 'grid_for_find_tetra finished'
+call system_clock (t2, clock_rate2, clock_max)
+print*, 'elapsed real time for reducing entries is: ', real(t2-t1)/real(clock_rate2)
+print*, clock_max, clock_rate1, clock_rate2
     end subroutine grid_for_find_tetra
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface)
+subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
-        use gorilla_settings_mod, only: boole_grid_for_find_tetra
+        use gorilla_settings_mod, only: boole_grid_for_find_tetra, b_factor
         use tetra_grid_mod, only : Rmin,Rmax,Zmin,Zmax,ntetr,tetra_grid, verts_rphiz
         use tetra_grid_settings_mod, only: grid_kind, grid_size, n_field_periods
         use tetra_physics_mod, only: tetra_physics,cm_over_e,isinside, coord_system
@@ -295,6 +304,9 @@ PRINT*, 'grid_for_find_tetra finished'
 !
         integer, intent(out) :: ind_tetr_out,iface
 !
+        integer, intent(in), optional :: sign_t_step_in
+        !
+        integer :: sign_t_step
         integer :: ir,iphi,iz,ind_search_tetra, indtetr_start, ind_normdist, ind_tetr_save
         integer :: ind_plane_tetra_start, ind_phi_hexa, ntetr_in_plane, numerical_corr_plus, numerical_corr_minus
         integer :: nr, nphi,nphi_tetr, nphi_hexa, nz
@@ -310,6 +322,13 @@ PRINT*, 'grid_for_find_tetra finished'
         logical :: use_grid
         integer, dimension(:), allocatable :: ind_tetr_tried
 !
+        ! Initialize sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
+        if(present(sign_t_step_in)) then
+            sign_t_step = sign_t_step_in
+        else
+            sign_t_step = +1
+        endif
+
         ! Initialize numerical correction
         numerical_corr_plus = 0
         numerical_corr_minus = 0
@@ -371,8 +390,15 @@ PRINT*, 'grid_for_find_tetra finished'
                     a = (x(ind_a)-amin)/delta_a + 1
                     b = (x(ind_b)-bmin)/delta_b + 1
                     c = (x(ind_c)-cmin)/delta_c + 1
+                    if ((a.lt.0).or.(b.lt.0).or.(c.lt.0).or.(a.gt.na).or.(b.gt.nb).or.(c.gt.nc)) then
+                        print*, 'starting position is out of computation domain'
+                        ind_tetr_out = -1
+                        iface = -1
+                        return
+                    endif
                     hexahedron_index = (b-1)*na*nc + (c-1)*na + a
                     if (boole_axi_symmetry) hexahedron_index = (b-int((b-1)/b_factor)*b_factor-1)*na*nc + (c-1)*na + a
+
 !
                     if(abs(x(ind_b)*nphi_hexa/(2.d0*pi/n_field_periods) - dble(ind_phi_hexa)).gt.(1.d0-eps)) then
                         numerical_corr_plus = 1
@@ -496,7 +522,7 @@ if ((numerical_corr_minus.eq.1).or.(numerical_corr_plus.eq.1)) print*, 'hello'
 !
                     z(1:3) = x-tetra_physics(ind_tetr_out)%x1
 !
-                    call initialize_pusher_tetra_rk_mod(ind_tetr_out,x,iface_new,vpar,-1.d0)
+                    call initialize_pusher_tetra_rk_mod(ind_tetr_out,x,iface_new,vpar,dble(sign_t_step))
 !
                     cur_dist_value = normal_distances_func(z(1:3))
 !print *, 'norm',cur_dist_value
@@ -571,7 +597,7 @@ if ((numerical_corr_minus.eq.1).or.(numerical_corr_plus.eq.1)) print*, 'hello'
         enddo
 !
         if (ind_tetr_out .eq. -1) then
-            !print *, ' in start_tetra: Starting tetrahedron was not found.'
+            if (.not.boole_grid_for_find_tetra) print *, ' in start_tetra: Starting tetrahedron was not found.'
             ! open(35, file = 'outliers.dat',position = 'append')
             !     write(35,'(2ES20.10E4)') x(1), x(3)
             ! close(35)

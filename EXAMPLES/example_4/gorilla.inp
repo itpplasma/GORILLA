@@ -35,4 +35,7 @@ desired_delta_energy = 1.E-10 ,
 max_n_intermediate_steps = 10000 ,
 i_time_tracing_option = 1 ,
 boole_grid_for_find_tetra = .false. ,
+a_factor = 4 ,
+b_factor = 0 ,
+c_factor = 0 ,
 /

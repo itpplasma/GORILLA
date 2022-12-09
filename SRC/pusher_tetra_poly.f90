@@ -2187,15 +2187,17 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
             call z_series_coef(poly_order,z0,x_coef,vpar_coef)
 !
-        !Optional computation of Hamiltonian time
-        if(boole_time_hamiltonian) then
+        if(boole_time_hamiltonian.or.boole_vpar_int.or.boole_vpar2_int) then
 !
             allocate(x_vpar_coef(3,poly_order+1))
 !
             call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
             call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
             call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
+        endif
 !
+        !Optional computation of Hamiltonian time
+        if(boole_time_hamiltonian) then
             delta_t_hamiltonian = hamiltonian_time(ind_tetr)%h1_in_curlA * tau + &
             & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * moment_integration(poly_order,tau,vpar_coef)+&
             & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * moment_integration(poly_order,tau,x_coef) ) + &
@@ -2235,25 +2237,62 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
 
             endif ! gyrophase
-!            
-            deallocate(x_coef,x_vpar_coef)
 !
         endif ! time_Hamiltonian
 !
         if (boole_vpar_int) then 
-            optional_quantities%vpar_int = optional_quantities%vpar_int + moment_integration(poly_order,tau,vpar_coef)
-! print*, 'vpar:',vpar_coef, tau, moment_integration(poly_order,tau,vpar_coef)
+            ! optional_quantities%vpar_int = optional_quantities%vpar_int + moment_integration(poly_order,tau,vpar_coef)* &
+            !                                & dt_dtau_const
+            optional_quantities%vpar_int = optional_quantities%vpar_int + &
+!
+                !First term
+                & hamiltonian_time(ind_tetr)%h1_in_curlA * moment_integration(poly_order,tau,vpar_coef) + &
+!
+                !Second term
+                & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * &
+                & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))+ &
+!
+                !Third term
+                & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * &
+                & moment_integration(poly_order,tau,x_vpar_coef) ) + &
+!
+                !Fourth term
+                & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
+                & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,x_vpar_coef)))
+!
+!print*, 'vpar:',vpar_coef, tau, moment_integration(poly_order,tau,vpar_coef)
+!
         endif
 !
         if (boole_vpar2_int) then
-            optional_quantities%vpar2_int = optional_quantities%vpar2_int  + &
-                                            & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))
-! print*, 'vpar2', poly_multiplication(vpar_coef,vpar_coef), tau, & 
-! moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))
+            ! optional_quantities%vpar2_int = optional_quantities%vpar2_int  + dt_dtau_const*&
+            !                                 & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))
+            optional_quantities%vpar2_int = optional_quantities%vpar2_int + &
+!
+                !First term
+                & hamiltonian_time(ind_tetr)%h1_in_curlA * &
+                & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef)) + &
+!
+                !Second term
+                & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * &
+                & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,poly_multiplication(vpar_coef,vpar_coef)))+ &
+!
+                !Third term
+                & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * &
+                & moment_integration(poly_order,tau,poly_multiplication(poly_multiplication(vpar_coef,vpar_coef),x_coef)) ) + &
+!
+                !Fourth term
+                & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
+                & moment_integration(poly_order,tau,poly_multiplication(poly_multiplication(vpar_coef,vpar_coef),x_vpar_coef)))
+!
+
+!print*, 'vpar2', poly_multiplication(vpar_coef,vpar_coef), tau, & 
+!moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))
 !
         endif
 !
         deallocate(vpar_coef)
+        if(boole_time_hamiltonian.or.boole_vpar_int.or.boole_vpar2_int)  deallocate(x_coef,x_vpar_coef)
 !
     end subroutine calc_optional_quantities
 !
@@ -3252,7 +3291,9 @@ endif
         end select  
 !
     end function tau_vpar_root
-!        
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+! 
     subroutine analytic_integration_external(poly_order,z,tau)
 !
         use poly_without_precomp_mod
