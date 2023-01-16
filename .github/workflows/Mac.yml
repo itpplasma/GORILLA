@@ -16,7 +16,7 @@ jobs:
       CC: gcc
       CXX: gcc
       FC: gfortran
-      PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.4
+      PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
 
     steps:
       - name: Checkout
@@ -68,7 +68,7 @@ jobs:
       CC: gcc
       CXX: gcc
       FC: gfortran
-      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.4
+      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
 
     steps:
       - name: Checkout
