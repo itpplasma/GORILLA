@@ -72,6 +72,9 @@
     double precision, public, protected :: desired_delta_energy
     integer, public, protected :: max_n_intermediate_steps
 !
+    !Including additional terms in case of strong electric fields (Soledge3X-EIRENE, cylindrical coordinates only)
+    logical, public, protected :: boole_strong_electric_fields
+!
     !Namelist for Gorilla input
     NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
                         & boole_pusher_ode45, boole_dt_dtau, boole_newton_precalc, poly_order, i_precomp, boole_guess, &
@@ -80,7 +83,8 @@
                         & non_axi_noise_eps_A, boole_helical_pert, helical_pert_eps_Aphi, helical_pert_m_fourier, &
                         & helical_pert_n_fourier, boole_time_Hamiltonian, boole_gyrophase, &
                         & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps, &
-                        & i_time_tracing_option
+                        & i_time_tracing_option, &
+                        & boole_strong_electric_fields
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type
 !
@@ -107,6 +111,12 @@
             !Gyrophase requires Hamiltonian time evolution (At least, the current implementation requires that)
             if ( boole_gyrophase.and.(.not.boole_time_Hamiltonian)) then
                 print *, 'ERROR: When gyro-phase computation is activated, set boole_time_Hamiltonian to TRUE in gorilla.inp.'
+                stop
+            endif
+!
+            !The additional terms for a strong electric field are only implemented in case of cylindrical coordinates (WEST)
+            if ( boole_strong_electric_fields.and.(coord_system.ne.1)) then
+                print *, 'ERROR: When strong electric fields are included, set coord_system to 1 in gorilla.inp.'
                 stop
             endif
 !

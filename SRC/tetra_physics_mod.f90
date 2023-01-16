@@ -106,7 +106,8 @@
       use various_functions_mod, only: dmatinv3
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
-            & non_axi_noise_eps_A
+            & non_axi_noise_eps_A, boole_strong_electric_fields
+      use strong_electric_field_mod, only: get_electric_field
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in
@@ -120,6 +121,7 @@
       double precision, dimension(:), allocatable   :: davec_dx1,davec_dx2,davec_dx3
       double precision, dimension(:,:),allocatable :: avec
       double precision, dimension(:),           allocatable :: A_x1,A_x2,A_x3
+      double precision, dimension(:),           allocatable :: E_x1,E_x2,E_x3
       double precision, dimension(:),           allocatable :: h_x1,h_x2,h_x3,bmod,phi_elec,sqg,dR_ds,dZ_ds
       double precision, dimension(:),         allocatable :: rnd_axi_noise
       double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
@@ -140,6 +142,7 @@
       allocate(A_x1(nvert),A_x2(nvert),A_x3(nvert))
       allocate(bmod(nvert),h_x1(nvert),h_x2(nvert),h_x3(nvert))
       allocate(phi_elec(nvert))
+      if(boole_strong_electric_fields) allocate(E_x1(nvert),E_x2(nvert),E_x3(nvert))
 !
       !Hamiltonian time quantities
       allocate(hamiltonian_time(ntetr))
@@ -292,6 +295,12 @@
 !
         !Electrostatic potential as a product of co-variant component of vector potential and a factor eps_Phi (gorilla.inp)
         phi_elec(iv) = A_x2(iv)*eps_Phi
+!
+        !Optionally in case of strong electric fields for Soledge3X-EIRENE collaboration (only cylindrical coordinates) one needs
+        !Electric field E at the vertices (wrapper get_electric_field with different ways to get the field)
+        if(boole_strong_electric_fields) then
+            call get_electric_field(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),E_x1(iv),E_x2(iv),E_x3(iv))
+        endif
 !
         !Optionally add axisymmetric noise to electrostatic potential
         if(boole_axi_noise_elec_pot) then
@@ -764,6 +773,7 @@ enddo
         deallocate(avec)
         deallocate(A_x1,A_x2,A_x3)
         deallocate(h_x1,h_x2,h_x3,bmod,phi_elec)
+        if(boole_strong_electric_fields) deallocate(E_x1,E_x2,E_x3)
         if(coord_system.eq.2) deallocate(dR_ds,dZ_ds)
         if(grid_kind.eq.3) deallocate(sqg)
         if(boole_axi_noise_vector_pot.or.boole_axi_noise_elec_pot) deallocate(rnd_axi_noise)
