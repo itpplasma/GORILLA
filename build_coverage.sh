@@ -15,9 +15,9 @@ make -j
 ctest --output-on-failure
 cd SRC/CMakeFiles/GORILLA.dir/
 
-gcov-9 *.gcno
-lcov --gcov-tool gcov-9 --capture --no-recursion --directory . --output-file covered.info
-lcov --gcov-tool gcov-9 --capture --no-recursion -i --directory . --output-file uncovered.info
+gcov *.gcno
+lcov --gcov-tool gcov --capture --no-recursion --directory . --output-file covered.info
+lcov --gcov-tool gcov --capture --no-recursion -i --directory . --output-file uncovered.info
 lcov -a covered.info -a uncovered.info --output-file result.info
 genhtml --output-directory ../../../COVERAGE result.info
 
