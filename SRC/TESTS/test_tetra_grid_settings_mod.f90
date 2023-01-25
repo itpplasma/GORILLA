@@ -2,7 +2,16 @@ module test_tetra_grid_settings_mod
    use tetra_grid_settings_mod
    use funit
    implicit none
-   
+!
+! Background:
+! Similar to test_gorilla_settings_mod, there exist a seperate input file for the generation of the
+! tetrahedron mesh with a corresponding blueprint tetra_grid.inp file. As for all input files, a short
+! explanation of the various parameters can be found in the blueprint input file itself. All input 
+! variables are public protected in the module tetra_grid_settings_mod, but there exist writing routines
+! for some of them.
+!
+! Georg Graßler (25.01.2023)
+!       
 contains
 
 	@before
@@ -11,6 +20,12 @@ contains
 	end subroutine test_load_tetra_grid_inp
 	
 	@test
+    ! Description of test_load_tetra_grid_inp_values:
+    ! The test checks whether the default values in the blueprint file
+    ! are unchanged (grid_kind = 3, filename_mesh_rphiz = 'mesh_rphiz.obj', ...).
+    !
+    ! Georg Graßler (25.01.2023)
+    !  
    subroutine test_load_tetra_grid_inp_values()
    	
    	double precision :: sfc_s_min_compare
@@ -34,6 +49,14 @@ contains
    end subroutine test_load_tetra_grid_inp_values
    
    @test
+   ! Description of test_set_n_field_periods:
+   ! The number of periods along the toroidal direction in the field configuration 
+   ! is given by n_field_periods. This quantity can either be determined from the
+   ! field data automatically, or been set directly by the input variable 
+   ! n_field_periods_manual. The latter variant is checked in this test.
+   !
+   ! Georg Graßler (25.01.2023)
+   !  
    subroutine test_set_n_field_periods()
    
    	call set_n_field_periods(n_field_periods_manual)
@@ -42,6 +65,16 @@ contains
    end subroutine test_set_n_field_periods
    
    @test
+   ! Description of test_set_grid_size:
+   ! The number of discretization points for each coordinate is read in via the
+   ! three variable n1, n2 and n3. However, in the program this information is saved
+   ! in form of the array grid_size, where the position of the toroidal coodinate phi (n2)
+   ! in the array depends on the coordinate system used (R,phi,Z in constrast s,theta,phi). 
+   ! For that the writer routine set_grid_size is used, here for the case of cylindrical
+   ! coordinates (n2 i.e. phi on second position).
+   !
+   ! Georg Graßler (25.01.2023)
+   !  
    subroutine test_set_grid_size()
    
    	call set_grid_size([n1,n2,n3])

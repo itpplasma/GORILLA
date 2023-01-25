@@ -2,10 +2,25 @@ module test_supporting_functions_mod
    use supporting_functions_mod
    use funit
    implicit none
-   
+!
+! Background:
+! The module supporting_functions_mod is a collection of various functions/subroutines that
+! have no specific association with other modules and are intended to be used from several
+! places of the program. Two examples are the boole-to-integer converter logical2integer and 
+! the eigenvalue routine calc_eigval(N,A,WR,VR). The latter provides not only the eigenvalues 
+! as an array WR, but also the eigenvectors in form of a matrix VR.
+!
+! Georg Graßler (25.01.2023)
+!      
 contains
 
 	@test
+    ! Description of test_logical2integer_true:
+    ! The tests test_logical2integer_true() checks if the boolean .TRUE. 
+    ! is correctly converted to the integer 1.
+    !
+    ! Georg Graßler (25.01.2023)
+    !
 	subroutine test_logical2integer_true()
 		logical :: boole_in
 		integer :: value
@@ -18,6 +33,12 @@ contains
 	end subroutine test_logical2integer_true
 	
 	@test
+    ! Description of test_logical2integer_false:
+    ! The tests test_logical2integer_false() checks if the boolean .FALSE. 
+    ! is correctly converted to the integer 0. .FALSE. -> 0). 
+    !
+    ! Georg Graßler (25.01.2023)
+    !
 	subroutine test_logical2integer_false()
 		logical :: boole_in
 		integer :: value
@@ -30,6 +51,16 @@ contains
 	end subroutine test_logical2integer_false
 	
 	@test
+    ! Description of test_calc_eigval:
+    ! In test_calc_eigval() a trial (3 x 3) matrix A is provided, of which the eigenvalues/eigenvectors 
+    ! are known analytically. Not only are these exact results compared to the output of calc_eigval, 
+    ! but it is also checked if the numerical found eigenvectors/eigenvalues selfconsistently fullfil 
+    ! the eigenvalue equation
+    !
+    ! matmul(A,VR(:,i)) = WR(i) * VR(:,i) // Matrix x eigenvector = eigenvector scaled by eigenvalue
+    !
+    ! Georg Graßler (25.01.2023)
+    !
 	subroutine test_calc_eigval()
 		
 		integer :: N = 3

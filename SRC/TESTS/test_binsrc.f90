@@ -1,10 +1,24 @@
 module test_binsrc
    use funit
    implicit none
-   
+!
+! Background:
+! The function binsrc(p,nmin,nmax,xi,i) takes an 1D-array p and searches for the index i 
+! that fullfils p(i-1) <  xi  <  p(i) using binary search in the index range [nmin,nmax].
+! This is employed for example when searching for the discrete data points between which
+! field data has to be interpolated.
+!
+! Georg Graßler (24.01.2023)
+!
 contains
 
    @test
+   ! Description of test_binsrc_1:
+   ! The test test_binsrc_1() checks via a trial array if binsrc gives back the correct index
+   ! according to the above outlined condition.
+   !
+   ! Georg Graßler (24.01.2023)
+   !
    subroutine test_binsrc_1()
       
       double precision, dimension(10) :: p
