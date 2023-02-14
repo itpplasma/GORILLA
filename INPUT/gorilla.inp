@@ -150,9 +150,9 @@
 !
 !------------------------------------------------------------------------------------------------------------!
 !
- !In the guiding center theory of the default implementation the the electric field is assumed to be weak 
+ !In the guiding center theory of the default implementation the electric field is assumed to be weak 
  !compared to the magnetic field. In case of the investigation of impurities in WEST geometry
- !(Soledge3X-EIRENE, cylindrical coordinates only) additional terms can be included in the dynamics
+ !(Soledge3X-EIRENE, cylindrical coordinates only) additional terms have to be included in the dynamics
 !
  !Switch for including strong electric field terms
  !false ... no additional terms

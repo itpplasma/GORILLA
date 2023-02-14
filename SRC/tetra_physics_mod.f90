@@ -107,7 +107,8 @@
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
             & non_axi_noise_eps_A, boole_strong_electric_fields
-      use strong_electric_field_mod, only: get_electric_field
+      use strong_electric_field_mod, only: get_electric_field, save_electric_field
+      use gorilla_diag_mod, only: diag_strong_electric_field
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in
@@ -296,18 +297,21 @@
         !Electrostatic potential as a product of co-variant component of vector potential and a factor eps_Phi (gorilla.inp)
         phi_elec(iv) = A_x2(iv)*eps_Phi
 !
+        !Optionally add axisymmetric noise to electrostatic potential
+        if(boole_axi_noise_elec_pot) then
+            phi_elec(iv) = phi_elec(iv)+phi_elec(iv)*axi_noise_eps_Phi*rnd_axi_noise(modulo(iv-1,(nvert/grid_size(2))) +1)
+        endif
+!
         !Optionally in case of strong electric fields for Soledge3X-EIRENE collaboration (only cylindrical coordinates) one needs
         !Electric field E at the vertices (wrapper get_electric_field with different ways to get the field)
         if(boole_strong_electric_fields) then
             call get_electric_field(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),E_x1(iv),E_x2(iv),E_x3(iv))
         endif
 !
-        !Optionally add axisymmetric noise to electrostatic potential
-        if(boole_axi_noise_elec_pot) then
-            phi_elec(iv) = phi_elec(iv)+phi_elec(iv)*axi_noise_eps_Phi*rnd_axi_noise(modulo(iv-1,(nvert/grid_size(2))) +1)
-        endif
-!
       enddo !iv (index vertex)
+!
+!Reading out the calculated electric field for testing/debugging purposes
+if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electric_field(E_x1,E_x2,E_x3)
 !
   !$OMP PARALLEL &
   !$OMP& DO DEFAULT(NONE) &
