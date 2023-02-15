@@ -100,14 +100,14 @@ This will produce `test_gorilla_main.x` required to run the code. To specify the
 NetCDF includes and libraries, one has to set the `NCINC` and `NCLIB` variable during `make`.
 
 ### Building with cmake
-To build GORILLA with `cmake`, use `build.x`.
+To build GORILLA with `cmake`, use `build.sh`.
 ```bash
 cd /path/to/GORILLA
-./build.x
+./build.sh
 ```
 This will produce `test_gorilla_main.x` in the folder BUILD/SRC/ required to run the code.
 
-To get additional tests and code coverage, build GORILLA with `build_coverage.x`. This requires the additional tools and a correct set PFUNIT_DIR. See the pFUnit github [project page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit) for additional information.
+To get additional tests and code coverage, build GORILLA with `build_coverage.sh`. This requires the additional tools and a correct set PFUNIT_DIR. See the pFUnit github [project page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit) for additional information.
 
 
 ## Usage
@@ -219,7 +219,11 @@ Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge
 
 ## Tests and coverage
 
-Tests are implemented with pFUnit. The generation of coverage files are done with the compiler option `--coverage` and the evaluation of the files is implemented with lcov. To see the coverage report, build with `build_coverage.x` and open `index.html` in the folder /BUILD/COVERAGE or take a look in the github workflows `Ubuntu` or `Mac`.
+Tests are implemented with pFUnit. The generation of coverage files are done with the compiler option `--coverage` and the evaluation of the files is implemented with lcov. To see the coverage report, build with `build_coverage.sh` and open `index.html` in the folder /BUILD/COVERAGE or take a look in the github workflows `Ubuntu` or `Mac`.
+
+### Details on tests and policy
+
+The tests performed can be found in the folder `SRC/TESTS`. Descriptions of the tests are given in the individiual source files alongside some background information on the module/part of the program covered by the tests. The checks focus on low level function testing, providing routines with trial/default inputs and comparing the output/behaviour against expected results. Further tests are planned to be implemented in future releases. Incomplete tests not being able to meet the outlined policy due to restrictions in the current program structure are disabled, but still included in `SRC/TESTS` to be implemented at a later date.
 
 ## Contributing
 
