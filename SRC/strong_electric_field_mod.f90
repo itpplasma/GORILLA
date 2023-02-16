@@ -15,7 +15,7 @@ module strong_electric_field_mod
     logical                                      :: boole_first_call = .true.
     double precision, dimension(3)               :: dx_array
 !
-    public :: get_electric_field, save_electric_field
+    public :: get_electric_field, save_electric_field, get_v_E
 !
 contains
 !
@@ -132,6 +132,28 @@ contains
         STOP
 !
     end subroutine save_electric_field
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine get_v_E(R,E_x1,E_x2,E_x3,h_x1,h_x2,h_x3,Bmod,v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
+!
+        implicit none
+!
+        double precision, intent(in)             :: R, E_x1, E_x2, E_x3, h_x1, h_x2, h_x3, Bmod
+        double precision, intent(out)            :: v_E_x1, v_E_x2, v_E_x3, v2_E_mod
+!
+        !Writting out the cross-product for v_E (covariant components) using the cylindrical metric determinant g_lk = (1,R^2,1)
+        !(v_E)_l = g_lk * epsilon^(kij) * E_i * h_j / (sqrt(g) * Bmod)
+        !The factor c (speed of light) is left out for having unitless values (include later when determing energy and pusher)
+        v_E_x1 = (E_x2 * h_x3 - E_x3 * h_x2) / (R * Bmod)
+        v_E_x2 = (E_x3 * h_x1 - E_x1 * h_x3) / (Bmod) * R
+        v_E_x3 = (E_x1 * h_x2 - E_x2 * h_x1) / (R * Bmod)
+!
+        !Writing out the scalar-product of v_E with itself using the cylindrical metric determinant
+        !v2_E_mod = (v_E)_l * (v_E)^l = (v_E)_l * g^{lk} * (v_E)_k
+        v2_E_mod = v_E_x1 * v_E_x1 + v_E_x2 * 1/R**2 * v_E_x2 + v_E_x3 * v_E_x3
+!
+    end subroutine get_v_E
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
