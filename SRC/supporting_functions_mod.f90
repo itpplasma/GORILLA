@@ -270,5 +270,146 @@
     end subroutine
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!  
+    function energy_tot_func(z,perpinv,ind_tetr)
+!
+        use tetra_physics_mod, only: tetra_physics,particle_mass,particle_charge
+!
+        implicit none
+!
+        double precision                            :: energy_tot_func
+!
+        double precision, dimension(4), intent(in)  :: z
+        double precision                            :: perpinv
+        integer, intent(in)                         :: ind_tetr
+!
+        double precision                            :: vperp
+!
+        !Compute vperp
+        vperp=sqrt(2.d0*abs(perpinv)*( tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z(1:3)) ))
+!
+        energy_tot_func = particle_mass/2.d0*(vperp**2 + z(4)**2) + particle_charge*phi_elec_func(z(1:3),ind_tetr)
+!       
+    end function energy_tot_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function bmod_func(z123,ind_tetr)
+!
+        use tetra_physics_mod, only: tetra_physics
+!
+        implicit none
+!
+        double precision :: bmod_func
+        double precision, dimension(3),intent(in) :: z123
+        integer, intent(in) :: ind_tetr
+!
+        bmod_func = tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z123)
+!        
+    end function bmod_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function vperp_func(z123,perpinv,ind_tetr)
+!        
+        use tetra_physics_mod, only: tetra_physics
+!    
+        implicit none
+!
+        double precision :: vperp_func
+        integer, intent(in) :: ind_tetr
+        double precision, dimension(3),intent(in) :: z123
+        double precision, intent(in) :: perpinv
+
+            if(perpinv.ne.0.d0) then
+                vperp_func=sqrt(2.d0*abs(perpinv)*bmod_func(z123,ind_tetr))
+            else
+                vperp_func = 0.d0
+            endif
+!
+    end function vperp_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!        
+    function phi_elec_func(z123,ind_tetr)
+!
+        use tetra_physics_mod, only: tetra_physics
+!
+        implicit none
+!
+        double precision :: phi_elec_func
+        double precision, dimension(3),intent(in) :: z123
+        integer, intent(in) :: ind_tetr
+!
+        phi_elec_func = tetra_physics(ind_tetr)%Phi1 + sum(tetra_physics(ind_tetr)%gPhi*z123)
+!        
+    end function phi_elec_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function pitchpar_func(vpar,z,ind_tetr,perpinv)
+!
+        use tetra_physics_mod, only: tetra_physics
+!
+        implicit none
+!
+        integer :: ind_tetr
+        double precision :: vmod,vpar,vperp,perpinv,pitchpar_func
+        double precision,dimension(3) :: z
+!
+        vperp = vperp_func(z,perpinv,ind_tetr)
+!
+        vmod = sqrt(vpar**2+vperp**2)
+        pitchpar_func = vpar/vmod
+!        
+    end function pitchpar_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function p_phi_func(vpar,z,ind_tetr)
+!
+        use tetra_physics_mod, only: tetra_physics,particle_mass,cm_over_e,coord_system
+!
+        implicit none
+!
+        integer :: ind_tetr
+        double precision :: vpar,p_phi_func,hphi1
+        double precision,dimension(3) :: z,ghphi
+!
+        select case(coord_system)
+            case(1)
+                hphi1 = tetra_physics(ind_tetr)%h2_1
+                ghphi = tetra_physics(ind_tetr)%gh2
+            case(2)
+                hphi1 = tetra_physics(ind_tetr)%h3_1
+                ghphi = tetra_physics(ind_tetr)%gh3
+        end select    
+!
+        p_phi_func = particle_mass*vpar*(hphi1+sum(ghphi*z(1:3))) + &
+                    &particle_mass/cm_over_e* &
+                    & (tetra_physics(ind_tetr)%Aphi1+sum(tetra_physics(ind_tetr)%gAphi*z(1:3)))
+!        
+    end function p_phi_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function vmod_func(energy,z123,ind_tetr)
+!
+        use constants, only: ev2erg
+        use tetra_physics_mod, only: particle_charge, particle_mass
+!
+        implicit none
+!
+        double precision                            :: vmod_func
+!
+        double precision, intent(in)                :: energy
+        double precision, dimension(3),intent(in)   :: z123
+        integer, intent(in)                         :: ind_tetr
+!
+        vmod_func = sqrt(2.d0* (energy - particle_charge * phi_elec_func(z123,ind_tetr) ) / particle_mass)
+!
+    end function vmod_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
   end module

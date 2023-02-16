@@ -7,7 +7,8 @@ module pusher_tetra_rk_mod
     integer                          :: sign_t_step_save
     integer                          :: iface_init
     integer,public,protected         :: ind_tetr
-    double precision                 :: B0,perpinv,perpinv2,vmod_init
+    double precision                 :: B0,perpinv2,vmod_init
+    double precision,public,protected :: perpinv
     double precision,public,protected :: spamat,dt_dtau_const
     double precision                 :: dist1,dist_min,dist_max,t_remain
     double precision, dimension(3)   :: gradB,x_init
@@ -27,7 +28,7 @@ module pusher_tetra_rk_mod
     !$OMP THREADPRIVATE(ind_tetr,spamat,B0,perpinv,perpinv2,iface_init,dt_dtau_const,k1,k3,sign_rhs,sign_t_step_save, &
     !$OMP& dist1,dist_min,dist_max,Bvec,gradB,x_init,b,z_init,amat,anorm,t_remain,vmod_init,dtau_ref,dtau_max,dtau_quad)
 !    
-    public :: pusher_tetra_rk,find_tetra,initialize_const_motion_rk,energy_tot_func
+    public :: pusher_tetra_rk,find_tetra,initialize_const_motion_rk
 !    
     contains
 !
@@ -50,6 +51,7 @@ module pusher_tetra_rk_mod
 !
         use tetra_physics_mod, only: tetra_physics, cm_over_e,dt_dtau,coord_system,sign_sqg
         use tetra_grid_settings_mod, only: grid_size
+        use supporting_functions_mod, only: bmod_func
         use constants, only : clight,eps,pi
         use gorilla_settings_mod, only: boole_dt_dtau
         use gorilla_diag_mod, only: diag_pusher_tetra_rk
@@ -88,7 +90,7 @@ module pusher_tetra_rk_mod
         dt_dtau_const = dt_dtau_const*dble(sign_rhs)
 !    
         !Module of B at the entry point of the particle
-        bmod=bmod_func(z_init(1:3))
+        bmod=bmod_func(z_init(1:3),ind_tetr)
 !
         !Phi at the entry point of the particle
         phi_elec=tetra_physics(ind_tetr)%Phi1+sum(tetra_physics(ind_tetr)%gPhi*z_init(1:3))
@@ -2393,66 +2395,6 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    function bmod_func(z123)
-!
-        implicit none
-!
-        double precision :: bmod_func
-        double precision, dimension(3),intent(in) :: z123
-!
-        bmod_func = B0+sum(gradB*z123)
-!        
-    end function bmod_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!    
-    function vperp_func(z123)
-!    
-        implicit none
-!
-        double precision :: vperp_func
-        double precision, dimension(3),intent(in) :: z123
-
-            if(perpinv.ne.0.d0) then
-                vperp_func=sqrt(2.d0*abs(perpinv)*bmod_func(z123))
-            else
-                vperp_func = 0.d0
-            endif
-!
-    end function vperp_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    function phi_elec_func(z123)
-!
-        use tetra_physics_mod, only: tetra_physics
-!
-        implicit none
-!
-        double precision :: phi_elec_func
-        double precision, dimension(3),intent(in) :: z123
-!
-        phi_elec_func = tetra_physics(ind_tetr)%Phi1 + sum(tetra_physics(ind_tetr)%gPhi*z123)
-!        
-    end function phi_elec_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    function energy_tot_func(z)
-!
-        use tetra_physics_mod, only: tetra_physics,particle_mass,particle_charge
-!
-        implicit none
-!
-        double precision                :: energy_tot_func,vperp
-        double precision, dimension(4)  :: z
-!
-        energy_tot_func = particle_mass/2.d0*(vperp_func(z(1:3))**2 + z(4)**2) + particle_charge*phi_elec_func(z(1:3))
-!       
-    end function energy_tot_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-! 
     function normal_distances_func(z123)
 !
         implicit none
@@ -2563,6 +2505,8 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
 !
     subroutine print_starting_condition()
 !
+        use supporting_functions_mod, only: bmod_func
+!
         implicit none
 !
         print *, 'Starting conditions'
@@ -2571,7 +2515,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
         print *, 'x_init', x_init
         print *, 'iface_init', iface_init
         print *, 'perpinv', perpinv
-        print *, 'vperp_init', sqrt(2.d0*abs(perpinv)*bmod_func(z_init(1:3)))
+        print *, 'vperp_init', sqrt(2.d0*abs(perpinv)*bmod_func(z_init(1:3),ind_tetr))
         print *, 'vpar_init', z_init(4)
 !        
     end subroutine print_starting_condition
@@ -2878,7 +2822,8 @@ module par_adiab_inv_rk_mod
         !Attention: This subroutine CAN ONLY BE CALLED directly after pusher, when modules still contain
         !           the quantities from last pushing
 !        
-        use pusher_tetra_rk_mod, only: dt_dtau_const,z_init,ind_tetr,energy_tot_func
+        use pusher_tetra_rk_mod, only: dt_dtau_const,z_init,ind_tetr,perpinv
+        use supporting_functions_mod, only: energy_tot_func
         use tetra_physics_mod, only: particle_mass,tetra_physics
 !  
         implicit none
@@ -2922,7 +2867,7 @@ module par_adiab_inv_rk_mod
 !
                     !$omp critical
                         if(boole_e_tot) then
-                            write(file_id_e_tot,*) counter_banana_mappings,energy_tot_func(z)
+                            write(file_id_e_tot,*) counter_banana_mappings,energy_tot_func(z,perpinv,ind_tetr)
                         endif
                     !$omp end critical
                 endif

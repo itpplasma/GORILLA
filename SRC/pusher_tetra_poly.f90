@@ -46,7 +46,7 @@ module pusher_tetra_poly_mod
     !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps,sign_rhs)
 !
     public :: pusher_tetra_poly,initialize_const_motion_poly, &
-        & Quadratic_Solver2, Cubic_Solver, Quartic_Solver,energy_tot_func, &
+        & Quadratic_Solver2, Cubic_Solver, Quartic_Solver, &
         & set_integration_coef_manually
 !   
     contains
@@ -110,6 +110,7 @@ endif
         subroutine initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
 !
             use tetra_physics_mod, only: tetra_physics, sign_sqg
+            use supporting_functions_mod, only: bmod_func, phi_elec_func
 !
             implicit none
 !
@@ -141,10 +142,10 @@ endif
             dt_dtau_const = dt_dtau_const*dble(sign_rhs)
 !    
             !Module of B at the entry point of the particle
-            bmod0 = bmod_func(z_init(1:3)) !tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z_init(1:3))
+            bmod0 = bmod_func(z_init(1:3),ind_tetr) !tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z_init(1:3))
 !
             !Phi at the entry point of the particle
-            phi_elec = phi_elec_func(z_init(1:3))   !tetra_physics(ind_tetr)%Phi1+sum(tetra_physics(ind_tetr)%gPhi*z_init(1:3))
+            phi_elec = phi_elec_func(z_init(1:3),ind_tetr)   !tetra_physics(ind_tetr)%Phi1+sum(tetra_physics(ind_tetr)%gPhi*z_init(1:3))
 !
             !Auxiliary quantities
             vperp2 = -2.d0*perpinv*bmod0
@@ -805,6 +806,7 @@ if(diag_pusher_tetry_poly)  print *, 'Error: Tau is out of safety boundary'
 !
         use gorilla_settings_mod, only: desired_delta_energy, max_n_intermediate_steps
         use gorilla_diag_mod, only: diag_pusher_tetry_poly, report_pusher_tetry_poly_adaptive
+        use supporting_functions_mod, only: energy_tot_func
 !
         implicit none
 !
@@ -846,8 +848,8 @@ if(diag_pusher_tetry_poly) print*, 'z', z
         if (.not.boole_face_correct) return
 !
         z0 = intermediate_z0_list(:,number_of_integration_steps)
-        energy_start = energy_tot_func(z0)
-        energy_current = energy_tot_func(z)
+        energy_start = energy_tot_func(z0,perpinv,ind_tetr)
+        energy_current = energy_tot_func(z,perpinv,ind_tetr)
         delta_energy_current = abs(1-energy_current/energy_start)
 !
 if(diag_pusher_tetry_poly) print*, 'z0', z0
@@ -888,6 +890,7 @@ endif
 !
         use gorilla_settings_mod, only: i_precomp, desired_delta_energy, max_n_intermediate_steps
         use gorilla_diag_mod,only: diag_pusher_tetry_poly_adaptive, report_pusher_tetry_poly_adaptive
+        use supporting_functions_mod, only: energy_tot_func
 !
         implicit none
 !
@@ -919,7 +922,7 @@ endif
         !Save current z0 and stepped back global integration counter
         z_start_adaptive = intermediate_z0_list(:,number_of_integration_steps)
         number_of_integration_steps_start_adaptive = number_of_integration_steps - 1
-        energy_start_adaptive = energy_tot_func(z_start_adaptive)
+        energy_start_adaptive = energy_tot_func(z_start_adaptive,perpinv,ind_tetr)
 if(diag_pusher_tetry_poly_adaptive) print*, '------------------------'
 !
         !Set up for Partition procedure
@@ -1009,7 +1012,7 @@ step_fluc_report(report_index,2) = 0
 energy_current_step = energy_start_adaptive
 endif
 energy_previous_step = energy_current_step
-energy_current_step = energy_tot_func(z)
+energy_current_step = energy_tot_func(z,perpinv,ind_tetr)
 delta_energy_step = abs(1 - energy_current_step/energy_previous_step)
 step_fluc_report(report_index,2) = step_fluc_report(report_index,2) + delta_energy_step
 endif
@@ -1064,7 +1067,7 @@ if(diag_pusher_tetry_poly_adaptive) print *, 'Adaptive step closure: tau_exit', 
             tau_collected = tau_collected + tau_prime
 !
             !Check if energy fluctuation was successfully decreased
-            energy_current = energy_tot_func(z)
+            energy_current = energy_tot_func(z,perpinv,ind_tetr)
             delta_energy_current = abs(1-energy_current/energy_start_adaptive)
 !
             !Update tau/eta actually needed to travers tetrahedron (for final result or for better approx in another iteration)
@@ -1079,7 +1082,7 @@ if (report_pusher_tetry_poly_adaptive) then
 !And circumvent the exit mechanisms to collect more data
 boole_energy_check = .true.
 energy_previous_step = energy_current_step
-energy_current_step = energy_tot_func(z)
+energy_current_step = energy_tot_func(z,perpinv,ind_tetr)
 delta_energy_step = abs(1 - energy_current_step/energy_previous_step)
 step_fluc_report(report_index,2) = step_fluc_report(report_index,2) + delta_energy_step
 step_fluc_report(report_index,1) = eta_extended + 1 
@@ -2737,54 +2740,6 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         end subroutine analytic_integration_with_precomp_perpinv
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function bmod_func(z123)
-!
-            use tetra_physics_mod, only: tetra_physics
-!
-            implicit none
-!
-            double precision :: bmod_func
-            double precision, dimension(3),intent(in) :: z123
-!
-            bmod_func = tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z123)
-!        
-        end function bmod_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!        
-        function phi_elec_func(z123)
-!
-            use tetra_physics_mod, only: tetra_physics
-!
-            implicit none
-!
-            double precision :: phi_elec_func
-            double precision, dimension(3),intent(in) :: z123
-!
-            phi_elec_func = tetra_physics(ind_tetr)%Phi1 + sum(tetra_physics(ind_tetr)%gPhi*z123)
-!        
-        end function phi_elec_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!   
-        function energy_tot_func(z)
-!
-            use tetra_physics_mod, only: tetra_physics,particle_mass,particle_charge
-!
-            implicit none
-!
-            double precision                :: energy_tot_func,vperp
-            double precision, dimension(4)  :: z
-!
-            !Compute vperp
-            vperp=sqrt(2.d0*abs(perpinv)*( tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z(1:3)) ))
-!
-            energy_tot_func = particle_mass/2.d0*(vperp**2 + z(4)**2) + particle_charge*phi_elec_func(z(1:3))
-!       
-        end function energy_tot_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !    
     function normal_distance_func(z123,iface)
 !
@@ -3076,8 +3031,8 @@ module par_adiab_inv_poly_mod
         !           the quantities from last pushing
 !        
         use poly_without_precomp_mod, only: amat,b
-        use pusher_tetra_poly_mod, only: dt_dtau_const,z_init,ind_tetr, &
-                                                & energy_tot_func, &
+        use supporting_functions_mod, only: energy_tot_func
+        use pusher_tetra_poly_mod, only: dt_dtau_const,z_init,ind_tetr, perpinv, &
                                                 number_of_integration_steps, intermediate_z0_list, tau_steps_list, &
                                                 & set_integration_coef_manually
         use tetra_physics_mod, only: particle_mass,tetra_physics
@@ -3168,7 +3123,7 @@ endif
 !
                     !$omp critical
                         if(boole_e_tot) then
-                            write(file_id_e_tot,*) counter_banana_mappings,energy_tot_func(z)
+                            write(file_id_e_tot,*) counter_banana_mappings,energy_tot_func(z,perpinv,ind_tetr)
                         endif
                     !$omp end critical
                     !print *, 'banana bounces:', counter_banana_mappings

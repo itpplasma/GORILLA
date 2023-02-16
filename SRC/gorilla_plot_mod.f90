@@ -27,8 +27,7 @@ module gorilla_plot_mod
     & filename_orbit_start_pos_rphiz, filename_orbit_start_pos_sthetaphi, start_pos_x2, start_pos_x3, &
     & filename_e_tot, filename_p_phi, filename_J_par, start_pitch_parameter,energy_eV_start
 !
-    public              :: phi_elec_func, &
-                        & gorilla_plot
+    public              :: gorilla_plot
 !    
     contains
 !
@@ -419,6 +418,7 @@ module gorilla_plot_mod
                                                  & file_id_p_phi, file_id_J_par, file_id_full_orbit, counter_phi_0_mappings, &
                                                  & counter_vpar_0_mappings, counter_tetrahedron_passes)
 !
+            use supporting_functions_mod, only: bmod_func, energy_tot_func, vperp_func, p_phi_func
             use pusher_tetra_rk_mod, only: find_tetra,pusher_tetra_rk,initialize_const_motion_rk
             use pusher_tetra_poly_mod, only: pusher_tetra_poly,initialize_const_motion_poly
             use tetra_physics_poly_precomp_mod , only: make_precomp_poly_perpinv, initialize_boole_precomp_poly_perpinv, &
@@ -553,7 +553,7 @@ module gorilla_plot_mod
                         if(boole_e_tot) then
                             !Write elapsed time and total energy
                             !$omp critical
-                                write(file_id_e_tot,*) t_step - t_remain, E_tot_func(z_save,vpar,perpinv,ind_tetr_save)
+                                write(file_id_e_tot,*) t_step - t_remain, energy_tot_func([z_save,vpar],perpinv,ind_tetr_save)
                             !$omp end critical
                         endif !boole_e_tot
                     endif
@@ -613,7 +613,7 @@ module gorilla_plot_mod
 !
                             !Write number of toroidal mappings and total energy
                             !$omp critical
-                                write(file_id_e_tot,*) counter_phi_0_mappings, E_tot_func(z_save,vpar,perpinv,ind_tetr_save)
+                                write(file_id_e_tot,*) counter_phi_0_mappings, energy_tot_func([z_save,vpar],perpinv,ind_tetr_save)
                             !$omp end critical
                         endif
                     endif !boole_e_tot
@@ -639,126 +639,6 @@ module gorilla_plot_mod
 !             call alloc_precomp_poly_perpinv(2,ntetr)
 !         
         end subroutine gorilla_plot_orbit_integration
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function bmod_func(z123,ind_tetr)
-!
-            use tetra_physics_mod, only: tetra_physics
-!
-            implicit none
-!
-            double precision :: bmod_func
-            integer, intent(in) :: ind_tetr
-            double precision, dimension(3),intent(in) :: z123
-!
-            bmod_func = tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z123)
-!        
-        end function bmod_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function vperp_func(z123,perpinv,ind_tetr)
-!        
-            use tetra_physics_mod, only: tetra_physics
-!    
-            implicit none
-!
-            double precision :: vperp_func
-            integer, intent(in) :: ind_tetr
-            double precision, dimension(3),intent(in) :: z123
-            double precision, intent(in) :: perpinv
-
-                if(perpinv.ne.0.d0) then
-                    vperp_func=sqrt(2.d0*abs(perpinv)*bmod_func(z123,ind_tetr))
-                else
-                    vperp_func = 0.d0
-                endif
-!
-        end function vperp_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function E_tot_func(z123,vpar,perpinv,ind_tetr)
-!
-            use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
-!
-            implicit none
-!
-            double precision :: E_tot_func
-            integer, intent(in) :: ind_tetr
-            double precision, dimension(3),intent(in) :: z123
-            double precision, intent(in) :: perpinv,vpar
-            double precision :: vperp
-!
-                vperp = vperp_func(z123,perpinv,ind_tetr)
-!
-                E_tot_func = 0.5d0*particle_mass*(vpar**2+vperp**2) + &
-                            & particle_charge*phi_elec_func(z123,ind_tetr)
-!
-        end function E_tot_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function phi_elec_func(z123,ind_tetr)
-!
-            use tetra_physics_mod, only: tetra_physics
-!
-            implicit none
-!
-            double precision :: phi_elec_func
-            integer, intent(in) :: ind_tetr
-            double precision, dimension(3),intent(in) :: z123
-!
-            phi_elec_func = tetra_physics(ind_tetr)%Phi1 + sum(tetra_physics(ind_tetr)%gPhi*z123)
-!        
-        end function phi_elec_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function pitchpar_func(vpar,z,ind_tetr,perpinv)
-!
-            use tetra_physics_mod, only: tetra_physics
-!
-            implicit none
-!
-            integer :: ind_tetr
-            double precision :: vmod,vpar,vperp,perpinv,pitchpar_func
-            double precision,dimension(3) :: z
-!
-            vperp = vperp_func(z,perpinv,ind_tetr)
-!
-            vmod = sqrt(vpar**2+vperp**2)
-            pitchpar_func = vpar/vmod
-!        
-        end function pitchpar_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function p_phi_func(vpar,z,ind_tetr)
-!
-            use tetra_physics_mod, only: tetra_physics,particle_mass,cm_over_e,coord_system
-!
-            implicit none
-!
-            integer :: ind_tetr
-            double precision :: vpar,p_phi_func,hphi1
-            double precision,dimension(3) :: z,ghphi
-!
-            select case(coord_system)
-                case(1)
-                    hphi1 = tetra_physics(ind_tetr)%h2_1
-                    ghphi = tetra_physics(ind_tetr)%gh2
-                case(2)
-                    hphi1 = tetra_physics(ind_tetr)%h3_1
-                    ghphi = tetra_physics(ind_tetr)%gh3
-            end select    
-!
-            p_phi_func = particle_mass*vpar*(hphi1+sum(ghphi*z(1:3))) + &
-                        &particle_mass/cm_over_e* &
-                        & (tetra_physics(ind_tetr)%Aphi1+sum(tetra_physics(ind_tetr)%gAphi*z(1:3)))
-!        
-        end function p_phi_func
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
