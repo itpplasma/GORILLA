@@ -33,14 +33,26 @@
                                                  ! of "curl A" with gradient of B module
       double precision :: gPhixcurlA             ! $\epsilon^{ijk}\difp{Phi}{x^i}\difp{A_k}{x^j}$ scalar
                                                  ! of "curl A" with gradient of Phi
+      double precision :: gv2EmodxcurlA          ! $\epsilon^{ijk}\difp{v2Emod}{x^i}\difp{A_k}{x^j}$ scalar
+                                                 ! of "curl A" with gradient of v2Emod
+      double precision :: gBxcurlvE              ! $\epsilon^{ijk}\difp{B}{x^i}\difp{vE_k}{x^j}$ scalar
+                                                 ! of "curl vE" with gradient of B module
+      double precision :: gPhixcurlvE            ! $\epsilon^{ijk}\difp{Phi}{x^i}\difp{vE_k}{x^j}$ scalar
+                                                 ! of "curl vE" with gradient of Phi
+      double precision :: gv2EmodxcurlvE          ! $\epsilon^{ijk}\difp{v2Emod}{x^i}\difp{vE_k}{x^j}$ scalar
+                                                 ! of "curl vE" with gradient of v2Emod
       double precision :: spalpmat               ! alpha matrix element(4,4)= trace of the real space
                                                  ! part of matrix alpha (see below)
       double precision :: spbetmat               ! beta matrix element(4,4)= trace of the real space
                                                  ! part of matrix beta (see below)
+      double precision :: spgammat               ! gamma matrix element(4,4)= trace of the real space
+                                                 ! part of matrix gamma (see below)
       double precision, dimension(3)   :: gBxh1  ! $\epsilon^{ijk} \difp{B}{x^j} h_k$ - vector product
                                                  ! of gradient B module with $\bh$ in the first vertex
       double precision, dimension(3)   :: gPhixh1  ! $\epsilon^{ijk} \difp{Phi}{x^j} h_k$ - vector product
                                                  ! of gradient Phi with $\bh$ in the first vertex
+      double precision, dimension(3)   :: gv2Emodxh1  ! $\epsilon^{ijk} \difp{v2Emod}{x^j} h_k$ - "vector product"
+                                                 ! of gradient v2Emod with $\bh$ in the first vertex
       double precision, dimension(3)   :: gB     ! gradient of B module
       double precision, dimension(3)   :: gPhi   ! gradient of Phi
       double precision, dimension(3)   :: gR     ! gradient of R (major radius)
@@ -55,10 +67,12 @@
       double precision, dimension(3)   :: gvE1   ! gradient of the 1st component of the drift velocity v_E
       double precision, dimension(3)   :: gvE2   ! gradient of the 2nd component of the drift velocity v_E
       double precision, dimension(3)   :: gvE3   ! gradient of the 3rd component of the drift velocity v_E
+      double precision, dimension(3)   :: curlvE ! $\epsilon^{ijk}\difp{vE_k}{x^j}$ = "curl" of $\bvE$
       double precision, dimension(3)   :: gv2Emod! gradient of the modulo squared of drift velocity v_E
       !3DGeoInt properties
       double precision, dimension(3,3) :: alpmat ! real space part of matrix alpha (block from 1 to 3)
       double precision, dimension(3,3) :: betmat ! real space part of matrix beta (block from 1 to 3)
+      double precision, dimension(3,3) :: gammat ! real space part of matrix gamma (block from 1 to 3) (strong electric fields)
       double precision, dimension(4)     :: acoef_pre              !Factor of acoef for analytical quadratic approximation 
 ! 
     end type tetrahedron_physics
@@ -511,7 +525,7 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
         tetra_physics(ind_tetr)%vE2_1 = avec(1,12)
         tetra_physics(ind_tetr)%vE3_1 = avec(1,13)
         tetra_physics(ind_tetr)%v2Emod_1 = avec(1,14)
-    endif
+    endif !boole_strong_electric_fields (origin quantities)
 ! 
 ! derivatives:
     call differentiate(p_x1,p_x2,p_x3,navec,avec,davec_dx1,davec_dx2,davec_dx3)
@@ -606,7 +620,31 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
         tetra_physics(ind_tetr)%gv2Emod(1) = davec_dx1(14)
         tetra_physics(ind_tetr)%gv2Emod(2) = davec_dx2(14)
         tetra_physics(ind_tetr)%gv2Emod(3) = davec_dx3(14)
-    endif
+    ! "curl(vE)" -  $\epsilon^{ijk}\difp{vE_k}{x^j}$ :
+        tetra_physics(ind_tetr)%curlh(1) = davec_dx2(13)-davec_dx3(12)
+        tetra_physics(ind_tetr)%curlh(2) = davec_dx3(11)-davec_dx1(13)
+        tetra_physics(ind_tetr)%curlh(3) = davec_dx1(12)-davec_dx2(11)
+    ! "vector product" of grad v2Emod times vector h in the first vertex:
+        tetra_physics(ind_tetr)%gv2Emodxh1(1) = davec_dx2(14)*avec(1,6)-davec_dx3(14)*avec(1,5)
+        tetra_physics(ind_tetr)%gv2Emodxh1(2) = davec_dx3(14)*avec(1,4)-davec_dx1(14)*avec(1,6)
+        tetra_physics(ind_tetr)%gv2Emodxh1(3) = davec_dx1(14)*avec(1,5)-davec_dx2(14)*avec(1,4)
+    ! gradient of v2Emod times "curl(A)" - $\epsilon^{ijk}difp{v2Emod}{x^i}\difp{A_k}{x^j} :
+        tetra_physics(ind_tetr)%gv2EmodxcurlA = davec_dx1(14)*tetra_physics(ind_tetr)%curlA(1) &
+                                                + davec_dx2(14)*tetra_physics(ind_tetr)%curlA(2) &
+                                                + davec_dx3(14)*tetra_physics(ind_tetr)%curlA(3)
+    ! gradient of B times "curl(vE)" - $\epsilon^{ijk}difp{B}{x^i}\difp{vE_k}{x^j} :
+        tetra_physics(ind_tetr)%gBxcurlvE = davec_dx1(7)*tetra_physics(ind_tetr)%curlvE(1) &
+                                            + davec_dx2(7)*tetra_physics(ind_tetr)%curlvE(2) &
+                                            + davec_dx3(7)*tetra_physics(ind_tetr)%curlvE(3)
+    ! gradient of Phi times "curl(vE)" - $\epsilon^{ijk}difp{Phi}{x^i}\difp{vE_k}{x^j} :
+        tetra_physics(ind_tetr)%gPhixcurlvE = davec_dx1(8)*tetra_physics(ind_tetr)%curlvE(1) &
+                                            + davec_dx2(8)*tetra_physics(ind_tetr)%curlvE(2) &
+                                            + davec_dx3(8)*tetra_physics(ind_tetr)%curlvE(3)
+    ! gradient of v2Emod times "curl(vE)" - $\epsilon^{ijk}difp{v2Emod}{x^i}\difp{vE_k}{x^j} :
+        tetra_physics(ind_tetr)%gv2EmodxcurlvE = davec_dx1(14)*tetra_physics(ind_tetr)%curlvE(1) &
+                                                + davec_dx2(14)*tetra_physics(ind_tetr)%curlvE(2) &
+                                                + davec_dx3(14)*tetra_physics(ind_tetr)%curlvE(3)
+    endif !boole_strong_electric_fields (differentiated quantities)
 !
 ! "curl(h)" -  $\epsilon^{ijk}\difp{h_k}{x^j}$ :
     tetra_physics(ind_tetr)%curlh(1) = davec_dx2(6)-davec_dx3(5)
@@ -675,7 +713,36 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
 ! trace of real space part of matrix beta (element $\beta^4_4$):
     tetra_physics(ind_tetr)%spbetmat = tetra_physics(ind_tetr)%betmat(1,1) &
                              + tetra_physics(ind_tetr)%betmat(2,2) &
-                             + tetra_physics(ind_tetr)%betmat(3,3)   
+                             + tetra_physics(ind_tetr)%betmat(3,3)
+!
+    if(boole_strong_electric_fields) then
+        !
+        ! real space part of matrix gamma (strong electric fields):
+        tetra_physics(ind_tetr)%gammat(1,1) = 2.d0*tetra_physics(ind_tetr)%curlh(1)*tetra_physics(ind_tetr)%gv2Emod(1) &
+                                    + davec_dx2(14)*davec_dx1(6)-davec_dx3(14)*davec_dx1(5)
+        tetra_physics(ind_tetr)%gammat(1,2) = 2.d0*tetra_physics(ind_tetr)%curlh(1)*tetra_physics(ind_tetr)%gv2Emod(2) &
+                                    + davec_dx2(14)*davec_dx2(6)-davec_dx3(14)*davec_dx2(5)
+        tetra_physics(ind_tetr)%gammat(1,3) = 2.d0*tetra_physics(ind_tetr)%curlh(1)*tetra_physics(ind_tetr)%gv2Emod(3) &
+                                    + davec_dx2(14)*davec_dx3(6)-davec_dx3(14)*davec_dx3(5)
+        !
+        tetra_physics(ind_tetr)%gammat(2,1) = 2.d0*tetra_physics(ind_tetr)%curlh(2)*tetra_physics(ind_tetr)%gv2Emod(1) &
+                                    + davec_dx3(14)*davec_dx1(4)-davec_dx1(14)*davec_dx1(6)
+        tetra_physics(ind_tetr)%gammat(2,2) = 2.d0*tetra_physics(ind_tetr)%curlh(2)*tetra_physics(ind_tetr)%gv2Emod(2) &
+                                    + davec_dx3(14)*davec_dx2(4)-davec_dx1(14)*davec_dx2(6)
+        tetra_physics(ind_tetr)%gammat(2,3) = 2.d0*tetra_physics(ind_tetr)%curlh(2)*tetra_physics(ind_tetr)%gv2Emod(3) &
+                                    + davec_dx3(14)*davec_dx3(4)-davec_dx1(14)*davec_dx3(6)
+        !
+        tetra_physics(ind_tetr)%gammat(3,1) = 2.d0*tetra_physics(ind_tetr)%curlh(3)*tetra_physics(ind_tetr)%gv2Emod(1) &
+                                    + davec_dx1(14)*davec_dx1(5)-davec_dx2(14)*davec_dx1(4)
+        tetra_physics(ind_tetr)%gammat(3,2) = 2.d0*tetra_physics(ind_tetr)%curlh(3)*tetra_physics(ind_tetr)%gv2Emod(2) &
+                                    + davec_dx1(14)*davec_dx2(5)-davec_dx2(14)*davec_dx2(4)
+        tetra_physics(ind_tetr)%gammat(3,3) = 2.d0*tetra_physics(ind_tetr)%curlh(3)*tetra_physics(ind_tetr)%gv2Emod(3) &
+                                    + davec_dx1(14)*davec_dx3(5)-davec_dx2(14)*davec_dx3(4)
+        ! trace of real space part of matrix beta (element $\beta^4_4$):
+        tetra_physics(ind_tetr)%spgammat = tetra_physics(ind_tetr)%gammat(1,1) &
+                                    + tetra_physics(ind_tetr)%gammat(2,2) &
+                                    + tetra_physics(ind_tetr)%gammat(3,3)
+    endif !boole_strong_electric_fields (gmma matrix)
 !
 ! precomputation of acef_pre for analytical quadratic approximation
     tetra_physics(ind_tetr)%acoef_pre = matmul(tetra_physics(ind_tetr)%curlA,tetra_physics(ind_tetr)%anorm)

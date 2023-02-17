@@ -274,6 +274,7 @@
     function energy_tot_func(z,perpinv,ind_tetr)
 !
         use tetra_physics_mod, only: tetra_physics,particle_mass,particle_charge
+        use gorilla_settings_mod, only: boole_strong_electric_fields
 !
         implicit none
 !
@@ -289,6 +290,8 @@
         vperp=sqrt(2.d0*abs(perpinv)*( tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z(1:3)) ))
 !
         energy_tot_func = particle_mass/2.d0*(vperp**2 + z(4)**2) + particle_charge*phi_elec_func(z(1:3),ind_tetr)
+!
+        if (boole_strong_electric_fields) energy_tot_func = energy_tot_func + 0.5d0*particle_mass*v2_E_mod_func(z(1:3),ind_tetr)
 !       
     end function energy_tot_func
 !
@@ -409,6 +412,42 @@
         vmod_func = sqrt(2.d0* (energy - particle_charge * phi_elec_func(z123,ind_tetr) ) / particle_mass)
 !
     end function vmod_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function v2_E_mod_func(z123,ind_tetr)
+!
+        use tetra_physics_mod, only: tetra_physics
+!
+        implicit none
+!
+        double precision                            :: v2_E_mod_func
+!
+        double precision, dimension(3),intent(in)   :: z123
+        integer, intent(in)                         :: ind_tetr
+!
+        v2_E_mod_func = tetra_physics(ind_tetr)%v2Emod_1 + sum(z123*tetra_physics(ind_tetr)%gv2Emod)
+!
+    end function v2_E_mod_func
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    function v_E_func(z123,ind_tetr)
+!
+        use tetra_physics_mod, only: tetra_physics
+!
+        implicit none
+!
+        double precision, dimension(3)              :: v_E_func
+!
+        double precision, dimension(3),intent(in)   :: z123
+        integer, intent(in)                         :: ind_tetr
+!
+        v_E_func(1) = tetra_physics(ind_tetr)%vE1_1 + sum(z123*tetra_physics(ind_tetr)%gvE1)
+        v_E_func(2) = tetra_physics(ind_tetr)%vE2_1 + sum(z123*tetra_physics(ind_tetr)%gvE2)
+        v_E_func(3) = tetra_physics(ind_tetr)%vE3_1 + sum(z123*tetra_physics(ind_tetr)%gvE3)
+!
+    end function v_E_func
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
