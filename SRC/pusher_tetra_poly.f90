@@ -110,7 +110,8 @@ endif
         subroutine initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
 !
             use tetra_physics_mod, only: tetra_physics, sign_sqg
-            use supporting_functions_mod, only: bmod_func, phi_elec_func
+            use gorilla_settings_mod, only: boole_strong_electric_fields
+            use supporting_functions_mod, only: bmod_func, phi_elec_func, v2_E_mod_func
 !
             implicit none
 !
@@ -153,6 +154,8 @@ endif
             vmod0 = sqrt(vpar2+vperp2)
 !
             k1 = vperp2+vpar2+2.d0*perpinv*tetra_physics(ind_tetr)%bmod1
+            !Adding in +dx*grad(v2emod) to k1 helper-coefficiant for strong electric field case
+            if (boole_strong_electric_fields) k1 = k1 + (v2_E_mod_func(z_init(1:3),ind_tetr) - tetra_physics(ind_tetr)%v2Emod_1)
             k3 = tetra_physics(ind_tetr)%Phi1-phi_elec
 !
         end subroutine initialize_pusher_tetra_poly
@@ -1460,6 +1463,7 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
         subroutine analytic_coeff_without_precomp(poly_order,boole_faces,z,coef_mat)
 !
             use tetra_physics_mod, only: tetra_physics,cm_over_e
+            use gorilla_settings_mod, only: boole_strong_electric_fields
             use constants, only: clight
             use poly_without_precomp_mod
 !
@@ -1488,6 +1492,15 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             amat(4,4) = perpinv*cm_over_e*tetra_physics(ind_tetr)%spalpmat &
                         - clight* tetra_physics(ind_tetr)%spbetmat
             amat(1:3,4) = tetra_physics(ind_tetr)%curlA
+!
+            if (boole_strong_electric_fields) then
+                b(1:3) = b(1:3) - cm_over_e*tetra_physics(ind_tetr)%gv2Emodxh1 !and also the modification of k1 done by initialization
+                b(4) = b(4) + cm_over_e*perpinv*tetra_physics(ind_tetr)%gBxcurlvE - clight*tetra_physics(ind_tetr)%gPhixcurlvE &
+                          & - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gv2EmodxcurlvE - 0.5d0*tetra_physics(ind_tetr)%gv2EmodxcurlA
+                amat(1:3,1:3) = amat(1:3,1:3) - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gammat
+                amat(4,4) = amat(4,4) - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%spgammat
+                amat(1:3,4) = amat(1:3,4) + cm_over_e*tetra_physics(ind_tetr)%curlvE
+            endif !boole_stron_electric_fields (adding additional terms to the coefficiants)
 !
             !Multiply amat and b with appropriate sign (which ensures that tau remains positive inside the algorithm)
             amat = amat * dble(sign_rhs)
@@ -2763,9 +2776,10 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
     function normal_velocity_func(z,iface)
 !        
         use tetra_physics_poly_precomp_mod, only: tetra_physics_poly4,tetra_physics_poly1
-        use tetra_physics_mod, only: tetra_physics
+        use tetra_physics_mod, only: tetra_physics, cm_over_e
         use poly_without_precomp_mod, only: b
-        use gorilla_settings_mod, only: i_precomp
+        use gorilla_settings_mod, only: i_precomp, boole_strong_electric_fields
+        use constants, only: clight
 !
         implicit none
 !        
@@ -2774,9 +2788,15 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         double precision                            :: normal_velocity_func
 !
         if(i_precomp.eq.0) then
-            normal_velocity_func = sum((tetra_physics_poly1(ind_tetr)%anorm_in_amat1_0(:,iface) + &
-                        & perpinv * tetra_physics_poly1(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) * dble(sign_rhs)+ &
+            normal_velocity_func = (sum((-clight*tetra_physics_poly1(ind_tetr)%anorm_in_betmat(:,iface) + &
+                        & perpinv*cm_over_e*tetra_physics_poly1(ind_tetr)%anorm_in_alpmat(:,iface)) * z(1:3)) + &
+                        & tetra_physics_poly1(ind_tetr)%anorm_in_betvec(iface) * z(4)) * dble(sign_rhs) + &
                         & sum(tetra_physics(ind_tetr)%anorm(:,iface) * b(1:3))
+            if(boole_strong_electric_fields) then
+                normal_velocity_func = normal_velocity_func + & 
+                                   &   (sum(- 0.5d0*cm_over_e*tetra_physics_poly1(ind_tetr)%anorm_in_gammat(:,iface) * z(1:3)) &
+                                   &   + cm_over_e*tetra_physics_poly1(ind_tetr)%anorm_in_gamvec(iface) * z(4)) * dble(sign_rhs) 
+            endif
         else
             normal_velocity_func = sum((tetra_physics_poly4(ind_tetr)%anorm_in_amat1_0(:,iface) + &
                                     & perpinv * tetra_physics_poly4(ind_tetr)%anorm_in_amat1_1(:,iface)) * z) * dble(sign_rhs) + &

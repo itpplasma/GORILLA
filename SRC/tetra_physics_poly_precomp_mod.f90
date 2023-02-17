@@ -8,9 +8,9 @@ module tetra_physics_poly_precomp_mod
     type tetrahedron_physics_precomp_poly1
         sequence
 !
-        double precision, dimension(4,4)            :: amat1_0,amat1_1
+        double precision, dimension(4)              :: anorm_in_betvec, anorm_in_gamvec
 !
-        double precision, dimension(4,4)            :: anorm_in_amat1_0,anorm_in_amat1_1
+        double precision, dimension(3,4)            :: anorm_in_alpmat,anorm_in_betmat,anorm_in_gammat
 !
     end type
 !
@@ -99,61 +99,23 @@ module tetra_physics_poly_precomp_mod
         subroutine make_precomp_poly1()
 !
             use tetra_grid_mod, only: ntetr
-            use tetra_physics_mod, only: tetra_physics, cm_over_e
-            use constants, only: pi,clight
+            use tetra_physics_mod, only: tetra_physics
+            use gorilla_settings_mod, only: boole_strong_electric_fields
 !
             implicit none
 !
-            integer         :: ind_tetr,n
-            double precision, dimension(3,3)            :: alpmat
-            double precision, dimension(3,3)            :: betmat
-            double precision, dimension(4,4)            :: alp,bet
-            
-            double precision                            :: spalpmat
-            double precision                            :: spbetmat
-            double precision, dimension(3)              :: bvec
-            double precision, dimension(4)              :: n_vec
+            integer                                     :: ind_tetr,n
+            double precision, dimension(3)              :: n_vec
 !
             allocate(tetra_physics_poly1(ntetr))
 !
             !$OMP PARALLEL &
             !$OMP& DO DEFAULT(NONE) &
-            !$OMP& SHARED(ntetr,tetra_physics,tetra_physics_poly1,cm_over_e) &
-            !$OMP& PRIVATE(ind_tetr,alpmat,spalpmat,betmat,spbetmat,bvec,n,n_vec, &
-            !$OMP& alp,bet)
+            !$OMP& SHARED(ntetr,tetra_physics,tetra_physics_poly1,boole_strong_electric_fields) &
+            !$OMP& PRIVATE(ind_tetr,n,n_vec)
 
             !Loop over all tetrahedra
             do ind_tetr = 1,ntetr
-!
-                alpmat = cm_over_e*tetra_physics(ind_tetr)%alpmat
-                spalpmat = cm_over_e*tetra_physics(ind_tetr)%spalpmat
-                betmat = clight*tetra_physics(ind_tetr)%betmat
-                spbetmat = clight*tetra_physics(ind_tetr)%spbetmat
-                bvec = tetra_physics(ind_tetr)%curla
-!
-                !Define 4x4 matrices alpha, beta and powers
-!
-                !alpha:
-                alp(1,:) = [alpmat(1,1), alpmat(1,2),alpmat(1,3),0.d0]
-                alp(2,:) = [alpmat(2,1), alpmat(2,2),alpmat(2,3),0.d0]
-                alp(3,:) = [alpmat(3,1), alpmat(3,2),alpmat(3,3),0.d0]
-                alp(4,:) = [0.d0, 0.d0, 0.d0, spalpmat]
-!
-                !beta:
-                bet(1,:) = [-betmat(1,1), -betmat(1,2), -betmat(1,3), bvec(1)]
-                bet(2,:) = [-betmat(2,1), -betmat(2,2), -betmat(2,3), bvec(2)]
-                bet(3,:) = [-betmat(3,1), -betmat(3,2), -betmat(3,3), bvec(3)]
-                bet(4,:) = [0.d0, 0.d0, 0.d0, -spbetmat]
-!
-                !Compute a^k matrices factorized for initial condition c1^n
-!
-                !a^1 (c1^0)
-                tetra_physics_poly1(ind_tetr)%amat1_0 = bet
-!
-                !a^1 (c1^1)
-                tetra_physics_poly1(ind_tetr)%amat1_1 = alp
-!
-                !Compute n in a^k
 !
                 !Loop over all normal vectors
                 do n = 1,4
@@ -161,17 +123,24 @@ module tetra_physics_poly_precomp_mod
                     n_vec(1) = tetra_physics(ind_tetr)%anorm(1,n)
                     n_vec(2) = tetra_physics(ind_tetr)%anorm(2,n)
                     n_vec(3) = tetra_physics(ind_tetr)%anorm(3,n)
-                    n_vec(4) = 0.d0
 !
                     !anorm in amat:
 !
-                    !c1^0
-                    tetra_physics_poly1(ind_tetr)%anorm_in_amat1_0(:,n) = &
-                                & matmul(n_vec,tetra_physics_poly1(ind_tetr)%amat1_0)
+                    tetra_physics_poly1(ind_tetr)%anorm_in_alpmat(:,n) = &
+                                & matmul(n_vec,tetra_physics(ind_tetr)%alpmat)
 !
-                    !c1^1
-                    tetra_physics_poly1(ind_tetr)%anorm_in_amat1_1(:,n) = &
-                                & matmul(n_vec,tetra_physics_poly1(ind_tetr)%amat1_1)
+                    tetra_physics_poly1(ind_tetr)%anorm_in_betmat(:,n) = &
+                                & matmul(n_vec,tetra_physics(ind_tetr)%betmat)
+!
+                    tetra_physics_poly1(ind_tetr)%anorm_in_betvec(n) = &
+                                & sum(n_vec*tetra_physics(ind_tetr)%curlA)
+
+                    if (boole_strong_electric_fields) then
+                        tetra_physics_poly1(ind_tetr)%anorm_in_gammat(:,n) = &
+                                & matmul(n_vec,tetra_physics(ind_tetr)%gammat)
+                        tetra_physics_poly1(ind_tetr)%anorm_in_gamvec(n) = &
+                                & sum(n_vec*tetra_physics(ind_tetr)%curlvE)
+                    endif
 !
                 enddo !(n=1,4)
 !

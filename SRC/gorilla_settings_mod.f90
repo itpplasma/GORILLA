@@ -114,9 +114,12 @@
                 stop
             endif
 !
-            !The additional terms for a strong electric field are only implemented in case of cylindrical coordinates (WEST)
-            if ( boole_strong_electric_fields.and.(coord_system.ne.1)) then
-                print *, 'ERROR: When strong electric fields are included, set coord_system to 1 in gorilla.inp.'
+            !The additional terms for a strong electric field are only implemented in case of cylindrical coordinates (WEST) and polynomial pusher
+            !Also there is currently not an implementation using the extended precomputation mode of either pusher
+            if ( boole_strong_electric_fields.and.((coord_system.ne.1).or.(ipusher.ne.2).or.&
+                    & (i_precomp.ne.0).or.(boole_newton_precalc)) ) then
+                print *, 'ERROR: When strong electric fields are included, set coord_system=1 and ipusher=2 in gorilla.inp.'
+                print *, '       Also have i_precomp=0 and boole_newton_precalc=.false. in gorilla.inp!'
                 stop
             endif
 !
