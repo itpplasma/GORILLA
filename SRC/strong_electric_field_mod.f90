@@ -21,12 +21,12 @@ contains
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine get_electric_field(R,phi,Z,E_x1,E_x2,E_x3)
+    subroutine get_electric_field(R,phi,Z,E_x1,E_x2,E_x3,phi_elec)
 !
         implicit none
 !
         double precision, intent(in)             :: R, phi, Z
-        double precision, intent(out)            :: E_x1, E_x2, E_x3
+        double precision, intent(out)            :: E_x1, E_x2, E_x3,phi_elec
 !
         select case(electric_field_option)
 !
@@ -38,6 +38,9 @@ contains
                 print *, 'ERROR: Invalid option to get electric field. Change the parameters in module strong_electric_field_mod!'
                 stop
         end select
+!
+        !Get scalar potential in way that is consistent with calculated E-field (hard-coded settings in modulo variables above)
+        call get_electric_potential(R,phi,Z,phi_elec)
 !
     end subroutine get_electric_field
 !

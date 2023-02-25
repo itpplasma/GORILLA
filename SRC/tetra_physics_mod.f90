@@ -327,20 +327,20 @@
         h_x2(iv)=h_x2(iv)/Bmod(iv)
         h_x3(iv)=h_x3(iv)/Bmod(iv)
 !
-        !Electrostatic potential as a product of co-variant component of vector potential and a factor eps_Phi (gorilla.inp)
-        phi_elec(iv) = A_x2(iv)*eps_Phi
+        !Optionally in case of strong electric fields for Soledge3X-EIRENE collaboration (only cylindrical coordinates) one needs
+        !Electric field E at the vertices (wrapper get_electric_field with different ways to get the field)
+        if(boole_strong_electric_fields) then
+            call get_electric_field(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),E_x1(iv),E_x2(iv),E_x3(iv),phi_elec(iv))
+            call get_v_E(verts_rphiz(1,iv),E_x1(iv),E_x2(iv),E_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv), &
+                                & v_E_x1(iv),v_E_x2(iv),v_E_x3(iv),v2_E_mod(iv))
+        else
+            !Electrostatic potential as a product of co-variant component of vector potential and a factor eps_Phi (gorilla.inp)
+            phi_elec(iv) = A_x2(iv)*eps_Phi
+        endif
 !
         !Optionally add axisymmetric noise to electrostatic potential
         if(boole_axi_noise_elec_pot) then
             phi_elec(iv) = phi_elec(iv)+phi_elec(iv)*axi_noise_eps_Phi*rnd_axi_noise(modulo(iv-1,(nvert/grid_size(2))) +1)
-        endif
-!
-        !Optionally in case of strong electric fields for Soledge3X-EIRENE collaboration (only cylindrical coordinates) one needs
-        !Electric field E at the vertices (wrapper get_electric_field with different ways to get the field)
-        if(boole_strong_electric_fields) then
-            call get_electric_field(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),E_x1(iv),E_x2(iv),E_x3(iv))
-            call get_v_E(verts_rphiz(1,iv),E_x1(iv),E_x2(iv),E_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv), &
-                                & v_E_x1(iv),v_E_x2(iv),v_E_x3(iv),v2_E_mod(iv))
         endif
 !
       enddo !iv (index vertex)
@@ -621,9 +621,9 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
         tetra_physics(ind_tetr)%gv2Emod(2) = davec_dx2(14)
         tetra_physics(ind_tetr)%gv2Emod(3) = davec_dx3(14)
     ! "curl(vE)" -  $\epsilon^{ijk}\difp{vE_k}{x^j}$ :
-        tetra_physics(ind_tetr)%curlh(1) = davec_dx2(13)-davec_dx3(12)
-        tetra_physics(ind_tetr)%curlh(2) = davec_dx3(11)-davec_dx1(13)
-        tetra_physics(ind_tetr)%curlh(3) = davec_dx1(12)-davec_dx2(11)
+        tetra_physics(ind_tetr)%curlvE(1) = davec_dx2(13)-davec_dx3(12)
+        tetra_physics(ind_tetr)%curlvE(2) = davec_dx3(11)-davec_dx1(13)
+        tetra_physics(ind_tetr)%curlvE(3) = davec_dx1(12)-davec_dx2(11)
     ! "vector product" of grad v2Emod times vector h in the first vertex:
         tetra_physics(ind_tetr)%gv2Emodxh1(1) = davec_dx2(14)*avec(1,6)-davec_dx3(14)*avec(1,5)
         tetra_physics(ind_tetr)%gv2Emodxh1(2) = davec_dx3(14)*avec(1,4)-davec_dx1(14)*avec(1,6)
