@@ -103,7 +103,7 @@ NetCDF includes and libraries, one has to set the `NCINC` and `NCLIB` variable d
 To build GORILLA with `cmake`, use `build.x`.
 ```bash
 cd /path/to/GORILLA
-./build.x
+./build.sh
 ```
 This will produce `test_gorilla_main.x` in the folder BUILD/SRC/ required to run the code.
 
