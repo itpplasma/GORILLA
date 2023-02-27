@@ -157,7 +157,7 @@
  !Switch for including strong electric field terms
  !false ... no additional terms
  !true ... includes polarization drift terms in dynamics
- boole_strong_electric_fields = .false. ,
+ boole_strong_electric_field = .false. ,
 !
 !------------------------------------------------------------------------------------------------------------!
 !

@@ -73,7 +73,7 @@
     integer, public, protected :: max_n_intermediate_steps
 !
     !Including additional terms in case of strong electric fields (Soledge3X-EIRENE, cylindrical coordinates only)
-    logical, public, protected :: boole_strong_electric_fields
+    logical, public, protected :: boole_strong_electric_field
 !
     !Namelist for Gorilla input
     NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
@@ -84,7 +84,7 @@
                         & helical_pert_n_fourier, boole_time_Hamiltonian, boole_gyrophase, &
                         & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps, &
                         & i_time_tracing_option, &
-                        & boole_strong_electric_fields
+                        & boole_strong_electric_field
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type
 !
@@ -116,7 +116,7 @@
 !
             !The additional terms for a strong electric field are only implemented in case of cylindrical coordinates (WEST) and polynomial pusher
             !Also there is currently not an implementation using the extended precomputation mode of either pusher
-            if ( boole_strong_electric_fields.and.((coord_system.ne.1).or.(ipusher.ne.2).or.&
+            if ( boole_strong_electric_field.and.((coord_system.ne.1).or.(ipusher.ne.2).or.&
                     & (i_precomp.ne.0).or.(boole_newton_precalc)) ) then
                 print *, 'ERROR: When strong electric fields are included, set coord_system=1 and ipusher=2 in gorilla.inp.'
                 print *, '       Also have i_precomp=0 and boole_newton_precalc=.false. in gorilla.inp!'

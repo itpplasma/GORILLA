@@ -100,7 +100,7 @@ module tetra_physics_poly_precomp_mod
 !
             use tetra_grid_mod, only: ntetr
             use tetra_physics_mod, only: tetra_physics
-            use gorilla_settings_mod, only: boole_strong_electric_fields
+            use gorilla_settings_mod, only: boole_strong_electric_field
 !
             implicit none
 !
@@ -111,7 +111,7 @@ module tetra_physics_poly_precomp_mod
 !
             !$OMP PARALLEL &
             !$OMP& DO DEFAULT(NONE) &
-            !$OMP& SHARED(ntetr,tetra_physics,tetra_physics_poly1,boole_strong_electric_fields) &
+            !$OMP& SHARED(ntetr,tetra_physics,tetra_physics_poly1,boole_strong_electric_field) &
             !$OMP& PRIVATE(ind_tetr,n,n_vec)
 
             !Loop over all tetrahedra
@@ -135,7 +135,7 @@ module tetra_physics_poly_precomp_mod
                     tetra_physics_poly1(ind_tetr)%anorm_in_betvec(n) = &
                                 & sum(n_vec*tetra_physics(ind_tetr)%curlA)
 
-                    if (boole_strong_electric_fields) then
+                    if (boole_strong_electric_field) then
                         tetra_physics_poly1(ind_tetr)%anorm_in_gammat(:,n) = &
                                 & matmul(n_vec,tetra_physics(ind_tetr)%gammat)
                         tetra_physics_poly1(ind_tetr)%anorm_in_gamvec(n) = &

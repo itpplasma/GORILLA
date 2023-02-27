@@ -274,7 +274,7 @@
     function energy_tot_func(z,perpinv,ind_tetr)
 !
         use tetra_physics_mod, only: tetra_physics,particle_mass,particle_charge
-        use gorilla_settings_mod, only: boole_strong_electric_fields
+        use gorilla_settings_mod, only: boole_strong_electric_field
 !
         implicit none
 !
@@ -291,7 +291,7 @@
 !
         energy_tot_func = particle_mass/2.d0*(vperp**2 + z(4)**2) + particle_charge*phi_elec_func(z(1:3),ind_tetr)
 !
-        if (boole_strong_electric_fields) energy_tot_func = energy_tot_func + 0.5d0*particle_mass*v2_E_mod_func(z(1:3),ind_tetr)
+        if (boole_strong_electric_field) energy_tot_func = energy_tot_func + 0.5d0*particle_mass*v2_E_mod_func(z(1:3),ind_tetr)
 !       
     end function energy_tot_func
 !

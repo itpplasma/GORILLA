@@ -128,7 +128,7 @@
       use various_functions_mod, only: dmatinv3
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
-            & non_axi_noise_eps_A, boole_strong_electric_fields
+            & non_axi_noise_eps_A, boole_strong_electric_field
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E
       use gorilla_diag_mod, only: diag_strong_electric_field
 !
@@ -186,7 +186,7 @@
       endif
 !
       !Strong electric fields and grid_kind=3 are mutually exclusive
-      if(boole_strong_electric_fields) then
+      if(boole_strong_electric_field) then
         if(grid_kind.ne.3) then
             allocate(E_x1(nvert),E_x2(nvert),E_x3(nvert))
             allocate(v_E_x1(nvert),v_E_x2(nvert),v_E_x3(nvert),v2_E_mod(nvert))
@@ -195,7 +195,7 @@
             print *, 'Error: Wrong grid_kind - grid_kind=3 is not compatible with current implementation of strong electric fields.'
             stop
         endif
-      endif !boole_strong_electric_fields
+      endif !boole_strong_electric_field
 !
       allocate(avec(4,navec))
       allocate(davec_dx1(navec),davec_dx2(navec),davec_dx3(navec))
@@ -329,7 +329,7 @@
 !
         !Optionally in case of strong electric fields for Soledge3X-EIRENE collaboration (only cylindrical coordinates) one needs
         !Electric field E at the vertices (wrapper get_electric_field with different ways to get the field)
-        if(boole_strong_electric_fields) then
+        if(boole_strong_electric_field) then
             call get_electric_field(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),E_x1(iv),E_x2(iv),E_x3(iv),phi_elec(iv))
             call get_v_E(verts_rphiz(1,iv),E_x1(iv),E_x2(iv),E_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv), &
                                 & v_E_x1(iv),v_E_x2(iv),v_E_x3(iv),v2_E_mod(iv))
@@ -346,12 +346,12 @@
       enddo !iv (index vertex)
 !
 !Reading out the calculated electric field for testing/debugging purposes
-if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electric_field(E_x1,E_x2,E_x3)
+if(boole_strong_electric_field.AND.diag_strong_electric_field) call save_electric_field(E_x1,E_x2,E_x3)
 !
   !$OMP PARALLEL &
   !$OMP& DO DEFAULT(NONE) &
   !$OMP& SHARED(ntetr,tetra_grid,coord_system,verts_rphiz,grid_kind,verts_sthetaphi, &
-  !$OMP& grid_size,A_x1,A_x2,A_x3,h_x1,h_x2,h_x3,Bmod,phi_elec,v_E_x1,v_E_x2,v_E_x3,v2_E_mod,boole_strong_electric_fields, &
+  !$OMP& grid_size,A_x1,A_x2,A_x3,h_x1,h_x2,h_x3,Bmod,phi_elec,v_E_x1,v_E_x2,v_E_x3,v2_E_mod,boole_strong_electric_field, &
   !$OMP& handover_processing_kind,hamiltonian_time, &
   !$OMP& sqg,tetra_physics,tetra_skew_coord,navec,verts_xyz,mag_axis_R0,mag_axis_Z0,dR_ds,dZ_ds,n_field_periods) &
   !$OMP& PRIVATE(ind_tetr,i,j,k,l,iv,p_x1,p_x2,p_x3,A_phi,A_theta,dA_phi_ds, &
@@ -426,7 +426,7 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
 !
       !Strong electric fields and grid_kind=3 are mutually exclusive 
       !(grid_kind=3 -> flux coordinates, strong E -> cylindrical coordinates)
-      if(boole_strong_electric_fields) then
+      if(boole_strong_electric_field) then
         avec(i,11) = v_E_x1(iv)
         avec(i,12) = v_E_x2(iv)
         avec(i,13) = v_E_x3(iv)
@@ -520,12 +520,12 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
     if(grid_kind.eq.3) tetra_physics(ind_tetr)%sqg1 = avec(1,11)
 !
 ! Components of the drift velocity v_E and modulo squared of drift veloctiy v_E in the first vertex (only if grid_kind =/= 3)
-    if(boole_strong_electric_fields) then
+    if(boole_strong_electric_field) then
         tetra_physics(ind_tetr)%vE1_1 = avec(1,11)
         tetra_physics(ind_tetr)%vE2_1 = avec(1,12)
         tetra_physics(ind_tetr)%vE3_1 = avec(1,13)
         tetra_physics(ind_tetr)%v2Emod_1 = avec(1,14)
-    endif !boole_strong_electric_fields (origin quantities)
+    endif !boole_strong_electric_field (origin quantities)
 ! 
 ! derivatives:
     call differentiate(p_x1,p_x2,p_x3,navec,avec,davec_dx1,davec_dx2,davec_dx3)
@@ -603,7 +603,7 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
     tetra_physics(ind_tetr)%gh3(3) = davec_dx3(6)
 !
     !Strong electric field quantities (mutually exclusive with grid_kind=3)
-    if(boole_strong_electric_fields) then
+    if(boole_strong_electric_field) then
     ! gradient of vE1 - $\difp{vE1}{x^i}:
         tetra_physics(ind_tetr)%gvE1(1) = davec_dx1(11)
         tetra_physics(ind_tetr)%gvE1(2) = davec_dx2(11)
@@ -644,7 +644,7 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
         tetra_physics(ind_tetr)%gv2EmodxcurlvE = davec_dx1(14)*tetra_physics(ind_tetr)%curlvE(1) &
                                                 + davec_dx2(14)*tetra_physics(ind_tetr)%curlvE(2) &
                                                 + davec_dx3(14)*tetra_physics(ind_tetr)%curlvE(3)
-    endif !boole_strong_electric_fields (differentiated quantities)
+    endif !boole_strong_electric_field (differentiated quantities)
 !
 ! "curl(h)" -  $\epsilon^{ijk}\difp{h_k}{x^j}$ :
     tetra_physics(ind_tetr)%curlh(1) = davec_dx2(6)-davec_dx3(5)
@@ -715,7 +715,7 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
                              + tetra_physics(ind_tetr)%betmat(2,2) &
                              + tetra_physics(ind_tetr)%betmat(3,3)
 !
-    if(boole_strong_electric_fields) then
+    if(boole_strong_electric_field) then
         !
         ! real space part of matrix gamma (strong electric fields):
         tetra_physics(ind_tetr)%gammat(1,1) = 2.d0*tetra_physics(ind_tetr)%curlh(1)*tetra_physics(ind_tetr)%gv2Emod(1) &
@@ -742,7 +742,7 @@ if(boole_strong_electric_fields.AND.diag_strong_electric_field) call save_electr
         tetra_physics(ind_tetr)%spgammat = tetra_physics(ind_tetr)%gammat(1,1) &
                                     + tetra_physics(ind_tetr)%gammat(2,2) &
                                     + tetra_physics(ind_tetr)%gammat(3,3)
-    endif !boole_strong_electric_fields (gmma matrix)
+    endif !boole_strong_electric_field (gamma matrix)
 !
 ! precomputation of acef_pre for analytical quadratic approximation
     tetra_physics(ind_tetr)%acoef_pre = matmul(tetra_physics(ind_tetr)%curlA,tetra_physics(ind_tetr)%anorm)
@@ -903,8 +903,8 @@ enddo
         deallocate(avec)
         deallocate(A_x1,A_x2,A_x3)
         deallocate(h_x1,h_x2,h_x3,bmod,phi_elec)
-        if(boole_strong_electric_fields) deallocate(E_x1,E_x2,E_x3)
-        if(boole_strong_electric_fields) deallocate(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
+        if(boole_strong_electric_field) deallocate(E_x1,E_x2,E_x3)
+        if(boole_strong_electric_field) deallocate(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
         if(coord_system.eq.2) deallocate(dR_ds,dZ_ds)
         if(grid_kind.eq.3) deallocate(sqg)
         if(boole_axi_noise_vector_pot.or.boole_axi_noise_elec_pot) deallocate(rnd_axi_noise)
