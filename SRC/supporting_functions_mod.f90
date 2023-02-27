@@ -372,12 +372,14 @@
     function p_phi_func(vpar,z,ind_tetr)
 !
         use tetra_physics_mod, only: tetra_physics,particle_mass,cm_over_e,coord_system
+        use gorilla_settings_mod, only: boole_strong_electric_field
 !
         implicit none
 !
         integer :: ind_tetr
         double precision :: vpar,p_phi_func,hphi1
         double precision,dimension(3) :: z,ghphi
+        double precision,dimension(3) :: v_E
 !
         select case(coord_system)
             case(1)
@@ -391,6 +393,12 @@
         p_phi_func = particle_mass*vpar*(hphi1+sum(ghphi*z(1:3))) + &
                     &particle_mass/cm_over_e* &
                     & (tetra_physics(ind_tetr)%Aphi1+sum(tetra_physics(ind_tetr)%gAphi*z(1:3)))
+!
+        if (boole_strong_electric_field) then
+            v_E = v_E_func(z(1:3),ind_tetr)
+            !Strong electric fields are only implemented for coord_system = 1 -> phi is second entry (compare above case select)
+            p_phi_func = p_phi_func + particle_mass*v_E(2)
+        endif
 !        
     end function p_phi_func
 !
