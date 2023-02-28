@@ -129,7 +129,7 @@
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
             & non_axi_noise_eps_A, boole_strong_electric_field
-      use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E
+      use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
       use gorilla_diag_mod, only: diag_strong_electric_field
 !
       integer, intent(in) :: ipert_in,coord_system_in
@@ -345,8 +345,9 @@
 !
       enddo !iv (index vertex)
 !
-!Reading out the calculated electric field for testing/debugging purposes
+!Reading out the calculated electric field/drift velocity for testing/debugging purposes
 if(boole_strong_electric_field.AND.diag_strong_electric_field) call save_electric_field(E_x1,E_x2,E_x3)
+if(boole_strong_electric_field.AND.diag_strong_electric_field) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
 !
   !$OMP PARALLEL &
   !$OMP& DO DEFAULT(NONE) &

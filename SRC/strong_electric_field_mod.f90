@@ -15,7 +15,7 @@ module strong_electric_field_mod
     logical                                      :: boole_first_call = .true.
     double precision, dimension(3)               :: dx_array
 !
-    public :: get_electric_field, save_electric_field, get_v_E
+    public :: get_electric_field, save_electric_field, get_v_E, save_v_E
 !
 contains
 !
@@ -159,6 +159,26 @@ contains
         v2_E_mod = v_E_x1 * v_E_x1 + v_E_x2 * 1/R**2 * v_E_x2 + v_E_x3 * v_E_x3
 !
     end subroutine get_v_E
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine save_v_E(vec_v_E_x1,vec_v_E_x2,vec_v_E_x3,vec_v2_E_mod)
+!
+        use tetra_grid_mod,                 only : verts_rphiz, nvert
+!
+        implicit none
+!
+        double precision, dimension(:), intent(in)      :: vec_v_E_x1,vec_v_E_x2,vec_v_E_x3,vec_v2_E_mod
+!
+        integer                                         :: iv
+!
+        open(123, file='./electric_drift.dat')
+        do iv = 1, nvert
+            write(123,*) verts_rphiz(:,iv),vec_v_E_x1(iv),vec_v_E_x2(iv),vec_v_E_x3(iv),vec_v2_E_mod(iv)
+        end do
+        close(123)
+!
+    end subroutine save_v_E
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

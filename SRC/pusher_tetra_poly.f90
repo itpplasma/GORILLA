@@ -1494,7 +1494,7 @@ if(diag_pusher_tetry_poly) print *, 'boole',boole_approx,'dtau',dtau,'iface_new'
             amat(1:3,4) = tetra_physics(ind_tetr)%curlA
 !
             if (boole_strong_electric_field) then
-                b(1:3) = b(1:3) - cm_over_e*tetra_physics(ind_tetr)%gv2Emodxh1 !and also the modification of k1 done by initialization
+                b(1:3) = b(1:3) - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gv2Emodxh1 !and also the modification of k1 done by initialization
                 b(4) = b(4) + cm_over_e*perpinv*tetra_physics(ind_tetr)%gBxcurlvE - clight*tetra_physics(ind_tetr)%gPhixcurlvE &
                           & - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gv2EmodxcurlvE - 0.5d0*tetra_physics(ind_tetr)%gv2EmodxcurlA
                 amat(1:3,1:3) = amat(1:3,1:3) - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gammat
