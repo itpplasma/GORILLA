@@ -2812,6 +2812,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         use tetra_physics_mod, only: tetra_physics,cm_over_e
         use tetra_grid_settings_mod, only: grid_size
         use constants, only : clight
+        use gorilla_settings_mod, only: boole_strong_electric_field
 !
         implicit none
 !
@@ -2825,7 +2826,11 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         vperp2 = -2.d0*perpinv*bmod0
 !
         !ExB drift velocity
-        vd_ExB = abs(clight/bmod0*tetra_physics(ind_tetr)%Er_mod)
+        if (boole_strong_electric_field) then
+            vd_ExB = tetra_physics(ind_tetr)%v_E_mod_average
+        else
+            vd_ExB = abs(clight/bmod0*tetra_physics(ind_tetr)%Er_mod)
+        endif
         boole_vd_ExB = .true.
         if(vd_ExB.eq.0.d0) boole_vd_ExB = .false.
 !

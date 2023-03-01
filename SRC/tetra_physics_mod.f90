@@ -26,7 +26,8 @@
       double precision :: vE2_1                  ! 2nd (covariant) component of drift velcoity v_E in the first vertex
       double precision :: vE3_1                  ! 3rd (covariant) component of drift velcoity v_E in the first vertex
       double precision :: v2Emod_1               ! module squared of drift velocity v_E in first vertex
-      double precision :: Er_mod                 ! module of the electric field in r-direction
+      double precision :: Er_mod                 ! module of the electric field in r-direction (for tau_estimate in weak E-field case)
+      double precision :: v_E_mod_average        ! averaged modulo of ExB drift over tetrahedron corners for tau_estimate in pusher
       double precision :: sqg1                   ! square root g (metric determinant) at the first vertex (ONLY for grid_kind = 3)
       double precision :: dt_dtau_const          ! Factor dt_dtau averaged of the four vertices
       double precision :: gBxcurlA               ! $\epsilon^{ijk}\difp{B}{x^i}\difp{A_k}{x^j}$ scalar
@@ -128,9 +129,8 @@
       use various_functions_mod, only: dmatinv3
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
-            & non_axi_noise_eps_A, boole_strong_electric_field
+            & non_axi_noise_eps_A, boole_strong_electric_field, boole_save_electric
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
-      use gorilla_diag_mod, only: diag_strong_electric_field
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in
@@ -257,10 +257,16 @@
 ! 
       !Store cylindrical coordinates and bmod of magnetic axis
       select case(coord_system)
-        case(1) !RphiZ --> Cylindrical coordinate system
+        case(1) !RphiZ --> Cylindrical coordinate system (then only used for safety margin calculation of tau_estimate)
             print *, 'Magnetic axis for cylindrical coordinates are NOT computed. Magnetic axis is HARD CODED!!!'
-            mag_axis_R0 = 170.80689536175018d0
-            mag_axis_Z0 = 8.9514398817462517d0
+            select case(grid_kind)
+                case(2)
+                    mag_axis_R0 = 170.80689536175018d0
+                    mag_axis_Z0 = 8.9514398817462517d0
+                case(4)
+                    mag_axis_R0 = 240.0d0
+                    mag_axis_Z0 = 0.0d0
+            end select
 !
         case(2) !sthetaphi --> Symmetry flux coordinate system
             select case(grid_kind)
@@ -345,9 +351,9 @@
 !
       enddo !iv (index vertex)
 !
-!Reading out the calculated electric field/drift velocity for testing/debugging purposes
-if(boole_strong_electric_field.AND.diag_strong_electric_field) call save_electric_field(E_x1,E_x2,E_x3)
-if(boole_strong_electric_field.AND.diag_strong_electric_field) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
+!Reading out the calculated electric field/drift velocity for testing/debugging/visualization purposes
+if(boole_save_electric) call save_electric_field(E_x1,E_x2,E_x3)
+if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
 !
   !$OMP PARALLEL &
   !$OMP& DO DEFAULT(NONE) &
@@ -774,31 +780,43 @@ if(boole_strong_electric_field.AND.diag_strong_electric_field) call save_v_E(v_E
     !Average over all 4 vertices
     tetra_physics(ind_tetr)%dt_dtau_const = tetra_physics(ind_tetr)%dt_dtau_const/4.d0
 !
-    !Constant electric field modulus in r-direction averaged over all four vertices
-    tetra_physics(ind_tetr)%Er_mod = 0.d0
-    select case(coord_system)
-        case(1) !R,Phi,Z --> Cylindrical coordinate system
-            do j = 1,4
-                iv=tetra_grid(ind_tetr)%ind_knot(j)
+    !Getting quantities for ExB drift contribution to estimated passing time of orbit in the tetrahedron
+    if (boole_strong_electric_field) then
+        !In case of strong electric field mode one can acess ExB drift directly
+        tetra_physics(ind_tetr)%v_E_mod_average = 0.d0
+        do j = 1,4
+            iv=tetra_grid(ind_tetr)%ind_knot(j)
 !                
-                !Minor radius at the position of the vertex Sqrt((R-R0)^2 + (Z-Z0)^2)
-                r_minor = sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2)
+            tetra_physics(ind_tetr)%v_E_mod_average = tetra_physics(ind_tetr)%v_E_mod_average + sqrt(v2_E_mod(iv))
+        enddo
+        tetra_physics(ind_tetr)%v_E_mod_average = tetra_physics(ind_tetr)%v_E_mod_average/4.d0
+    else
+        !Constant electric field modulus in r-direction averaged over all four vertices in case one has not ExB directly available
+        tetra_physics(ind_tetr)%Er_mod = 0.d0
+        select case(coord_system)
+            case(1) !R,Phi,Z --> Cylindrical coordinate system
+                do j = 1,4
+                    iv=tetra_grid(ind_tetr)%ind_knot(j)
 !                
-                tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_dR*dR_dr + dPhi_dZ*dZ_dr
-                                & (tetra_physics(ind_tetr)%gPhi(1) * r_minor/(avec(j,9)-mag_axis_R0) + &
-                                &  tetra_physics(ind_tetr)%gPhi(3) * r_minor/(avec(j,10)-mag_axis_Z0))
-            enddo
-        case(2) !s,theta,phi --> Symmetry flux coordinate system 
-            do j = 1,4
-                iv=tetra_grid(ind_tetr)%ind_knot(j)
-                tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_ds * ds_dr
-                                & tetra_physics(ind_tetr)%gPhi(1) * &
-                                & sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2) &
-                                & /((avec(j,9)-mag_axis_R0)*dR_ds(iv) + (avec(j,10)-mag_axis_Z0)*dZ_ds(iv))  
-            enddo
-    end select
-    tetra_physics(ind_tetr)%Er_mod = abs(tetra_physics(ind_tetr)%Er_mod/4.d0)
-
+                    !Minor radius at the position of the vertex Sqrt((R-R0)^2 + (Z-Z0)^2)
+                    r_minor = sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2)
+!                
+                    tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_dR*dR_dr + dPhi_dZ*dZ_dr
+                                    & (tetra_physics(ind_tetr)%gPhi(1) * (avec(j,9)-mag_axis_R0)/r_minor + &
+                                    &  tetra_physics(ind_tetr)%gPhi(3) * (avec(j,10)-mag_axis_Z0)/r_minor)
+                enddo
+            case(2) !s,theta,phi --> Symmetry flux coordinate system 
+                do j = 1,4
+                    iv=tetra_grid(ind_tetr)%ind_knot(j)
+                    tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_ds * ds_dr
+                                    & tetra_physics(ind_tetr)%gPhi(1) * &
+                                    & sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2) &
+                                    & /((avec(j,9)-mag_axis_R0)*dR_ds(iv) + (avec(j,10)-mag_axis_Z0)*dZ_ds(iv))  
+                enddo
+        end select
+        tetra_physics(ind_tetr)%Er_mod = abs(tetra_physics(ind_tetr)%Er_mod/4.d0)
+    endif
+!
 ! Tetrahedron reference distance in the first vertex
     tetra_physics(ind_tetr)%tetra_dist_ref = 2.d0*pi/n_field_periods*tetra_physics(ind_tetr)%R1/grid_size(2)
 !

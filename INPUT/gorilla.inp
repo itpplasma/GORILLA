@@ -17,7 +17,7 @@
 !------------------------------------------------------------------------------------------------------------!
 !
  !particle species
- !1 ... electron, 2 ... deuterium ion, 3 ... alpha particle
+ !1 ... electron, 2 ... deuterium ion, 3 ... alpha particle, 4 ... ionised tungsten
  ispecies = 1 ,
 !
 !------------------------------------------------------------------------------------------------------------!
@@ -158,6 +158,13 @@
  !false ... no additional terms
  !true ... includes polarization drift terms in dynamics
  boole_strong_electric_field = .false. ,
+!
+ !Switch for saving electric field and drift to .dat-files
+ boole_save_electric = .false. ,
+
+ !Filenames for storing electric field and drift velocity
+ filename_electric_field = 'electric_field.dat',
+ filename_electric_drift = 'electric_drift.dat'
 !
 !------------------------------------------------------------------------------------------------------------!
 !

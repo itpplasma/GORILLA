@@ -217,6 +217,21 @@ module orbit_timestep_gorilla_mod
 !                    
                         !mass charge ratio
                         cm_over_e=2.d0*clight*amp/echarge
+!
+                    case(4) !ionised tungsten 
+                        !electric charge of particle
+                        particle_charge = 74.d0*echarge
+!                   
+                        !mass of particle
+                        particle_mass = 184.d0*amp
+!                    
+                        !mass charge ratio
+                        cm_over_e= 184.d0*clight*amp/(74.d0*echarge)
+!
+                    case default
+                        print *, 'ERROR: Invalid ispecies option selected. Check gorilla.inp.'
+                        stop
+!
                 end select  
 !  
                 print *, 'Start grid computation'

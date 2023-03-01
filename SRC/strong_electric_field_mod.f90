@@ -118,6 +118,7 @@ contains
     subroutine save_electric_field(vec_E_x1,vec_E_x2,vec_E_x3)
 !
         use tetra_grid_mod,                 only : verts_rphiz, nvert
+        use gorilla_settings_mod,           only : filename_electric_field
 !
         implicit none
 !
@@ -125,7 +126,7 @@ contains
 !
         integer                                         :: iv
 !
-        open(123, file='./electric_field.dat')
+        open(123, file=filename_electric_field)
         do iv = 1, nvert
             write(123,*) verts_rphiz(:,iv),vec_E_x1(iv),vec_E_x2(iv),vec_E_x3(iv)
         end do
@@ -165,6 +166,7 @@ contains
     subroutine save_v_E(vec_v_E_x1,vec_v_E_x2,vec_v_E_x3,vec_v2_E_mod)
 !
         use tetra_grid_mod,                 only : verts_rphiz, nvert
+        use gorilla_settings_mod,           only : filename_electric_drift
 !
         implicit none
 !
@@ -172,7 +174,7 @@ contains
 !
         integer                                         :: iv
 !
-        open(123, file='./electric_drift.dat')
+        open(123, file=filename_electric_drift)
         do iv = 1, nvert
             write(123,*) verts_rphiz(:,iv),vec_v_E_x1(iv),vec_v_E_x2(iv),vec_v_E_x3(iv),vec_v2_E_mod(iv)
         end do

@@ -72,8 +72,12 @@
     double precision, public, protected :: desired_delta_energy
     integer, public, protected :: max_n_intermediate_steps
 !
-    !Including additional terms in case of strong electric fields (Soledge3X-EIRENE, cylindrical coordinates only)
+    !Including additional terms in case of strong electric fields (cylindrical coordinates only)
     logical, public, protected :: boole_strong_electric_field
+!
+    logical, public, protected :: boole_save_electric
+    character*64,public,protected :: filename_electric_field
+    character*64,public,protected :: filename_electric_drift
 !
     !Namelist for Gorilla input
     NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
@@ -84,7 +88,7 @@
                         & helical_pert_n_fourier, boole_time_Hamiltonian, boole_gyrophase, &
                         & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps, &
                         & i_time_tracing_option, &
-                        & boole_strong_electric_field
+                        & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type
 !
@@ -120,6 +124,13 @@
                     & (i_precomp.ne.0).or.(boole_newton_precalc)) ) then
                 print *, 'ERROR: When strong electric fields are included, set coord_system=1 and ipusher=2 in gorilla.inp.'
                 print *, '       Also have i_precomp=0 and boole_newton_precalc=.false. in gorilla.inp!'
+                stop
+            endif
+!
+            !The explicite electric field and drift due to it can only be given in case of using the strong electric field mode
+            if (boole_save_electric.and.(.not.boole_strong_electric_field)) then
+                print *, 'ERROR: boole_strong_electric_field has to be set true to save electric field (boole_save_electric=true).'
+                print *, '       Switch boole_save_electric to false, if not using the strong electric field mode!'
                 stop
             endif
 !
