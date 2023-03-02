@@ -74,7 +74,8 @@
       double precision, dimension(3,3) :: alpmat ! real space part of matrix alpha (block from 1 to 3)
       double precision, dimension(3,3) :: betmat ! real space part of matrix beta (block from 1 to 3)
       double precision, dimension(3,3) :: gammat ! real space part of matrix gamma (block from 1 to 3) (strong electric fields)
-      double precision, dimension(4)     :: acoef_pre              !Factor of acoef for analytical quadratic approximation 
+      double precision, dimension(4)   :: acoef_pre    !Factor of acoef for analytical quadratic approximation
+      double precision, dimension(4)   :: acoef_pre_strong_electric    !Additional term to add to acoef_pre in case of strong electric field mode 
 ! 
     end type tetrahedron_physics
 !
@@ -753,6 +754,11 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
 !
 ! precomputation of acef_pre for analytical quadratic approximation
     tetra_physics(ind_tetr)%acoef_pre = matmul(tetra_physics(ind_tetr)%curlA,tetra_physics(ind_tetr)%anorm)
+!
+    if (boole_strong_electric_field) then
+        ! Additional precomputed term for analytical quadratic approximation of RK4 pusher in case of strong electric field mode
+        tetra_physics(ind_tetr)%acoef_pre_strong_electric = matmul(tetra_physics(ind_tetr)%curlvE,tetra_physics(ind_tetr)%anorm) 
+    endif
 !
 ! Constant dt_dtau averaged over all 4 vertices of tetrahedron
     tetra_physics(ind_tetr)%dt_dtau_const = 0.d0

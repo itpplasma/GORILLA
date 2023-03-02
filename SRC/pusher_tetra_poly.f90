@@ -2826,6 +2826,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         vperp2 = -2.d0*perpinv*bmod0
 !
         !ExB drift velocity
+        !Only in case of strong electric field mode, ExB drift directly calculated during tetra_physics-setup
         if (boole_strong_electric_field) then
             vd_ExB = tetra_physics(ind_tetr)%v_E_mod_average
         else

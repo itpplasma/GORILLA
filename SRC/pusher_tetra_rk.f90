@@ -53,8 +53,9 @@ module pusher_tetra_rk_mod
         use tetra_grid_settings_mod, only: grid_size
         use supporting_functions_mod, only: bmod_func
         use constants, only : clight,eps,pi
-        use gorilla_settings_mod, only: boole_dt_dtau
+        use gorilla_settings_mod, only: boole_dt_dtau, boole_strong_electric_field
         use gorilla_diag_mod, only: diag_pusher_tetra_rk
+        use supporting_functions_mod, only: v2_E_mod_func, phi_elec_func
 !
         implicit none
 !
@@ -93,7 +94,7 @@ module pusher_tetra_rk_mod
         bmod=bmod_func(z_init(1:3),ind_tetr)
 !
         !Phi at the entry point of the particle
-        phi_elec=tetra_physics(ind_tetr)%Phi1+sum(tetra_physics(ind_tetr)%gPhi*z_init(1:3))
+        phi_elec = phi_elec_func(z_init(1:3),ind_tetr)
 !
         !Auxiliary quantities
         vperp2 = -2.d0*perpinv*bmod
@@ -120,6 +121,16 @@ module pusher_tetra_rk_mod
         spamat=perpinv*cm_over_e*tetra_physics(ind_tetr)%spalpmat &
             - clight* tetra_physics(ind_tetr)%spbetmat    !tr(a-Matrix)
 !
+        if (boole_strong_electric_field) then
+            b(1:3) = b(1:3) - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gv2Emodxh1 & !In RK4 the k1 coefficiant is written out explicitly
+                 & +cm_over_e*tetra_physics(ind_tetr)%curlh * (v2_E_mod_func(z_init(1:3),ind_tetr)-tetra_physics(ind_tetr)%v2Emod_1)
+            b(4) = b(4) + cm_over_e*perpinv*tetra_physics(ind_tetr)%gBxcurlvE - clight*tetra_physics(ind_tetr)%gPhixcurlvE &
+                        & - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gv2EmodxcurlvE - 0.5d0*tetra_physics(ind_tetr)%gv2EmodxcurlA
+            amat = amat - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%gammat
+            spamat = spamat - 0.5d0*cm_over_e*tetra_physics(ind_tetr)%spgammat !amat(4,4) in pusher_tetra_poly case
+            Bvec = Bvec + cm_over_e*tetra_physics(ind_tetr)%curlvE !amat(1:3,4) in pusher_tetra_poly_case
+        endif !boole_stron_electric_fields (adding additional terms to the coefficiants)
+!
         !Multiply A-matrix (4x4) and b with appropriate sign (which ensures that tau remains positive inside the algorithm)
         amat = amat * dble(sign_rhs)
         b = b * dble(sign_rhs)
@@ -135,7 +146,12 @@ module pusher_tetra_rk_mod
         tetra_dist_ref = abs(tetra_physics(ind_tetr)%tetra_dist_ref)
 !        
         !ExB drift velocity
-        vd_ExB = abs(clight/bmod*tetra_physics(ind_tetr)%Er_mod)
+        !Only in case of strong electric field mode, ExB drift directly calculated during tetra_physics-setup
+        if (boole_strong_electric_field) then
+            vd_ExB = tetra_physics(ind_tetr)%v_E_mod_average
+        else
+            vd_ExB = abs(clight/bmod*tetra_physics(ind_tetr)%Er_mod)
+        endif
         boole_vd_ExB = .true.
         if(vd_ExB.eq.0.d0) boole_vd_ExB = .false.
 !
@@ -617,10 +633,10 @@ endif
 !
     subroutine quad_analytic_approx(z,allowed_faces,iface_inout,dtau,boole_quad_approx)
 !
-        use tetra_physics_mod, only: tetra_physics
+        use tetra_physics_mod, only: tetra_physics, cm_over_e
         use gorilla_diag_mod, only: diag_pusher_tetra_rk
 !         use pusher_tetra_poly_mod, only: analytic_coeff
-        use gorilla_settings_mod, only: boole_newton_precalc
+        use gorilla_settings_mod, only: boole_newton_precalc, boole_strong_electric_field
         use constants, only: eps
 !
         implicit none
@@ -647,6 +663,12 @@ endif
             !sign of the right hand side of ODE - ensures that tau is ALWAYS positive inside the algorithm
             !Only precomputed quantity needs to be adapted. Other quantities are already adapted in initialization process
             acoef= tetra_physics(ind_tetr)%acoef_pre * dble(sign_rhs)
+!
+            !Add now to the precomputed acoef_pre the strong electric field part, correctly multiplied by the running particle parameters cm_over_e
+            !Similar to dble(sign_rhs) this is done HERE, because acoef_pre is a precomputed quantity and not calculated during the pusher initialization process
+            !Therefore sign_rhs has to be considered for this modification as well explicitly
+            if (boole_strong_electric_field) acoef=acoef+cm_over_e*tetra_physics(ind_tetr)%acoef_pre_strong_electric*dble(sign_rhs)
+!
             bcoef=z(4)*acoef+matmul(b(1:3),anorm)
             acoef=acoef*(b(4)+spamat*z(4))
             ccoef = normal_distances_func(z(1:3))
@@ -2457,7 +2479,7 @@ if(diag_pusher_tetra_rk)               print *,"Error in final processing. - Bis
         if(boole_newton_precalc) then
             normal_acceleration_func = normal_acceleration_analytic(iface,z)
         else
-            normal_acceleration_func = sum(matmul(anorm(:,iface),amat)*dzdtau(1:3))+sum(anorm(:,iface)*bvec)*dzdtau(4)
+            normal_acceleration_func = sum(matmul(anorm(:,iface),amat)*dzdtau(1:3))+sum(anorm(:,iface)*Bvec)*dzdtau(4)
         endif
 !
     end function normal_acceleration_func
