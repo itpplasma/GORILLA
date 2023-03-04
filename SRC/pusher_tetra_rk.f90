@@ -101,6 +101,8 @@ module pusher_tetra_rk_mod
         vpar2 = vpar**2
 !
         !velocity module
+        !This is the total speed viewed in the MOVING FRAME of ExB drift (here it only acts as a coefficient for the EOM-set)
+        !For physical estimates v_E is considered seperately anyway
         vmod_init = sqrt(vpar2+vperp2)
 !
         !ODE coefficients

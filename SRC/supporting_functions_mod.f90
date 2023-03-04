@@ -406,8 +406,8 @@
 !
     function vmod_func(energy,z123,ind_tetr)
 !
-        use constants, only: ev2erg
         use tetra_physics_mod, only: particle_charge, particle_mass
+        use gorilla_settings_mod, only: boole_strong_electric_field
 !
         implicit none
 !
@@ -418,6 +418,20 @@
         integer, intent(in)                         :: ind_tetr
 !
         vmod_func = sqrt(2.d0* (energy - particle_charge * phi_elec_func(z123,ind_tetr) ) / particle_mass)
+!
+        !vmod is always thought of being formed by vpar and vperp (the speed in the with ExB drift MOVING REFERENCE FRAME)
+        !This is consistent with definition of lambda = vpar/sqrt(vpar^2 + vperp^2), again viewed in the moving frame.
+        !Distinguishing between these FRAMES become necessary in the case of strong electric fields
+        !
+        !                                                      , vpar
+        !        B (X)    =====C===== >                     _ /                vmod = sqrt(vpar^2 + vperp^2)
+        !           |      v_E ~ E x B                    /  /\                     = sqrt(vmod_total^2 - v_E^2)
+        !           | E                               ===|==C==|=====> v_E          = sqrt(E - e*PHI - m/2*v_E_^2)
+        !           |     C...guiding-center      vperp  V\ _ /
+        !           V     B...magnetic field                                 lambda = vpar/vmod
+        !                 E...electric field
+        !
+        if (boole_strong_electric_field) vmod_func = sqrt(vmod_func**2 - v2_E_mod_func(z123,ind_tetr))
 !
     end function vmod_func
 !

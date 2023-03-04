@@ -181,6 +181,20 @@ module gorilla_plot_mod
             !Orbit integration and plotting
 !
             !Compute velocity module from kinetic energy dependent on particle species
+            !This initial energy is thought of as the kinetic energy viewed in the with ExB drift MOVING FRAME in case of strong electric fields
+            !This is also how the pitch parameter lambda is viewed as (aka the ration vpar/sqrt(vpar^2 + vperp^2)) in GORILLA
+            !Furthermore, this choice is motivated by the idea of energy_eV_start being the thermal energy of the particle and
+            !the directed kinetic boost v_E adding on top of that after the instantenous potential/kinetic conversion after start
+            !
+            !   NO drift kinetic energy ->   o-----------/\-----------/\-----------/\-- PHI_TOP
+            !                                 \         /  \         /  \         /  o
+            !          B (X)                  -\-------/----\-------/----\-------/----- PHI_MIDDLE  <- on average the particle has lower potential than start
+            !             |                     \     /      \     /      \     /      
+            !             | E                 ---\___/--------\___/--------\___/------- PHI_BOTTOM
+            !             |                           
+            !             V                                ========== >
+            !                                              v_E ~ E x B      converted part of its initial potential energy in drift "energy" (not a priori kinetic/thermal)
+            !
             vmod=sqrt(2.d0*energy_eV_start*ev2erg/particle_mass)
 !
             !Initialize Counter for lost particles

@@ -151,6 +151,8 @@ endif
             !Auxiliary quantities
             vperp2 = -2.d0*perpinv*bmod0
             vpar2 = vpar**2
+            !This is the total speed viewed in the MOVING FRAME of ExB drift (here it only acts as a coefficient for the EOM-set)
+            !For physical estimates v_E is considered seperately anyway
             vmod0 = sqrt(vpar2+vperp2)
 !
             k1 = vperp2+vpar2+2.d0*perpinv*tetra_physics(ind_tetr)%bmod1
