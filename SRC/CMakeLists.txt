@@ -38,7 +38,8 @@ add_library(GORILLA STATIC
 	supporting_functions_mod.f90 
 	pusher_tetra_func_mod.f90 
 	pusher_tetra_poly.f90 
-	pusher_tetra_rk.f90 
+	pusher_tetra_rk.f90
+	find_tetra_mod.f90 
 	get_canonical_coordinates.f90 
 	orbit_timestep_gorilla.f90 
 	gorilla_plot_mod.f90
