@@ -29,7 +29,8 @@ add_library(GORILLA STATIC
 	circular_mesh_SOLEDGE3X_EIRENE.f90
 	tetra_grid_mod.f90 
 	make_grid_rect.f90 
-	bdivfree.f90 
+	bdivfree.f90
+    strong_electric_field_mod.f90 
 	tetra_physics_mod.f90
 	tetra_physics_poly_precomp_mod.f90 
 	differentiate.f90 
