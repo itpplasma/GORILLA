@@ -127,7 +127,7 @@
 !------------------------------------------------------------------------------------------------------------!
 !
  !Switches to calculate optional quantities
- boole_time_hamiltonian = .false. ,
+ boole_time_Hamiltonian = .false. ,
  boole_gyrophase = .false. ,
  boole_vpar_int = .false. ,
  boole_vpar2_int = .false. ,
@@ -154,7 +154,7 @@
 !
   !boolean for precalculation of rectangular grid to improve find_tetra (sensible for n_particles >> 1)
   boole_grid_for_find_tetra = .false. ,
-  a_factor = 4 , ,
+  a_factor = 4 ,
   b_factor = 0 ,!if either b_factor or c_factor are set to zero, they are calculated automatically such as to make delta_b and delta_c to be about in the range of delta_a (see module find tetra)
   c_factor = 0 ,
 !
@@ -174,7 +174,7 @@
 !
  !Filenames for storing electric field and drift velocity
  filename_electric_field = 'electric_field.dat',
- filename_electric_drift = 'electric_drift.dat'
+ filename_electric_drift = 'electric_drift.dat',
 !
 !------------------------------------------------------------------------------------------------------------!
 !

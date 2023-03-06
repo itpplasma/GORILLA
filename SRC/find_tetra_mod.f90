@@ -38,9 +38,7 @@ module find_tetra_mod
         double precision, dimension(4)                 :: normal_distances, normalisations
         double precision, dimension(3)                 :: current_box_centre
         double precision, dimension(:,:), allocatable  :: verts_abc
-        integer :: t1, t2, clock_max, clock_rate1, clock_rate2
 !
-call system_clock (t1, clock_rate1, clock_max)
 print*, 'grid_for_find_tetra started'
         boole_reduce_entries = .true.
         boole_axi_symmetry = .false.
@@ -66,7 +64,7 @@ print*, 'grid_for_find_tetra started'
         bmax = 2*pi
         cmin = minval(verts_abc(ind_c,:)) - 2*eps
         cmax = maxval(verts_abc(ind_c,:)) + 2*eps
-        if (boole_axi_symmetry) bmax = 2*pi/grid_size(ind_b)
+        if (boole_axi_symmetry) bmax = 2*pi/grid_size(2)
         if (coord_system.eq.2) then
             cmin = -2*eps
             cmax = 2*pi + 2*eps
@@ -89,10 +87,10 @@ print*, 'grid_for_find_tetra started'
 !
         delta_c = (cmax - cmin)/nc
 !
-        if (b_factor.eq.0) b_factor = maxval((/nint(2*pi/(grid_size(ind_b)*n_field_periods*sqrt((delta_a**2+delta_c**2)/2))),1/))
+        if (b_factor.eq.0) b_factor = maxval((/nint(2*pi/(grid_size(2)*n_field_periods*sqrt((delta_a**2+delta_c**2)/2))),1/))
         b_factor = b_factor*n_field_periods
 !
-        nb = grid_size(ind_b)*b_factor
+        nb = grid_size(2)*b_factor
         delta_b = 2*pi/nb
 print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta_b, delta_c
 !
@@ -209,11 +207,6 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
 !
  PRINT*, 'average number of entries before reduction is: ', sum(entry_counter), 'divided by', num_hexahedra, ' = ', &
  dble(sum(entry_counter))/dble(num_hexahedra)
- call system_clock (t2, clock_rate2, clock_max)
- print*, 'elapsed real time for basic grid is: ', real(t2-t1)/real(clock_rate2)
- print*, clock_max, clock_rate1, clock_rate2
-!
-call system_clock (t1, clock_rate1, clock_max)
 !
         if (boole_reduce_entries) then
             do a = 1,na!fill 1st column (R in cylindrical coordinates, s in flux coordinates)
@@ -278,9 +271,6 @@ dble(sum(entry_counter))/dble(num_hexahedra)
         endif
 !
 PRINT*, 'grid_for_find_tetra finished'
-call system_clock (t2, clock_rate2, clock_max)
-print*, 'elapsed real time for reducing entries is: ', real(t2-t1)/real(clock_rate2)
-print*, clock_max, clock_rate1, clock_rate2
     end subroutine grid_for_find_tetra
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -369,7 +359,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                 ind_b = 2 !(phi in cylindrical and flux coordinates)
                 if (coord_system.eq.2) ind_b = 3
 !
-                nphi_tetr = grid_size(ind_b)
+                nphi_tetr = grid_size(2)
                 nphi = nphi_tetr 
                 ntetr_in_plane = ntetr/nphi_tetr !number of tetrahedra in a slice which is delimited by two phi=const. planes (with phi2-phi1 = 1*delta_phi)
 !
