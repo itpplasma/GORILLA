@@ -26,11 +26,6 @@ name_test_case='example_8';
 
 %Control quantitites
 close all
-
-%lambda(1) = -0.9; %0.3 for WEST / -0.9 for ASDEX -0.4
-%eps_Phi = 2*1e-5; %-4*1e-4 for WEST / +1e-4 for ASDEX / +1e-5 ASDEX Tungsten
-%eps_Phi = 1e-7;
-
 grid_kind = 2;
 
 %Setting configurations depending on test case
@@ -45,11 +40,11 @@ switch(grid_kind)
         g_file_filename = 'MHD_EQUILIBRIA/g_file_for_test';
         convex_wall_filename = 'MHD_EQUILIBRIA/convex_wall_for_test.dat';
     case(4)
-        eps_Phi = -4*1e-4;
-        starting_2D = [210,38];
-        lambda = 0.3;
+        eps_Phi = -1.5*1e-5;
+        starting_2D = [287,2];
+        lambda = -0.9;
         n2 = 10;
-        energy_eV_start = 3e5;
+        energy_eV_start = 6e5;
         total_orbit_time = 2e-2;
         g_file_filename = 'MHD_EQUILIBRIA/g_file_for_test_WEST';
         convex_wall_filename = 'MHD_EQUILIBRIA/convex_wall_for_test_WEST.dat';
@@ -153,11 +148,11 @@ tetra_grid.read();
 
     %Grid Size
         %Rectangular: nR, Field-aligned: ns
-        tetra_grid.TETRA_GRID_NML.n1 = 40;
+        tetra_grid.TETRA_GRID_NML.n1 = 20;
         %Rectangular: nphi, Field-aligned: nphi
         tetra_grid.TETRA_GRID_NML.n2 = n2;
         %Rectangular: nZ, Field-aligned: ntheta
-        tetra_grid.TETRA_GRID_NML.n3 = 40;
+        tetra_grid.TETRA_GRID_NML.n3 = 60;
 
     %Grid kind
         %1 ... rectangular grid for axisymmetric EFIT data
@@ -298,8 +293,8 @@ cd(path_RUN);
 
 %Color scheme and plotting settings
 grid_thickness = 0.2;
-electric_thickness = 0.2;
-drift_thickness = 0.2;
+electric_thickness = 1;
+drift_thickness = 1;
 
 grid_color = [204,204,204]/256;
 electric_field_color = [256,0,0]/256;
@@ -450,20 +445,10 @@ for t = [1:n_faces]
     v_E_tor_grid((t-1)*5 + 5,:) = nan;
 end
 
-%Calculate Mach number
-clight = 3*1e10;
-mass_tungsten = 184 * 1.675 * 1e-24;
-eV2erg = 1.60218*1e-12;
-
-v_E_mod_average = sum(v_E_mod,1)/size(v_E_mod,1);
-v_thermal = sqrt(2*energy_eV_start*eV2erg/mass_tungsten);
-mach_number_average = v_E_mod_average/v_thermal;
-mach_number_max = max(v_E_mod)/v_thermal;
-
 
 %%Create Plots
 %-----------------------------------------------------------------------------------------------------------------------
-close all
+
 %Draw Poincare plot
 xlabel_txt = '$R$ [cm]';
 ylabel_txt = '$Z$ [cm]';
@@ -633,56 +618,3 @@ function [v_cart] = cylinder2cart(v_cylinder,r,phi)
     v_cart(:,2) = v_r.*sin(phi) + v_phi./r.*cos(phi);
     v_cart(:,3) = v_z;
 end
-
-%% REST
-%     grid_plot = plot3(grid(:,1),zeros(size(grid(:,1))),grid(:,2),'Color',grid_color);
-%     grid_plot.LineWidth = grid_thickness;
-%     grid_plot.DisplayName = 'SOLEDGE3X-EIRENE mesh';
-%     hold on
-% 
-%     %Data for orbits
-%     full_orbit_rphiz = data.full_orbit_plot_rphiz_electric;
-%     start_pos = load('orbit_start_rphizlambda_electric.dat');
-% 
-%     phi = full_orbit_rphiz(:,2);
-%     full_orbit_xyz = full_orbit_rphiz;
-%     full_orbit_xyz(:,2) = 0;
-%     full_orbit_xyz = cylinder2cart(full_orbit_xyz,1,phi);
-%     orbit_plot = plot3(full_orbit_xyz(:,1),full_orbit_xyz(:,2),full_orbit_xyz(:,3),'.','Color',orbit_color);
-%     orbit_plot.DisplayName = 'Guiding-center orbit projection';
-%     start_pos_plot = plot3(start_pos(:,1),start_pos(:,2),start_pos(:,3),'o','MarkerFaceColor',orbit_color,'MarkerEdgeColor',orbit_color);
-%     start_pos_plot.DisplayName = 'Guiding-center starting postions';
-% Plotting 3D drift field of first plane
-
-% xlabel_txt = '$R$ [cm]';
-% ylabel_txt = '$Y$ [cm]';
-% zlabel_txt = '$Z$ [cm]';
-% %figure('Renderer', 'painters', 'Position', [1300 37 1214 580])
-% figure('Renderer', 'painters','units','normalized','outerposition',[0 0 1 1])
-% 
-% %electric_drift_plot = plot3(electric_drift(:,1),electric_drift(:,2),electric_drift(:,3),'-','Color',electric_drift_color);
-% drift_position = electric_drift(1:3:end,:);
-% drift_direction = electric_drift(2:3:end,:) - drift_position;
-% electric_drift_plot = quiver3(drift_position(:,1),drift_position(:,2),drift_position(:,3),drift_direction(:,1),drift_direction(:,2),drift_direction(:,3),'Color',electric_drift_color);
-% electric_drift_plot.LineWidth = drift_thickness;
-% electric_drift_plot.DisplayName = ['$\bf{E}\times \bf{B}$ drift (arbitrary scale)'];
-% hold on
-% % grid_drift_plot = plot3(grid(:,1),zeros(size(grid(:,1))),grid(:,2),'Color',grid_color*1.2);
-% % grid_drift_plot.LineWidth = grid_thickness;
-% % grid_drift_plot.DisplayName = grid_name;
-% hold off
-% 
-% axis equal
-% %lh_3D = legend([grid_drift_plot,electric_drift_plot],'Interpreter','latex');
-% lh_3D = legend([electric_drift_plot],'Interpreter','latex');
-% lh_3D.FontSize = FontSize;
-% lh_3D.Location = 'best';
-% tit = title(['3D visualization of $\bf{E}\times \bf{B}$ drift'],'Interpreter','latex');
-% xlab = xlabel(xlabel_txt,'Interpreter','latex');
-% ylab = ylabel(ylabel_txt,'Interpreter','latex');
-% zlab = zlabel(zlabel_txt,'Interpreter','latex');
-% tit.FontSize = FontSize;
-% xlab.FontSize = FontSize;
-% ylab.FontSize = FontSize;
-% 
-% saveas(gcf,[path_data_plots,'/3D_drift_',name_test_case,'.png']);
