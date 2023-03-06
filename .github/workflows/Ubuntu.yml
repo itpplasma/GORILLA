@@ -113,6 +113,7 @@ jobs:
             example_5
             example_6
             example_7
+            example_8
 
       - name: Run MATLAB livescript
         uses: matlab-actions/run-command@v1

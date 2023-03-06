@@ -156,7 +156,7 @@
 !
  !Switch for including strong electric field terms
  !false ... no additional terms
- !true ... includes polarization drift terms in dynamics
+ !true ... includes strong electric field effects
  boole_strong_electric_field = .false. ,
 !
  !Switch for saving electric field and drift to .dat-files
