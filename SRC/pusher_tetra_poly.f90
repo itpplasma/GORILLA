@@ -2162,6 +2162,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         use gorilla_settings_mod, only: boole_time_Hamiltonian, boole_gyrophase, boole_vpar_int, boole_vpar2_int, &
                                         & optional_quantities_type
         use tetra_physics_mod, only: hamiltonian_time,cm_over_e,tetra_physics
+        use tetra_grid_mod, only: verts_rphiz, tetra_grid
 !
         implicit none
 !
@@ -2175,124 +2176,71 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         double precision, dimension(3)                  :: x0
         double precision                                :: vpar0
         double precision, dimension(:,:), allocatable   :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable     :: vpar_coef,res_poly_coef
+        double precision, dimension(:), allocatable     :: vpar_coef,res_poly_coef,r_rescaled_coef
         double precision, dimension(4,poly_order+1)     :: dummy_coef_mat !exists because of analytic_coeff_without_precomp syntax
         logical, dimension(4)                           :: boole_faces_off = .false. !avoid root coefficients computation
+        double precision, dimension(:), allocatable     :: dtdtau_coef, omega_coef
+        integer                                         :: i
 !
         !recalculate polynomial coefficients (tensors) if more than one integration step was performed
         if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
 !
-            allocate(x_coef(3,poly_order+1))
-            allocate(vpar_coef(poly_order+1))
+        allocate(x_coef(3,poly_order+1))
+        allocate(vpar_coef(poly_order+1))
+        allocate(dtdtau_coef(poly_order+1))
+        allocate(x_vpar_coef(3,poly_order+1))
 !
-            call z_series_coef(poly_order,z0,x_coef,vpar_coef)
+        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
+        x_vpar_coef = poly_multiplication(vpar_coef,x_coef)
 !
-        if(boole_time_hamiltonian.or.boole_vpar_int.or.boole_vpar2_int) then
-!
-            allocate(x_vpar_coef(3,poly_order+1))
-!
-            call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
-            call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
-            call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
-        endif
+        do i = 1,poly_order+1
+            dtdtau_coef(i) = sum(hamiltonian_time(ind_tetr)%vec_mismatch_der * x_coef(:,i)) + &
+                            & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * vpar_coef(i) + &
+                            & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der * x_vpar_coef(:,i))
+        enddo
+        dtdtau_coef(1) = dtdtau_coef(1) + hamiltonian_time(ind_tetr)%h1_in_curlA        
 !
         !Optional computation of Hamiltonian time
         if(boole_time_hamiltonian) then
-            delta_t_hamiltonian = hamiltonian_time(ind_tetr)%h1_in_curlA * tau + &
-            & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * moment_integration(poly_order,tau,vpar_coef)+&
-            & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * moment_integration(poly_order,tau,x_coef) ) + &
-            & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
-            & moment_integration(poly_order,tau,x_vpar_coef))
+            optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + moment_integration(poly_order,tau,dtdtau_coef)
+        endif
 !
-            !Multiply delta_t_hamiltonian with appropriate sign (We require that tau remains positive inside the algorithm)
-            delta_t_hamiltonian = delta_t_hamiltonian * dble(sign_rhs)
+        !Optional computation of gyrophase
+        if(boole_gyrophase) then
+            allocate(omega_coef(poly_order+1))
+            do i = 1,poly_order+1
+                omega_coef(i) = 1.d0/cm_over_e * sum(tetra_physics(ind_tetr)%gb * x_coef(:,i)) * dble(sign_rhs)
+            enddo
+            omega_coef(1) = omega_coef(1) + 1.d0/cm_over_e * tetra_physics(ind_tetr)%bmod1
 !
-!            call calc_t_hamiltonian(poly_order,z0,tau,delta_t_hamiltonian)
+            optional_quantities%gyrophase = optional_quantities%gyrophase - &
+                                          & moment_integration(poly_order,tau,poly_multiplication(dtdtau_coef,omega_coef))
+            deallocate(omega_coef)
+        endif
 !
-            optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + delta_t_hamiltonian
-!
-            !Optional computation of gyrophase
-            if(boole_gyrophase) then
-                optional_quantities%gyrophase = optional_quantities%gyrophase - ( &
-!
-                    !Zeroth term
-                    & 1.d0/cm_over_e * tetra_physics(ind_tetr)%bmod1 * delta_t_hamiltonian + &
-!
-                    !First term
-                    & 1.d0/cm_over_e * sum( tetra_physics(ind_tetr)%gb * moment_integration(poly_order,tau,x_coef) ) *&
-                    & hamiltonian_time(ind_tetr)%h1_in_curlA * dble(sign_rhs) + &
-!
-                    !Second term
-                    & sum(moment_integration(poly_order,tau,x_vpar_coef) * tetra_physics(ind_tetr)%gb ) * &
-                    & hamiltonian_time(ind_tetr)%h1_in_curlh * dble(sign_rhs)+ &
-!
-                    !Third term
-                    & 1.d0/cm_over_e * sum( matmul( moment_integration(poly_order,tau,poly_multiplication(x_coef,x_coef)) , &
-                    & hamiltonian_time(ind_tetr)%vec_mismatch_der ) * tetra_physics(ind_tetr)%gb) * dble(sign_rhs) + &
-!
-                    !Fourth term
-                    & sum( matmul( moment_integration(poly_order,tau,poly_multiplication(x_coef,x_vpar_coef)), &
-                    & hamiltonian_time(ind_tetr)%vec_parcurr_der ) *  tetra_physics(ind_tetr)%gb) * dble(sign_rhs) &
-                & )
-!
-
-            endif ! gyrophase
-!
-        endif ! time_Hamiltonian
-!
+        !Optional computation of integral of v_par
         if (boole_vpar_int) then 
-            ! optional_quantities%vpar_int = optional_quantities%vpar_int + moment_integration(poly_order,tau,vpar_coef)* &
-            !                                & dt_dtau_const
-            optional_quantities%vpar_int = optional_quantities%vpar_int + &
-!
-                !First term
-                & hamiltonian_time(ind_tetr)%h1_in_curlA * moment_integration(poly_order,tau,vpar_coef) + &
-!
-                !Second term
-                & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * &
-                & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))+ &
-!
-                !Third term
-                & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * &
-                & moment_integration(poly_order,tau,x_vpar_coef) ) + &
-!
-                !Fourth term
-                & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
-                & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,x_vpar_coef)))
-!
-!print*, 'vpar:',vpar_coef, tau, moment_integration(poly_order,tau,vpar_coef)
-!
+                optional_quantities%vpar_int = optional_quantities%vpar_int + &
+                & moment_integration(poly_order,tau,poly_multiplication(dtdtau_coef,vpar_coef))
         endif
 !
+        !Optional computation of integral of v_par**2
         if (boole_vpar2_int) then
-            ! optional_quantities%vpar2_int = optional_quantities%vpar2_int  + dt_dtau_const*&
-            !                                 & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))
-            optional_quantities%vpar2_int = optional_quantities%vpar2_int + &
-!
-                !First term
-                & hamiltonian_time(ind_tetr)%h1_in_curlA * &
-                & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef)) + &
-!
-                !Second term
-                & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * &
-                & moment_integration(poly_order,tau,poly_multiplication(vpar_coef,poly_multiplication(vpar_coef,vpar_coef)))+ &
-!
-                !Third term
-                & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * &
-                & moment_integration(poly_order,tau,poly_multiplication(poly_multiplication(vpar_coef,vpar_coef),x_coef)) ) + &
-!
-                !Fourth term
-                & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
-                & moment_integration(poly_order,tau,poly_multiplication(poly_multiplication(vpar_coef,vpar_coef),x_vpar_coef)))
-!
-
-!print*, 'vpar2', poly_multiplication(vpar_coef,vpar_coef), tau, & 
-!moment_integration(poly_order,tau,poly_multiplication(vpar_coef,vpar_coef))
-!
+                optional_quantities%vpar2_int = optional_quantities%vpar2_int + &
+                & moment_integration(poly_order,tau,poly_multiplication(dtdtau_coef,poly_multiplication(vpar_coef,vpar_coef)))
         endif
 !
-        deallocate(vpar_coef)
-        if(boole_time_hamiltonian.or.boole_vpar_int.or.boole_vpar2_int)  deallocate(x_coef,x_vpar_coef)
+        !use only with cylindrical coordinates
+        allocate(r_rescaled_coef(poly_order + 1))
+        r_rescaled_coef = x_coef(1,:)
+        r_rescaled_coef(1) = r_rescaled_coef(1) + verts_rphiz(1,tetra_grid(ind_tetr)%ind_knot(1)) &
+                                       & - minval(verts_rphiz(1,tetra_grid(ind_tetr)%ind_knot([1,2,3,4])))
+        r_rescaled_coef = r_rescaled_coef/(maxval(verts_rphiz(1,tetra_grid(ind_tetr)%ind_knot([1,2,3,4]))) - &
+                                           minval(verts_rphiz(1,tetra_grid(ind_tetr)%ind_knot([1,2,3,4]))))
+        !optional_quantities
+        deallocate(r_rescaled_coef)
+!
+        deallocate(vpar_coef,x_coef,x_vpar_coef)
 !
     end subroutine calc_optional_quantities
 !
