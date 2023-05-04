@@ -38,4 +38,5 @@
     boole_strong_electric_field = .false. ,
     filename_electric_drift = 'electric_drift.dat' ,
     filename_electric_field = 'electric_field.dat' ,
+    boole_pert_from_mephit = .false. ,
 /

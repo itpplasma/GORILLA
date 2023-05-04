@@ -130,7 +130,7 @@
       use various_functions_mod, only: dmatinv3
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
-            & non_axi_noise_eps_A, boole_strong_electric_field, boole_save_electric
+            & non_axi_noise_eps_A, boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
 !
       integer, intent(in) :: ipert_in,coord_system_in
@@ -160,6 +160,10 @@
 !
       double precision, dimension(3) :: vec_h_1
       double precision, dimension(3,3) :: mat_gh
+!
+      double precision :: b_x1_added, b_x2_added, b_x3_added
+      integer          :: triangle, n_fourier_modes
+      complex, dimension(:,:), allocatable :: A_x1_mat, A_x2_mat, A_x3_mat, b_x1_mat, b_x2_mat, b_x3_mat
 !
       !Allocation of quantities dependent on number of vertices
       allocate(tetra_physics(ntetr))
@@ -284,6 +288,16 @@
             end select
       end select
 !
+      if (boole_pert_from_mephit) then
+        allocate(A_x1_mat(grid_size(1)*grid_size(3),9)) !later on import these matrices from mephit
+        allocate(A_x2_mat(grid_size(1)*grid_size(3),9))
+        allocate(A_x3_mat(grid_size(1)*grid_size(3),9))
+        allocate(b_x1_mat(grid_size(1)*grid_size(3),9))
+        allocate(b_x2_mat(grid_size(1)*grid_size(3),9))
+        allocate(b_x3_mat(grid_size(1)*grid_size(3),9))
+        n_fourier_modes = size(A_x1_mat(1,:))
+      endif
+!
       !Get field quantities at vertices
       do iv = 1,nvert
 !
@@ -293,6 +307,49 @@
             call vector_potential_rphiz(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),ipert_in,bmod_multiplier, &
                               & A_x1(iv),A_x2(iv),A_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv))
 !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! add vector potential and magnetic field perturbations from Markus here !!!!!!!!!!!!!!!
+            if (boole_pert_from_mephit) then
+              k = int(iv/(grid_size(1)*grid_size(3)))
+              triangle = mod((iv-1),(grid_size(1)*grid_size(3)))+1
+!
+              b_x1_added = 0
+              b_x2_added = 0
+              b_x3_added = 0
+!
+              ! add constant component
+              A_x1(iv) = A_x1(iv) + real(A_x1_mat(triangle,1))
+              A_x2(iv) = A_x2(iv) + real(A_x2_mat(triangle,1))
+              A_x3(iv) = A_x3(iv) + real(A_x3_mat(triangle,1))
+              b_x1_added = b_x1_added + real(b_x1_mat(triangle,1))
+              b_x2_added = b_x2_added + real(b_x2_mat(triangle,1))
+              b_x3_added = b_x3_added + real(b_x3_mat(triangle,1))
+
+              !add other fourier modes
+              do j = 1,n_fourier_modes-1
+                  A_x1(iv) = A_x1(iv) + 2*real(A_x1_mat(triangle,j+1))*cos(2*pi*j*k/grid_size(2)) &
+                                      - 2*aimag(A_x1_mat(triangle,j+1))*sin(2*pi*j*k/grid_size(2))
+                  A_x2(iv) = A_x2(iv) + 2*real(A_x2_mat(triangle,j+1))*cos(2*pi*j*k/grid_size(2)) &
+                                      - 2*aimag(A_x2_mat(triangle,j+1))*sin(2*pi*j*k/grid_size(2))
+                  A_x3(iv) = A_x3(iv) + 2*real(A_x3_mat(triangle,j+1))*cos(2*pi*j*k/grid_size(2)) &
+                                      - 2*aimag(A_x3_mat(triangle,j+1))*sin(2*pi*j*k/grid_size(2))
+                  b_x1_added = b_x1_added + 2*real(b_x1_mat(triangle,j+1))*cos(2*pi*j*k/grid_size(2)) &
+                                          - 2*aimag(b_x1_mat(triangle,j+1))*sin(2*pi*j*k/grid_size(2))
+                  b_x2_added = b_x2_added + 2*real(b_x2_mat(triangle,j+1))*cos(2*pi*j*k/grid_size(2)) &
+                                          - 2*aimag(b_x2_mat(triangle,j+1))*sin(2*pi*j*k/grid_size(2))
+                  b_x3_added = b_x3_added + 2*real(b_x3_mat(triangle,j+1))*cos(2*pi*j*k/grid_size(2)) &
+                                          - 2*aimag(b_x3_mat(triangle,j+1))*sin(2*pi*j*k/grid_size(2))
+              enddo
+!
+              Bmod(iv) = sqrt((h_x1(iv)*Bmod(iv)+b_x1_added)**2+ &
+                              ((h_x2(iv)*Bmod(iv)+b_x2_added)/verts_rphiz(1,iv))**2+ &
+                              (h_x3(iv)*Bmod(iv)+b_x3_added)**2)
+!
+              h_x1(iv) = h_x1(iv) + b_x1_added/Bmod(iv)
+              h_x2(iv) = h_x2(iv) + b_x2_added/Bmod(iv)
+              h_x3(iv) = h_x3(iv) + b_x3_added/Bmod(iv)
+              !what about b_mod_multiplier?
+            endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           case(2) !sthetaphi --> Symmetry flux coordinate system
             select case(grid_kind)
               case(2) !EFIT (axisymmetric data)

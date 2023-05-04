@@ -147,7 +147,7 @@ module orbit_timestep_gorilla_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-        subroutine initialize_gorilla(i_option,ipert_in,bmod_multiplier)!,boole_grid_for_find_tetra)
+        subroutine initialize_gorilla(i_option,ipert_in,bmod_multiplier)
 !
             use constants, only: echarge,ame,amp,clight
             use gorilla_settings_mod, only: eps_Phi,coord_system,ispecies,boole_grid_for_find_tetra
@@ -161,7 +161,6 @@ module orbit_timestep_gorilla_mod
             implicit none
 !
             integer                                 :: iper,ipert
-            !logical, intent(inout), optional        :: boole_grid_for_find_tetra
             integer,intent(in),optional             :: i_option,ipert_in
             logical                                 :: boole_grid,boole_physics,boole_bmod_multiplier
             double precision,intent(in),optional    :: bmod_multiplier
@@ -263,10 +262,7 @@ module orbit_timestep_gorilla_mod
 !
                 call make_precomp_poly()
 !
-                !if (present(boole_grid_for_find_tetra)) then
-                    !if (grid_kind.eq.1) boole_grid_for_find_tetra = .false. !rectangular grid
-                    if (boole_grid_for_find_tetra) call grid_for_find_tetra
-                !endif
+                if (boole_grid_for_find_tetra) call grid_for_find_tetra
 !
             endif !boole_physics
 !

@@ -100,6 +100,8 @@ contains
 !
         select case(electric_potential_option)
 !
+! create case (1) here where I can import data from Markus
+!
             !Get scalar electric potential as a rescale of the poloidal magnetic flux (potential contours align with flux surfaces)
             case(2)
                 call field(R,phi,Z,d1,d2,d3,d4,d5,d6  &
