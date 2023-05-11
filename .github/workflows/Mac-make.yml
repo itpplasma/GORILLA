@@ -26,9 +26,7 @@ jobs:
 
       - name: Dependencies
         run: |
-          curl -LO https://raw.githubusercontent.com/GiovanniBussi/macports-ci/master/macports-ci
-          source ./macports-ci install
-          sudo port install netcdf netcdf-fortran
+          brew install wget unzip git gcc make cmake netcdf netcdf-fortran
           
       - name: Additional files
         run: |
