@@ -22,21 +22,38 @@
       double precision :: Phi1                   ! electrostatic potential in the first vertex
       double precision :: R1                     ! major radius in the first vertex
       double precision :: Z1                     ! Z in the first vertex
-      double precision :: Er_mod                 ! module of the electric field in r-direction
+      double precision :: vE1_1                  ! 1st (covariant) component of drift velcoity v_E in the first vertex
+      double precision :: vE2_1                  ! 2nd (covariant) component of drift velcoity v_E in the first vertex
+      double precision :: vE3_1                  ! 3rd (covariant) component of drift velcoity v_E in the first vertex
+      double precision :: v2Emod_1               ! module squared of drift velocity v_E in first vertex
+      double precision :: Er_mod                 ! module of the electric field in r-direction (for tau_estimate in weak E-field case)
+      double precision :: v_E_mod_average        ! averaged modulo of ExB drift over tetrahedron corners for tau_estimate in pusher
       double precision :: sqg1                   ! square root g (metric determinant) at the first vertex (ONLY for grid_kind = 3)
       double precision :: dt_dtau_const          ! Factor dt_dtau averaged of the four vertices
       double precision :: gBxcurlA               ! $\epsilon^{ijk}\difp{B}{x^i}\difp{A_k}{x^j}$ scalar
                                                  ! of "curl A" with gradient of B module
       double precision :: gPhixcurlA             ! $\epsilon^{ijk}\difp{Phi}{x^i}\difp{A_k}{x^j}$ scalar
                                                  ! of "curl A" with gradient of Phi
+      double precision :: gv2EmodxcurlA          ! $\epsilon^{ijk}\difp{v2Emod}{x^i}\difp{A_k}{x^j}$ scalar
+                                                 ! of "curl A" with gradient of v2Emod
+      double precision :: gBxcurlvE              ! $\epsilon^{ijk}\difp{B}{x^i}\difp{vE_k}{x^j}$ scalar
+                                                 ! of "curl vE" with gradient of B module
+      double precision :: gPhixcurlvE            ! $\epsilon^{ijk}\difp{Phi}{x^i}\difp{vE_k}{x^j}$ scalar
+                                                 ! of "curl vE" with gradient of Phi
+      double precision :: gv2EmodxcurlvE          ! $\epsilon^{ijk}\difp{v2Emod}{x^i}\difp{vE_k}{x^j}$ scalar
+                                                 ! of "curl vE" with gradient of v2Emod
       double precision :: spalpmat               ! alpha matrix element(4,4)= trace of the real space
                                                  ! part of matrix alpha (see below)
       double precision :: spbetmat               ! beta matrix element(4,4)= trace of the real space
                                                  ! part of matrix beta (see below)
+      double precision :: spgammat               ! gamma matrix element(4,4)= trace of the real space
+                                                 ! part of matrix gamma (see below)
       double precision, dimension(3)   :: gBxh1  ! $\epsilon^{ijk} \difp{B}{x^j} h_k$ - vector product
                                                  ! of gradient B module with $\bh$ in the first vertex
       double precision, dimension(3)   :: gPhixh1  ! $\epsilon^{ijk} \difp{Phi}{x^j} h_k$ - vector product
                                                  ! of gradient Phi with $\bh$ in the first vertex
+      double precision, dimension(3)   :: gv2Emodxh1  ! $\epsilon^{ijk} \difp{v2Emod}{x^j} h_k$ - "vector product"
+                                                 ! of gradient v2Emod with $\bh$ in the first vertex
       double precision, dimension(3)   :: gB     ! gradient of B module
       double precision, dimension(3)   :: gPhi   ! gradient of Phi
       double precision, dimension(3)   :: gR     ! gradient of R (major radius)
@@ -48,10 +65,17 @@
       double precision, dimension(3)   :: gh2    ! gradient of the 2nd component of the unit vector h
       double precision, dimension(3)   :: gh3    ! gradient of the 3rd component of the unit vector h
       double precision, dimension(3)   :: curlh  ! $\epsilon^{ijk}\difp{h_k}{x^j}$ = "curl" of $\bh$
+      double precision, dimension(3)   :: gvE1   ! gradient of the 1st component of the drift velocity v_E
+      double precision, dimension(3)   :: gvE2   ! gradient of the 2nd component of the drift velocity v_E
+      double precision, dimension(3)   :: gvE3   ! gradient of the 3rd component of the drift velocity v_E
+      double precision, dimension(3)   :: curlvE ! $\epsilon^{ijk}\difp{vE_k}{x^j}$ = "curl" of $\bvE$
+      double precision, dimension(3)   :: gv2Emod! gradient of the modulo squared of drift velocity v_E
       !3DGeoInt properties
       double precision, dimension(3,3) :: alpmat ! real space part of matrix alpha (block from 1 to 3)
       double precision, dimension(3,3) :: betmat ! real space part of matrix beta (block from 1 to 3)
-      double precision, dimension(4)     :: acoef_pre              !Factor of acoef for analytical quadratic approximation 
+      double precision, dimension(3,3) :: gammat ! real space part of matrix gamma (block from 1 to 3) (strong electric fields)
+      double precision, dimension(4)   :: acoef_pre    !Factor of acoef for analytical quadratic approximation
+      double precision, dimension(4)   :: acoef_pre_strong_electric    !Additional term to add to acoef_pre in case of strong electric field mode 
 ! 
     end type tetrahedron_physics
 !
@@ -106,7 +130,8 @@
       use various_functions_mod, only: dmatinv3
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
-            & non_axi_noise_eps_A
+            & non_axi_noise_eps_A, boole_strong_electric_field, boole_save_electric
+      use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in
@@ -120,6 +145,7 @@
       double precision, dimension(:), allocatable   :: davec_dx1,davec_dx2,davec_dx3
       double precision, dimension(:,:),allocatable :: avec
       double precision, dimension(:),           allocatable :: A_x1,A_x2,A_x3
+      double precision, dimension(:),           allocatable :: E_x1,E_x2,E_x3,v_E_x1,v_E_x2,v_E_x3,v2_E_mod
       double precision, dimension(:),           allocatable :: h_x1,h_x2,h_x3,bmod,phi_elec,sqg,dR_ds,dZ_ds
       double precision, dimension(:),         allocatable :: rnd_axi_noise
       double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
@@ -159,6 +185,18 @@
       else !EFIT
         navec = 10
       endif
+!
+      !Strong electric fields and grid_kind=3 are mutually exclusive
+      if(boole_strong_electric_field) then
+        if(grid_kind.ne.3) then
+            allocate(E_x1(nvert),E_x2(nvert),E_x3(nvert))
+            allocate(v_E_x1(nvert),v_E_x2(nvert),v_E_x3(nvert),v2_E_mod(nvert))
+            navec = navec + 4 !Adding v_E (3 components) and v2_E_mod to the quantities to be stored in the tetrahedrons
+        else !if grid_kind = 3
+            print *, 'Error: Wrong grid_kind - grid_kind=3 is not compatible with current implementation of strong electric fields.'
+            stop
+        endif
+      endif !boole_strong_electric_field
 !
       allocate(avec(4,navec))
       allocate(davec_dx1(navec),davec_dx2(navec),davec_dx3(navec))
@@ -220,10 +258,16 @@
 ! 
       !Store cylindrical coordinates and bmod of magnetic axis
       select case(coord_system)
-        case(1) !RphiZ --> Cylindrical coordinate system
+        case(1) !RphiZ --> Cylindrical coordinate system (then only used for safety margin calculation of tau_estimate)
             print *, 'Magnetic axis for cylindrical coordinates are NOT computed. Magnetic axis is HARD CODED!!!'
-            mag_axis_R0 = 170.80689536175018d0
-            mag_axis_Z0 = 8.9514398817462517d0
+            select case(grid_kind)
+                case(2)
+                    mag_axis_R0 = 170.80689536175018d0
+                    mag_axis_Z0 = 8.9514398817462517d0
+                case(4)
+                    mag_axis_R0 = 240.0d0
+                    mag_axis_Z0 = 0.0d0
+            end select
 !
         case(2) !sthetaphi --> Symmetry flux coordinate system
             select case(grid_kind)
@@ -290,8 +334,16 @@
         h_x2(iv)=h_x2(iv)/Bmod(iv)
         h_x3(iv)=h_x3(iv)/Bmod(iv)
 !
-        !Electrostatic potential as a product of co-variant component of vector potential and a factor eps_Phi (gorilla.inp)
-        phi_elec(iv) = A_x2(iv)*eps_Phi
+        !Optionally in case of strong electric fields for Soledge3X-EIRENE collaboration (only cylindrical coordinates) one needs
+        !Electric field E at the vertices (wrapper get_electric_field with different ways to get the field)
+        if(boole_strong_electric_field) then
+            call get_electric_field(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),E_x1(iv),E_x2(iv),E_x3(iv),phi_elec(iv))
+            call get_v_E(verts_rphiz(1,iv),E_x1(iv),E_x2(iv),E_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv), &
+                                & v_E_x1(iv),v_E_x2(iv),v_E_x3(iv),v2_E_mod(iv))
+        else
+            !Electrostatic potential as a product of co-variant component of vector potential and a factor eps_Phi (gorilla.inp)
+            phi_elec(iv) = A_x2(iv)*eps_Phi
+        endif
 !
         !Optionally add axisymmetric noise to electrostatic potential
         if(boole_axi_noise_elec_pot) then
@@ -300,10 +352,15 @@
 !
       enddo !iv (index vertex)
 !
+!Reading out the calculated electric field/drift velocity for testing/debugging/visualization purposes
+if(boole_save_electric) call save_electric_field(E_x1,E_x2,E_x3)
+if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
+!
   !$OMP PARALLEL &
   !$OMP& DO DEFAULT(NONE) &
   !$OMP& SHARED(ntetr,tetra_grid,coord_system,verts_rphiz,grid_kind,verts_sthetaphi, &
-  !$OMP& grid_size,A_x1,A_x2,A_x3,h_x1,h_x2,h_x3,Bmod,phi_elec,handover_processing_kind,hamiltonian_time, &
+  !$OMP& grid_size,A_x1,A_x2,A_x3,h_x1,h_x2,h_x3,Bmod,phi_elec,v_E_x1,v_E_x2,v_E_x3,v2_E_mod,boole_strong_electric_field, &
+  !$OMP& handover_processing_kind,hamiltonian_time, &
   !$OMP& sqg,tetra_physics,tetra_skew_coord,navec,verts_xyz,mag_axis_R0,mag_axis_Z0,dR_ds,dZ_ds,n_field_periods) &
   !$OMP& PRIVATE(ind_tetr,i,j,k,l,iv,p_x1,p_x2,p_x3,A_phi,A_theta,dA_phi_ds, &
   !$OMP& dA_theta_ds,aiota,R,Z,alam,dR_ds1,dR_dt,dR_dp,dZ_ds1,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp, &
@@ -374,6 +431,15 @@
       avec(i,10)=verts_rphiz(3,iv) !Z
 !      
       if(grid_kind.eq.3) avec(i,11)=sqg(iv)
+!
+      !Strong electric fields and grid_kind=3 are mutually exclusive 
+      !(grid_kind=3 -> flux coordinates, strong E -> cylindrical coordinates)
+      if(boole_strong_electric_field) then
+        avec(i,11) = v_E_x1(iv)
+        avec(i,12) = v_E_x2(iv)
+        avec(i,13) = v_E_x3(iv)
+        avec(i,14) = v2_E_mod(iv)
+      endif
     enddo
 !
     !At least one vertex lies on theta = 2pi, but reference point in verts-matrix is 0
@@ -460,6 +526,14 @@
 !
 ! Square root g in the first vertex:
     if(grid_kind.eq.3) tetra_physics(ind_tetr)%sqg1 = avec(1,11)
+!
+! Components of the drift velocity v_E and modulo squared of drift veloctiy v_E in the first vertex (only if grid_kind =/= 3)
+    if(boole_strong_electric_field) then
+        tetra_physics(ind_tetr)%vE1_1 = avec(1,11)
+        tetra_physics(ind_tetr)%vE2_1 = avec(1,12)
+        tetra_physics(ind_tetr)%vE3_1 = avec(1,13)
+        tetra_physics(ind_tetr)%v2Emod_1 = avec(1,14)
+    endif !boole_strong_electric_field (origin quantities)
 ! 
 ! derivatives:
     call differentiate(p_x1,p_x2,p_x3,navec,avec,davec_dx1,davec_dx2,davec_dx3)
@@ -536,6 +610,50 @@
     tetra_physics(ind_tetr)%gh3(2) = davec_dx2(6)
     tetra_physics(ind_tetr)%gh3(3) = davec_dx3(6)
 !
+    !Strong electric field quantities (mutually exclusive with grid_kind=3)
+    if(boole_strong_electric_field) then
+    ! gradient of vE1 - $\difp{vE1}{x^i}:
+        tetra_physics(ind_tetr)%gvE1(1) = davec_dx1(11)
+        tetra_physics(ind_tetr)%gvE1(2) = davec_dx2(11)
+        tetra_physics(ind_tetr)%gvE1(3) = davec_dx3(11)
+    ! gradient of vE2 - $\difp{vE2}{x^i}:
+        tetra_physics(ind_tetr)%gvE2(1) = davec_dx1(12)
+        tetra_physics(ind_tetr)%gvE2(2) = davec_dx2(12)
+        tetra_physics(ind_tetr)%gvE2(3) = davec_dx3(12)
+    ! gradient of vE3 - $\difp{vE3}{x^i}:
+        tetra_physics(ind_tetr)%gvE3(1) = davec_dx1(13)
+        tetra_physics(ind_tetr)%gvE3(2) = davec_dx2(13)
+        tetra_physics(ind_tetr)%gvE3(3) = davec_dx3(13)
+    ! gradient of v2Emod - $\difp{v2Emod}{x^i}:
+        tetra_physics(ind_tetr)%gv2Emod(1) = davec_dx1(14)
+        tetra_physics(ind_tetr)%gv2Emod(2) = davec_dx2(14)
+        tetra_physics(ind_tetr)%gv2Emod(3) = davec_dx3(14)
+    ! "curl(vE)" -  $\epsilon^{ijk}\difp{vE_k}{x^j}$ :
+        tetra_physics(ind_tetr)%curlvE(1) = davec_dx2(13)-davec_dx3(12)
+        tetra_physics(ind_tetr)%curlvE(2) = davec_dx3(11)-davec_dx1(13)
+        tetra_physics(ind_tetr)%curlvE(3) = davec_dx1(12)-davec_dx2(11)
+    ! "vector product" of grad v2Emod times vector h in the first vertex:
+        tetra_physics(ind_tetr)%gv2Emodxh1(1) = davec_dx2(14)*avec(1,6)-davec_dx3(14)*avec(1,5)
+        tetra_physics(ind_tetr)%gv2Emodxh1(2) = davec_dx3(14)*avec(1,4)-davec_dx1(14)*avec(1,6)
+        tetra_physics(ind_tetr)%gv2Emodxh1(3) = davec_dx1(14)*avec(1,5)-davec_dx2(14)*avec(1,4)
+    ! gradient of v2Emod times "curl(A)" - $\epsilon^{ijk}difp{v2Emod}{x^i}\difp{A_k}{x^j} :
+        tetra_physics(ind_tetr)%gv2EmodxcurlA = davec_dx1(14)*tetra_physics(ind_tetr)%curlA(1) &
+                                                + davec_dx2(14)*tetra_physics(ind_tetr)%curlA(2) &
+                                                + davec_dx3(14)*tetra_physics(ind_tetr)%curlA(3)
+    ! gradient of B times "curl(vE)" - $\epsilon^{ijk}difp{B}{x^i}\difp{vE_k}{x^j} :
+        tetra_physics(ind_tetr)%gBxcurlvE = davec_dx1(7)*tetra_physics(ind_tetr)%curlvE(1) &
+                                            + davec_dx2(7)*tetra_physics(ind_tetr)%curlvE(2) &
+                                            + davec_dx3(7)*tetra_physics(ind_tetr)%curlvE(3)
+    ! gradient of Phi times "curl(vE)" - $\epsilon^{ijk}difp{Phi}{x^i}\difp{vE_k}{x^j} :
+        tetra_physics(ind_tetr)%gPhixcurlvE = davec_dx1(8)*tetra_physics(ind_tetr)%curlvE(1) &
+                                            + davec_dx2(8)*tetra_physics(ind_tetr)%curlvE(2) &
+                                            + davec_dx3(8)*tetra_physics(ind_tetr)%curlvE(3)
+    ! gradient of v2Emod times "curl(vE)" - $\epsilon^{ijk}difp{v2Emod}{x^i}\difp{vE_k}{x^j} :
+        tetra_physics(ind_tetr)%gv2EmodxcurlvE = davec_dx1(14)*tetra_physics(ind_tetr)%curlvE(1) &
+                                                + davec_dx2(14)*tetra_physics(ind_tetr)%curlvE(2) &
+                                                + davec_dx3(14)*tetra_physics(ind_tetr)%curlvE(3)
+    endif !boole_strong_electric_field (differentiated quantities)
+!
 ! "curl(h)" -  $\epsilon^{ijk}\difp{h_k}{x^j}$ :
     tetra_physics(ind_tetr)%curlh(1) = davec_dx2(6)-davec_dx3(5)
     tetra_physics(ind_tetr)%curlh(2) = davec_dx3(4)-davec_dx1(6)
@@ -603,10 +721,44 @@
 ! trace of real space part of matrix beta (element $\beta^4_4$):
     tetra_physics(ind_tetr)%spbetmat = tetra_physics(ind_tetr)%betmat(1,1) &
                              + tetra_physics(ind_tetr)%betmat(2,2) &
-                             + tetra_physics(ind_tetr)%betmat(3,3)   
+                             + tetra_physics(ind_tetr)%betmat(3,3)
+!
+    if(boole_strong_electric_field) then
+        !
+        ! real space part of matrix gamma (strong electric fields):
+        tetra_physics(ind_tetr)%gammat(1,1) = 2.d0*tetra_physics(ind_tetr)%curlh(1)*tetra_physics(ind_tetr)%gv2Emod(1) &
+                                    + davec_dx2(14)*davec_dx1(6)-davec_dx3(14)*davec_dx1(5)
+        tetra_physics(ind_tetr)%gammat(1,2) = 2.d0*tetra_physics(ind_tetr)%curlh(1)*tetra_physics(ind_tetr)%gv2Emod(2) &
+                                    + davec_dx2(14)*davec_dx2(6)-davec_dx3(14)*davec_dx2(5)
+        tetra_physics(ind_tetr)%gammat(1,3) = 2.d0*tetra_physics(ind_tetr)%curlh(1)*tetra_physics(ind_tetr)%gv2Emod(3) &
+                                    + davec_dx2(14)*davec_dx3(6)-davec_dx3(14)*davec_dx3(5)
+        !
+        tetra_physics(ind_tetr)%gammat(2,1) = 2.d0*tetra_physics(ind_tetr)%curlh(2)*tetra_physics(ind_tetr)%gv2Emod(1) &
+                                    + davec_dx3(14)*davec_dx1(4)-davec_dx1(14)*davec_dx1(6)
+        tetra_physics(ind_tetr)%gammat(2,2) = 2.d0*tetra_physics(ind_tetr)%curlh(2)*tetra_physics(ind_tetr)%gv2Emod(2) &
+                                    + davec_dx3(14)*davec_dx2(4)-davec_dx1(14)*davec_dx2(6)
+        tetra_physics(ind_tetr)%gammat(2,3) = 2.d0*tetra_physics(ind_tetr)%curlh(2)*tetra_physics(ind_tetr)%gv2Emod(3) &
+                                    + davec_dx3(14)*davec_dx3(4)-davec_dx1(14)*davec_dx3(6)
+        !
+        tetra_physics(ind_tetr)%gammat(3,1) = 2.d0*tetra_physics(ind_tetr)%curlh(3)*tetra_physics(ind_tetr)%gv2Emod(1) &
+                                    + davec_dx1(14)*davec_dx1(5)-davec_dx2(14)*davec_dx1(4)
+        tetra_physics(ind_tetr)%gammat(3,2) = 2.d0*tetra_physics(ind_tetr)%curlh(3)*tetra_physics(ind_tetr)%gv2Emod(2) &
+                                    + davec_dx1(14)*davec_dx2(5)-davec_dx2(14)*davec_dx2(4)
+        tetra_physics(ind_tetr)%gammat(3,3) = 2.d0*tetra_physics(ind_tetr)%curlh(3)*tetra_physics(ind_tetr)%gv2Emod(3) &
+                                    + davec_dx1(14)*davec_dx3(5)-davec_dx2(14)*davec_dx3(4)
+        ! trace of real space part of matrix beta (element $\beta^4_4$):
+        tetra_physics(ind_tetr)%spgammat = tetra_physics(ind_tetr)%gammat(1,1) &
+                                    + tetra_physics(ind_tetr)%gammat(2,2) &
+                                    + tetra_physics(ind_tetr)%gammat(3,3)
+    endif !boole_strong_electric_field (gamma matrix)
 !
 ! precomputation of acef_pre for analytical quadratic approximation
     tetra_physics(ind_tetr)%acoef_pre = matmul(tetra_physics(ind_tetr)%curlA,tetra_physics(ind_tetr)%anorm)
+!
+    if (boole_strong_electric_field) then
+        ! Additional precomputed term for analytical quadratic approximation of RK4 pusher in case of strong electric field mode
+        tetra_physics(ind_tetr)%acoef_pre_strong_electric = matmul(tetra_physics(ind_tetr)%curlvE,tetra_physics(ind_tetr)%anorm) 
+    endif
 !
 ! Constant dt_dtau averaged over all 4 vertices of tetrahedron
     tetra_physics(ind_tetr)%dt_dtau_const = 0.d0
@@ -634,31 +786,43 @@
     !Average over all 4 vertices
     tetra_physics(ind_tetr)%dt_dtau_const = tetra_physics(ind_tetr)%dt_dtau_const/4.d0
 !
-    !Constant electric field modulus in r-direction averaged over all four vertices
-    tetra_physics(ind_tetr)%Er_mod = 0.d0
-    select case(coord_system)
-        case(1) !R,Phi,Z --> Cylindrical coordinate system
-            do j = 1,4
-                iv=tetra_grid(ind_tetr)%ind_knot(j)
+    !Getting quantities for ExB drift contribution to estimated passing time of orbit in the tetrahedron
+    if (boole_strong_electric_field) then
+        !In case of strong electric field mode one can acess ExB drift directly
+        tetra_physics(ind_tetr)%v_E_mod_average = 0.d0
+        do j = 1,4
+            iv=tetra_grid(ind_tetr)%ind_knot(j)
 !                
-                !Minor radius at the position of the vertex Sqrt((R-R0)^2 + (Z-Z0)^2)
-                r_minor = sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2)
+            tetra_physics(ind_tetr)%v_E_mod_average = tetra_physics(ind_tetr)%v_E_mod_average + sqrt(v2_E_mod(iv))
+        enddo
+        tetra_physics(ind_tetr)%v_E_mod_average = tetra_physics(ind_tetr)%v_E_mod_average/4.d0
+    else
+        !Constant electric field modulus in r-direction averaged over all four vertices in case one has not ExB directly available
+        tetra_physics(ind_tetr)%Er_mod = 0.d0
+        select case(coord_system)
+            case(1) !R,Phi,Z --> Cylindrical coordinate system
+                do j = 1,4
+                    iv=tetra_grid(ind_tetr)%ind_knot(j)
 !                
-                tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_dR*dR_dr + dPhi_dZ*dZ_dr
-                                & (tetra_physics(ind_tetr)%gPhi(1) * r_minor/(avec(j,9)-mag_axis_R0) + &
-                                &  tetra_physics(ind_tetr)%gPhi(3) * r_minor/(avec(j,10)-mag_axis_Z0))
-            enddo
-        case(2) !s,theta,phi --> Symmetry flux coordinate system 
-            do j = 1,4
-                iv=tetra_grid(ind_tetr)%ind_knot(j)
-                tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_ds * ds_dr
-                                & tetra_physics(ind_tetr)%gPhi(1) * &
-                                & sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2) &
-                                & /((avec(j,9)-mag_axis_R0)*dR_ds(iv) + (avec(j,10)-mag_axis_Z0)*dZ_ds(iv))  
-            enddo
-    end select
-    tetra_physics(ind_tetr)%Er_mod = abs(tetra_physics(ind_tetr)%Er_mod/4.d0)
-
+                    !Minor radius at the position of the vertex Sqrt((R-R0)^2 + (Z-Z0)^2)
+                    r_minor = sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2)
+!                
+                    tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_dR*dR_dr + dPhi_dZ*dZ_dr
+                                    & (tetra_physics(ind_tetr)%gPhi(1) * (avec(j,9)-mag_axis_R0)/r_minor + &
+                                    &  tetra_physics(ind_tetr)%gPhi(3) * (avec(j,10)-mag_axis_Z0)/r_minor)
+                enddo
+            case(2) !s,theta,phi --> Symmetry flux coordinate system 
+                do j = 1,4
+                    iv=tetra_grid(ind_tetr)%ind_knot(j)
+                    tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_ds * ds_dr
+                                    & tetra_physics(ind_tetr)%gPhi(1) * &
+                                    & sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2) &
+                                    & /((avec(j,9)-mag_axis_R0)*dR_ds(iv) + (avec(j,10)-mag_axis_Z0)*dZ_ds(iv))  
+                enddo
+        end select
+        tetra_physics(ind_tetr)%Er_mod = abs(tetra_physics(ind_tetr)%Er_mod/4.d0)
+    endif
+!
 ! Tetrahedron reference distance in the first vertex
     tetra_physics(ind_tetr)%tetra_dist_ref = 2.d0*pi/n_field_periods*tetra_physics(ind_tetr)%R1/grid_size(2)
 !
@@ -764,6 +928,8 @@ enddo
         deallocate(avec)
         deallocate(A_x1,A_x2,A_x3)
         deallocate(h_x1,h_x2,h_x3,bmod,phi_elec)
+        if(boole_strong_electric_field) deallocate(E_x1,E_x2,E_x3)
+        if(boole_strong_electric_field) deallocate(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
         if(coord_system.eq.2) deallocate(dR_ds,dZ_ds)
         if(grid_kind.eq.3) deallocate(sqg)
         if(boole_axi_noise_vector_pot.or.boole_axi_noise_elec_pot) deallocate(rnd_axi_noise)
@@ -1033,8 +1199,7 @@ enddo
 !
       !$OMP PARALLEL &
       !$OMP& DO DEFAULT(NONE) &
-      !$OMP& SHARED(ntetr,tetra_grid,tetra_physics) &
-      !$OMP& FIRSTPRIVATE(counter_wrong_cases) &
+      !$OMP& SHARED(ntetr,tetra_grid,tetra_physics,counter_wrong_cases) &
       !$OMP& PRIVATE(i,j,neighbour_tetra,neighbour_face)
         do i = 1,ntetr
 !

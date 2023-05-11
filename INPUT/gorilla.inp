@@ -17,7 +17,7 @@
 !------------------------------------------------------------------------------------------------------------!
 !
  !particle species
- !1 ... electron, 2 ... deuterium ion, 3 ... alpha particle
+ !1 ... electron, 2 ... deuterium ion, 3 ... alpha particle, 4 ... ionised tungsten
  ispecies = 1 ,
 !
 !------------------------------------------------------------------------------------------------------------!
@@ -129,6 +129,8 @@
  !Switches to calculate optional quantities
  boole_time_Hamiltonian = .false. ,
  boole_gyrophase = .false. ,
+ boole_vpar_int = .false. ,
+ boole_vpar2_int = .false. ,
 !
 !------------------------------------------------------------------------------------------------------------!
 !
@@ -147,6 +149,32 @@
  !Maximum number of intermediate steps allowed for splitting up an orbit section
  !Should not go much beyond 10000 steps.
  max_n_intermediate_steps = 10000 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+  !boolean for precalculation of rectangular grid to improve find_tetra (sensible for n_particles >> 1)
+  boole_grid_for_find_tetra = .false. ,
+  a_factor = 4 ,
+  b_factor = 0 ,!if either b_factor or c_factor are set to zero, they are calculated automatically such as to make delta_b and delta_c to be about in the range of delta_a (see module find tetra)
+  c_factor = 0 ,
+!
+!------------------------------------------------------------------------------------------------------------!
+!
+ !In the guiding center theory of the default implementation the electric field is assumed to be weak 
+ !compared to the magnetic field. In case of the investigation of impurities in WEST geometry
+ !(Soledge3X-EIRENE, cylindrical coordinates only) additional terms have to be included in the dynamics
+!
+ !Switch for including strong electric field terms
+ !false ... no additional terms
+ !true ... includes strong electric field effects
+ boole_strong_electric_field = .false. ,
+!
+ !Switch for saving electric field and drift to .dat-files
+ boole_save_electric = .false. ,
+!
+ !Filenames for storing electric field and drift velocity
+ filename_electric_field = 'electric_field.dat',
+ filename_electric_drift = 'electric_drift.dat',
 !
 !------------------------------------------------------------------------------------------------------------!
 !

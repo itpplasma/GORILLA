@@ -126,7 +126,7 @@ tetra_grid['tetra_grid_nml']['boole_n_field_periods'] = True
 gorilla_plot['gorilla_plot_nml']['i_orbit_options'] = 2
 
 # Total individual orbit flight time for plotting
-gorilla_plot['gorilla_plot_nml']['total_orbit_time'] = 2
+gorilla_plot['gorilla_plot_nml']['total_orbit_time'] = -2
 
 # Total Energy of particle in eV
 gorilla_plot['gorilla_plot_nml']['energy_eV_start'] = 3000

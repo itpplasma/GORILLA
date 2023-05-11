@@ -29,7 +29,8 @@ add_library(GORILLA STATIC
 	circular_mesh_SOLEDGE3X_EIRENE.f90
 	tetra_grid_mod.f90 
 	make_grid_rect.f90 
-	bdivfree.f90 
+	bdivfree.f90
+    strong_electric_field_mod.f90 
 	tetra_physics_mod.f90
 	tetra_physics_poly_precomp_mod.f90 
 	differentiate.f90 
@@ -37,7 +38,8 @@ add_library(GORILLA STATIC
 	supporting_functions_mod.f90 
 	pusher_tetra_func_mod.f90 
 	pusher_tetra_poly.f90 
-	pusher_tetra_rk.f90 
+	pusher_tetra_rk.f90
+	find_tetra_mod.f90 
 	get_canonical_coordinates.f90 
 	orbit_timestep_gorilla.f90 
 	gorilla_plot_mod.f90

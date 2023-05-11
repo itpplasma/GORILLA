@@ -92,6 +92,9 @@ tetra_grid.read();
 
     %Polynomial order for orbit pusher (from 2 to 4)
         gorilla.GORILLANML.poly_order = 2;
+       
+    %boolean for precalculation of rectangular grid to improve find_tetra (sensible for n_particles >> 1)
+        gorilla.GORILLANML.boole_grid_for_find_tetra = false;
 
 
 %Input file tetra_grid.inp

@@ -13,16 +13,19 @@ jobs:
     runs-on: macos-latest
     
     env:
-      FC: gfortran-9
-      PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.4
+      CC: gcc
+      CXX: gcc
+      FC: gfortran
+      PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Dependencies
         run: |
-          brew install wget unzip git gcc make cmake netcdf netcdf-fortran lcov
+          brew install wget unzip git gcc make cmake netcdf netcdf-fortran libomp lcov
+
           
       - name: Install pFUnit
         run: |
@@ -47,7 +50,7 @@ jobs:
           ./build_coverage.sh
 
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: code-coverage-report
           path: BUILD/COVERAGE/
@@ -57,16 +60,18 @@ jobs:
     runs-on: macos-latest
     
     env:
-      FC: gfortran-9
-      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.4
+      CC: gcc
+      CXX: gcc
+      FC: gfortran
+      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Dependencies
         run: |
-          brew install wget unzip git gcc make cmake netcdf netcdf-fortran
+          brew install wget unzip git gcc make cmake netcdf netcdf-fortran libomp
           
       - name: Additional Files
         run: |
@@ -93,6 +98,8 @@ jobs:
           ./test_gorilla_main_cmake.x
           cd ../../EXAMPLES/example_6
           ./test_gorilla_main_cmake.x
+          cd ../../EXAMPLES/example_7
+          ./test_gorilla_main_cmake.x
           
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v1
@@ -108,6 +115,8 @@ jobs:
             example_4
             example_5
             example_6
+            example_7
+            example_8
 
       - name: Run MATLAB livescript
         uses: matlab-actions/run-command@v1
@@ -146,6 +155,7 @@ jobs:
           python3.9 example_4.py
           python3.9 example_5.py
           python3.9 example_6.py
+          python3.9 example_7.py
 
       - name: Run PYTHON plottingscripts
         run: |
@@ -156,6 +166,7 @@ jobs:
           python3.9 plot_example_4.py
           python3.9 plot_example_5.py
           python3.9 plot_example_6.py
+          python3.9 plot_example_7.py
 
       - name: Run JUPYTER notebook
         run: |

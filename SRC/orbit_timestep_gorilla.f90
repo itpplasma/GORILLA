@@ -7,19 +7,26 @@ module orbit_timestep_gorilla_mod
 !
     private
 !
-    public :: orbit_timestep_gorilla,initialize_gorilla,phi_elec_func,check_coordinate_domain, bmod_func, vperp_func
+    public :: orbit_timestep_gorilla,initialize_gorilla,check_coordinate_domain
+!
+    integer, dimension(:,:), allocatable, public, protected   :: equidistant_grid
+    integer, dimension(:), allocatable, public, protected     :: entry_counter
+    double precision, dimension(3,5), public, protected       :: dimension_parametres
+    logical, public, protected                                :: boole_axi_symmetry
 !    
     contains
 !
         subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface,t_remain_out)
 !
-            use pusher_tetra_rk_mod, only: find_tetra,pusher_tetra_rk,initialize_const_motion_rk
+            use supporting_functions_mod, only: bmod_func, vperp_func
+            use pusher_tetra_rk_mod, only: pusher_tetra_rk,initialize_const_motion_rk
             use pusher_tetra_poly_mod, only: pusher_tetra_poly,initialize_const_motion_poly
             use tetra_physics_poly_precomp_mod , only: make_precomp_poly_perpinv, initialize_boole_precomp_poly_perpinv, &
                 & alloc_precomp_poly_perpinv
             use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
             !use tetra_grid_mod, only: ntetr
             use gorilla_settings_mod, only: ipusher, poly_order
+            use find_tetra_mod, only: find_tetra
 !
             implicit none
 !
@@ -140,21 +147,25 @@ module orbit_timestep_gorilla_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-        subroutine initialize_gorilla(i_option,ipert_in,bmod_multiplier)
+        subroutine initialize_gorilla(i_option,ipert_in,bmod_multiplier)!,boole_grid_for_find_tetra)
 !
             use constants, only: echarge,ame,amp,clight
-            use gorilla_settings_mod, only: eps_Phi,coord_system,ispecies
+            use gorilla_settings_mod, only: eps_Phi,coord_system,ispecies,boole_grid_for_find_tetra
             use tetra_grid_mod, only: make_tetra_grid
             use tetra_physics_mod, only: make_tetra_physics,check_tetra_overlaps,cm_over_e,particle_charge,particle_mass
             use tetra_physics_poly_precomp_mod, only: make_precomp_poly
+            use tetra_grid_settings_mod, only: grid_kind
+            use find_tetra_mod, only: grid_for_find_tetra
+
 !
             implicit none
 !
             integer                                 :: iper,ipert
+            !logical, intent(inout), optional        :: boole_grid_for_find_tetra
             integer,intent(in),optional             :: i_option,ipert_in
             logical                                 :: boole_grid,boole_physics,boole_bmod_multiplier
             double precision,intent(in),optional    :: bmod_multiplier
-!            
+!
             if(present(i_option)) then
                 select case(i_option)
                     case(1)
@@ -216,6 +227,21 @@ module orbit_timestep_gorilla_mod
 !                    
                         !mass charge ratio
                         cm_over_e=2.d0*clight*amp/echarge
+!
+                    case(4) !ionised tungsten 
+                        !electric charge of particle
+                        particle_charge = 74.d0*echarge
+!                   
+                        !mass of particle
+                        particle_mass = 184.d0*amp
+!                    
+                        !mass charge ratio
+                        cm_over_e= 184.d0*clight*amp/(74.d0*echarge)
+!
+                    case default
+                        print *, 'ERROR: Invalid ispecies option selected. Check gorilla.inp.'
+                        stop
+!
                 end select  
 !  
                 print *, 'Start grid computation'
@@ -236,7 +262,12 @@ module orbit_timestep_gorilla_mod
                 call check_tetra_overlaps
 !
                 call make_precomp_poly()
-!                
+!
+                !if (present(boole_grid_for_find_tetra)) then
+                    !if (grid_kind.eq.1) boole_grid_for_find_tetra = .false. !rectangular grid
+                    if (boole_grid_for_find_tetra) call grid_for_find_tetra
+                !endif
+!
             endif !boole_physics
 !
         end subroutine initialize_gorilla
@@ -324,126 +355,6 @@ module orbit_timestep_gorilla_mod
             end select
 !
         end subroutine
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function bmod_func(z123,ind_tetr)
-!
-            use tetra_physics_mod, only: tetra_physics
-!
-            implicit none
-!
-            double precision :: bmod_func
-            integer, intent(in) :: ind_tetr
-            double precision, dimension(3),intent(in) :: z123
-!
-            bmod_func = tetra_physics(ind_tetr)%bmod1+sum(tetra_physics(ind_tetr)%gb*z123)
-!        
-        end function bmod_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function vperp_func(z123,perpinv,ind_tetr)
-!        
-            use tetra_physics_mod, only: tetra_physics
-!    
-            implicit none
-!
-            double precision :: vperp_func
-            integer, intent(in) :: ind_tetr
-            double precision, dimension(3),intent(in) :: z123
-            double precision, intent(in) :: perpinv
-
-                if(perpinv.ne.0.d0) then
-                    vperp_func=sqrt(2.d0*abs(perpinv)*bmod_func(z123,ind_tetr))
-                else
-                    vperp_func = 0.d0
-                endif
-!
-        end function vperp_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function E_tot_func(z123,vpar,perpinv,ind_tetr)
-!
-            use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
-!
-            implicit none
-!
-            double precision :: E_tot_func
-            integer, intent(in) :: ind_tetr
-            double precision, dimension(3),intent(in) :: z123
-            double precision, intent(in) :: perpinv,vpar
-            double precision :: vperp
-!
-                vperp = vperp_func(z123,perpinv,ind_tetr)
-!
-                E_tot_func = 0.5d0*particle_mass*(vpar**2+vperp**2) + &
-                            & particle_charge*phi_elec_func(z123,ind_tetr)
-!
-        end function E_tot_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!       
-        function phi_elec_func(z123,ind_tetr)
-!
-            use tetra_physics_mod, only: tetra_physics
-!
-            implicit none
-!
-            double precision :: phi_elec_func
-            integer, intent(in) :: ind_tetr
-            double precision, dimension(3),intent(in) :: z123
-!
-            phi_elec_func = tetra_physics(ind_tetr)%Phi1 + sum(tetra_physics(ind_tetr)%gPhi*z123)
-!        
-        end function phi_elec_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function pitchpar_func(vpar,z,ind_tetr,perpinv)
-!
-            use tetra_physics_mod, only: tetra_physics
-!
-            implicit none
-!
-            integer :: ind_tetr
-            double precision :: vmod,vpar,vperp,perpinv,pitchpar_func
-            double precision,dimension(3) :: z
-!
-            vperp = vperp_func(z,perpinv,ind_tetr)
-!
-            vmod = sqrt(vpar**2+vperp**2)
-            pitchpar_func = vpar/vmod
-!        
-        end function pitchpar_func
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-        function p_phi_func(vpar,z,ind_tetr)
-!
-            use tetra_physics_mod, only: tetra_physics,particle_mass,cm_over_e,coord_system
-!
-            implicit none
-!
-            integer :: ind_tetr
-            double precision :: vpar,perpinv,p_phi_func,hphi1
-            double precision,dimension(3) :: z,ghphi
-!
-            select case(coord_system)
-                case(1)
-                    hphi1 = tetra_physics(ind_tetr)%h2_1
-                    ghphi = tetra_physics(ind_tetr)%gh2
-                case(2)
-                    hphi1 = tetra_physics(ind_tetr)%h3_1
-                    ghphi = tetra_physics(ind_tetr)%gh3
-            end select    
-!
-            p_phi_func = particle_mass*vpar*(hphi1+sum(ghphi*z(1:3))) + &
-                        &particle_mass/cm_over_e* &
-                        & (tetra_physics(ind_tetr)%Aphi1+sum(tetra_physics(ind_tetr)%gAphi*z(1:3)))
-!        
-        end function p_phi_func
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
