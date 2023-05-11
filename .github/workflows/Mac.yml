@@ -13,9 +13,9 @@ jobs:
     runs-on: macos-latest
     
     env:
-      CC: /usr/local/bin/gcc
-      CXX: /usr/local/bin/gcc
-      FC: /usr/local/bin/gfortran
+      CC: $HOMEBREW_PREFIX/bin/gcc
+      CXX: $HOMEBREW_PREFIX/bin/gcc
+      FC: $HOMEBREW_PREFIX/bin/gfortran
       PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
 
     steps:
@@ -60,9 +60,9 @@ jobs:
     runs-on: macos-latest
     
     env:
-      CC: /usr/local/bin/gcc
-      CXX: /usr/local/bin/gcc
-      FC: /usr/local/bin/gfortran
+      CC: $HOMEBREW_PREFIX/bin/gcc
+      CXX: $HOMEBREW_PREFIX/bin/gcc
+      FC: $HOMEBREW_PREFIX/bin/gfortran
       PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
 
     steps:
