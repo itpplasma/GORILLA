@@ -13,9 +13,9 @@ jobs:
     runs-on: macos-latest
     
     env:
-      CC: gcc
-      CXX: gcc
-      FC: gfortran
+      CC: /opt/homebrew/bin/gcc
+      CXX: /opt/homebrew/bin/gcc
+      FC: /opt/homebrew/bin/gfortran
       PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
 
     steps:
