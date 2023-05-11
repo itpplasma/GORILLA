@@ -22,11 +22,7 @@ jobs:
 
       - name: Dependencies
         run: |
-          curl -LO https://raw.githubusercontent.com/GiovanniBussi/macports-ci/master/macports-ci
-          source ./macports-ci install
-          sudo port install netcdf netcdf-fortran
-          sudo port install lcov
-          brew install libomp
+          brew install wget unzip git gcc make cmake netcdf netcdf-fortran lcov
           
       - name: Install pFUnit
         run: |
@@ -70,9 +66,7 @@ jobs:
 
       - name: Dependencies
         run: |
-          curl -LO https://raw.githubusercontent.com/GiovanniBussi/macports-ci/master/macports-ci
-          source ./macports-ci install
-          sudo port install netcdf netcdf-fortran
+          brew install wget unzip git gcc make cmake netcdf netcdf-fortran
           
       - name: Additional Files
         run: |
