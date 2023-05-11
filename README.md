@@ -57,7 +57,7 @@ sudo apt install wget unzip git gfortran make cmake liblapack-dev libnetcdff-dev
 
 To install requirements on macOS, install [Homebrew]([https://brew.sh](https://brew.sh)), then
 ```
-brew install wget unzip git gcc make cmake netcdf netcdf-fortran
+brew install wget unzip git gcc make cmake netcdf netcdf-fortran libomp
 ```
 ### Additional tools
 * [pFUnit](https://github.com/Goddard-Fortran-Ecosystem/pFUnit)
