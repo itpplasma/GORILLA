@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-latest
     
     env:
-      FC: gfortran-9
+      FC: gfortran
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -34,13 +34,6 @@ jobs:
           wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
           unzip 954.zip
           cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
-          
-      - name: Provide gfortran9 
-        run: |
-          sudo ln -s /usr/local/bin/gfortran-9 /usr/local/bin/gfortran 
-          sudo mkdir /usr/local/gfortran
-          sudo ln -s /usr/local/Cellar/gcc@9/9.3.0_1/lib/gcc/9 /usr/local/gfortran/lib
-          gfortran --version
         
       - name: Build
         run: |
