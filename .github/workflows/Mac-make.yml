@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-latest
     
     env:
-      FC: /usr/local/opt/bin/gfortran
+      FC: /usr/local/homebrew/bin/gfortran
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -37,7 +37,7 @@ jobs:
         
       - name: Build
         run: |
-          /usr/local/opt/bin/gmake
+          /usr/local/homebrew/bin/gmake
           
       - name: Run examples
         run: |
