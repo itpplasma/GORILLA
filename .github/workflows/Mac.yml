@@ -13,9 +13,9 @@ jobs:
     runs-on: macos-latest
     
     env:
-      CC: /usr/local/opt/bin/gcc
-      CXX: /usr/local/opt/bin/gcc
-      FC: /usr/local/opt/bin/gfortran
+      CC: /usr/local/bin/gcc
+      CXX: /usr/local/bin/gcc
+      FC: /usr/local/bin/gfortran
       PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
 
     steps:
@@ -24,7 +24,7 @@ jobs:
 
       - name: Dependencies
         run: |
-          brew install wget unzip git gcc make cmake netcdf netcdf-fortran libomp lcov
+          brew reinstall wget unzip git gcc make cmake netcdf netcdf-fortran libomp lcov
 
           
       - name: Install pFUnit
@@ -60,9 +60,9 @@ jobs:
     runs-on: macos-latest
     
     env:
-      CC: /usr/local/opt/bin/gcc
-      CXX: /usr/local/opt/bin/gcc
-      FC: /usr/local/opt/bin/gfortran
+      CC: /usr/local/bin/gcc
+      CXX: /usr/local/bin/gcc
+      FC: /usr/local/bin/gfortran
       PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
 
     steps:
@@ -71,7 +71,7 @@ jobs:
 
       - name: Dependencies
         run: |
-          brew install wget unzip git gcc make cmake netcdf netcdf-fortran libomp
+          brew reinstall wget unzip git gcc make cmake netcdf netcdf-fortran libomp
           
       - name: Additional Files
         run: |
