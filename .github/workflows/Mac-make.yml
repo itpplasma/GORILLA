@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-latest
     
     env:
-      FC: /usr/local/homebrew/bin/gfortran
+      FC: /usr/local/bin/gfortran
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -26,7 +26,7 @@ jobs:
 
       - name: Dependencies
         run: |
-          brew install wget unzip git gcc make cmake netcdf netcdf-fortran
+          brew reinstall wget unzip git gcc make cmake netcdf netcdf-fortran
           brew config
           
       - name: Additional files
@@ -38,7 +38,7 @@ jobs:
         
       - name: Build
         run: |
-          /usr/local/homebrew/bin/gmake
+          /usr/local/bin/gmake
           
       - name: Run examples
         run: |
