@@ -27,7 +27,6 @@ jobs:
       - name: Dependencies
         run: |
           brew reinstall wget unzip git gcc make cmake netcdf netcdf-fortran
-          brew config
           
       - name: Additional files
         run: |
