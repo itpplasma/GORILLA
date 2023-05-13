@@ -13,7 +13,7 @@ jobs:
     runs-on: macos-latest
     
     env:
-      CC: /usr/local/bin/gcc
+      CC: /usr/local/bin/gcc-13
       FC: /usr/local/bin/gfortran
       PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7
 
