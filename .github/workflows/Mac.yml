@@ -14,7 +14,8 @@ jobs:
     
     env:
       CC: /usr/local/bin/gcc-13
-      FC: /usr/local/bin/gfortran
+      CXX: /usr/local/bin/g++-13
+      FC: /usr/local/bin/gfortran-13
       PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7
 
     steps:
@@ -59,8 +60,9 @@ jobs:
     runs-on: macos-latest
     
     env:
-      CC: /usr/local/bin/gcc
-      FC: /usr/local/bin/gfortran
+      CC: /usr/local/bin/gcc-13
+      CXX: /usr/local/bin/g++-13
+      FC: /usr/local/bin/gfortran-13
       PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7
 
     steps:
