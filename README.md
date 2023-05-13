@@ -52,12 +52,12 @@ GORILLA can be built with `make` or `cmake`.
 
 To install requirements on Ubuntu Linux use
 ```
-sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
+sudo apt install wget unzip git gfortran make cmake liblapack-dev libnetcdff-dev
 ```
 
-To install requirements on macOS, install [macports](https://www.macports.org/install.php), then
+To install requirements on macOS, install [Homebrew]([https://brew.sh](https://brew.sh)), then
 ```
-sudo port install netcdf netcdf-fortran
+brew install wget unzip git gcc make cmake netcdf netcdf-fortran libomp
 ```
 ### Additional tools
 * [pFUnit](https://github.com/Goddard-Fortran-Ecosystem/pFUnit)
@@ -71,7 +71,7 @@ sudo apt install lcov
 ```
 To install lcov on macOS use
 ```
-sudo port install lcov
+brew install lcov
 ```
 
 ### Include external library

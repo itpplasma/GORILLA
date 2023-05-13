@@ -9,66 +9,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  Mac-coverage:
-    runs-on: macos-latest
-    
-    env:
-      CC: gcc
-      CXX: gcc
-      FC: gfortran
-      PFUNIT_DIR: /Users/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Dependencies
-        run: |
-          curl -LO https://raw.githubusercontent.com/GiovanniBussi/macports-ci/master/macports-ci
-          source ./macports-ci install
-          sudo port install gcc11 +gfortran
-          sudo port select --set gcc mp-gcc11
-          sudo port install netcdf netcdf-fortran
-          sudo port install lcov
-          brew install libomp
-          
-      - name: Install pFUnit
-        run: |
-          git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit
-          cd pFUnit
-          mkdir -p build
-          cd build
-          cmake ..
-          make -j$(nproc)
-          make tests
-          make install
-          
-      - name: Additional Files
-        run: |
-          cd $GITHUB_WORKSPACE
-          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
-          unzip 954.zip
-          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
-          
-      - name: Build
-        run: |
-          ./build_coverage.sh
-
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-coverage-report
-          path: BUILD/COVERAGE/
-          
-
   Mac:
     runs-on: macos-latest
     
     env:
-      CC: gcc
-      CXX: gcc
-      FC: gfortran
-      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.6
+      CC: /usr/local/bin/gcc-13
+      CXX: /usr/local/bin/g++-13
+      FC: /usr/local/bin/gfortran-13
+      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7
 
     steps:
       - name: Checkout
@@ -76,11 +24,7 @@ jobs:
 
       - name: Dependencies
         run: |
-          curl -LO https://raw.githubusercontent.com/GiovanniBussi/macports-ci/master/macports-ci
-          source ./macports-ci install
-          sudo port install gcc11 +gfortran
-          sudo port select --set gcc mp-gcc11
-          sudo port install netcdf netcdf-fortran
+          brew reinstall wget unzip git gcc make cmake netcdf netcdf-fortran libomp
           
       - name: Additional Files
         run: |

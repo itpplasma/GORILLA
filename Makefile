@@ -3,8 +3,8 @@ OPTS ?= -J OBJS  -g -fbacktrace -ffpe-trap=zero,overflow,invalid  -fbounds-check
 
 UNAME_S	:= $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-	NCINC ?= -I/opt/local/include
-	NCLIB ?= -L/opt/local/lib -lnetcdff -lnetcdf -llapack
+	NCINC ?= -I/usr/local/include -I/opt/homebrew/include
+	NCLIB ?= -L/usr/local/lib -L/opt/homebrew/lib -lnetcdff -lnetcdf -llapack
 else
 	NCINC ?= -I/usr/include
 	NCLIB ?= -lnetcdff -lnetcdf -llapack
