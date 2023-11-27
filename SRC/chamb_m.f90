@@ -1,3 +1,9 @@
+! module chamb_sub
+
+! implicit none
+
+! contains
+
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
       subroutine chamb_can(y,phi,ierr)
@@ -22,3 +28,5 @@
       endif
 !
       end subroutine chamb_can
+
+!end module chamb_sub

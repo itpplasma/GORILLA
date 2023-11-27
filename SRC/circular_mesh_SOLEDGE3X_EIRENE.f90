@@ -130,12 +130,6 @@ endif
 !    
     n_tetras = n_triangles*3*n_slices
 !
-    if (.not. size(verts, dim=2) == n_tetras .and. size(neighbours, dim=2) == n_tetras &
-            .and. size(neighbour_faces, dim=2) == n_tetras) then
-        print *, "Invalid size of output arrays for function calc_mesh_SOLEDGE3X_EIRENE"
-        stop
-    end if
-!
     tetras_per_slice = n_tetras / n_slices
 !
     !Initialize the temporary storage matrices of mesh logic
@@ -146,6 +140,11 @@ endif
     allocate(verts(4, n_tetras), neighbours(4, n_tetras), neighbour_faces(4, n_tetras), &
              perbou_phi(4, n_tetras))
 !
+    if (.not.(size(verts, dim=2) == n_tetras .and. size(neighbours, dim=2) == n_tetras &
+        .and. size(neighbour_faces, dim=2) == n_tetras)) then
+        print *, "Invalid size of output arrays for function calc_mesh_SOLEDGE3X_EIRENE"
+        stop
+     end if
 ! 
 !     7------6
 !    /|     /|
