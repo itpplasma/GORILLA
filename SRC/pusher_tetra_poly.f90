@@ -2176,7 +2176,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         double precision, dimension(3)                  :: x0
         double precision                                :: vpar0
         double precision, dimension(:,:), allocatable   :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable     :: vpar_coef,res_poly_coef,r_rescaled_coef
+        double precision, dimension(:), allocatable     :: vpar_coef,res_poly_coef
         double precision, dimension(4,poly_order+1)     :: dummy_coef_mat !exists because of analytic_coeff_without_precomp syntax
         logical, dimension(4)                           :: boole_faces_off = .false. !avoid root coefficients computation
         double precision, dimension(:), allocatable     :: dtdtau_coef, omega_coef
@@ -2202,43 +2202,34 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
         !Optional computation of Hamiltonian time
         if(boole_time_hamiltonian) then
-            optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + moment_integration(poly_order,tau,dtdtau_coef)
+            optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + moment_integration(poly_order,tau,dtdtau_coef)&
+            &*dble(sign_rhs)
         endif
 !
         !Optional computation of gyrophase
         if(boole_gyrophase) then
             allocate(omega_coef(poly_order+1))
             do i = 1,poly_order+1
-                omega_coef(i) = 1.d0/cm_over_e * sum(tetra_physics(ind_tetr)%gb * x_coef(:,i)) * dble(sign_rhs)
+                omega_coef(i) = 1.d0/cm_over_e * sum(tetra_physics(ind_tetr)%gb * x_coef(:,i))
             enddo
             omega_coef(1) = omega_coef(1) + 1.d0/cm_over_e * tetra_physics(ind_tetr)%bmod1
 !
-            optional_quantities%gyrophase = optional_quantities%gyrophase - &
+            optional_quantities%gyrophase = optional_quantities%gyrophase -  dble(sign_rhs) * &
                                           & moment_integration(poly_order,tau,poly_multiplication(dtdtau_coef,omega_coef))
             deallocate(omega_coef)
         endif
 !
         !Optional computation of integral of v_par
         if (boole_vpar_int) then 
-                optional_quantities%vpar_int = optional_quantities%vpar_int + &
+                optional_quantities%vpar_int = optional_quantities%vpar_int + dble(sign_rhs) * &
                 & moment_integration(poly_order,tau,poly_multiplication(dtdtau_coef,vpar_coef))
         endif
 !
         !Optional computation of integral of v_par**2
         if (boole_vpar2_int) then
-                optional_quantities%vpar2_int = optional_quantities%vpar2_int + &
+                optional_quantities%vpar2_int = optional_quantities%vpar2_int + dble(sign_rhs) * &
                 & moment_integration(poly_order,tau,poly_multiplication(dtdtau_coef,poly_multiplication(vpar_coef,vpar_coef)))
         endif
-!
-        !use only with cylindrical coordinates
-        allocate(r_rescaled_coef(poly_order + 1))
-        r_rescaled_coef = x_coef(1,:)
-        r_rescaled_coef(1) = r_rescaled_coef(1) + verts_rphiz(1,tetra_grid(ind_tetr)%ind_knot(1)) &
-                                       & - minval(verts_rphiz(1,tetra_grid(ind_tetr)%ind_knot([1,2,3,4])))
-        r_rescaled_coef = r_rescaled_coef/(maxval(verts_rphiz(1,tetra_grid(ind_tetr)%ind_knot([1,2,3,4]))) - &
-                                           minval(verts_rphiz(1,tetra_grid(ind_tetr)%ind_knot([1,2,3,4]))))
-        !optional_quantities
-        deallocate(r_rescaled_coef)
 !
         deallocate(vpar_coef,x_coef,x_vpar_coef)
 !
