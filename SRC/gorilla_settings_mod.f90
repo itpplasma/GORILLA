@@ -87,6 +87,9 @@
     logical, public, protected :: boole_grid_for_find_tetra
     integer, public :: a_factor, b_factor, c_factor
 !
+    !Boolean for importing field perturbations from Mephit
+    logical, public, protected :: boole_pert_from_mephit
+!
     !Namelist for Gorilla input
     NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
                         & boole_pusher_ode45, boole_dt_dtau, boole_newton_precalc, poly_order, i_precomp, boole_guess, &
@@ -97,7 +100,8 @@
                         & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps, boole_grid_for_find_tetra, &
                         & a_factor, b_factor, c_factor, &
                         & i_time_tracing_option, &
-                        & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift
+                        & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift, &
+                        & boole_pert_from_mephit
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type
 !

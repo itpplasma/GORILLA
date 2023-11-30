@@ -21,7 +21,7 @@ module find_tetra_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine grid_for_find_tetra
+    subroutine grid_for_find_tetra !compare with chapter 4.1 of master thesis of Jonatan Schatzlmayr
 !
         use constants, only: pi, eps
         use tetra_grid_mod, only: verts_rphiz, verts_sthetaphi, tetra_grid, ntetr
@@ -83,12 +83,10 @@ print*, 'grid_for_find_tetra started'
             nc = 200*c_factor
             boole_axi_symmetry = .true.
         endif
-        !boole_axi_symmetry = .false.
 !
         delta_c = (cmax - cmin)/nc
 !
         if (b_factor.eq.0) b_factor = maxval((/nint(2*pi/(grid_size(2)*n_field_periods*sqrt((delta_a**2+delta_c**2)/2))),1/))
-        b_factor = b_factor*n_field_periods
 !
         nb = grid_size(2)*b_factor
         delta_b = 2*pi/nb
@@ -442,6 +440,8 @@ if ((numerical_corr_minus.eq.1).or.(numerical_corr_plus.eq.1)) print*, 'hello'
         end select
 !
 !print*, count(entry_counter.eq.0),size(entry_counter)
+!
+        !search tetrahedra one by one 
         do i = 1,ntetr_searched
 !
             if (use_grid.eqv..true.) then

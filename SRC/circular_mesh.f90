@@ -243,11 +243,6 @@ subroutine calc_mesh(verts_per_ring, n_slices, points, n_tetras, &
     n_verts = verts_per_slice * n_slices
     
     n_tetras = calc_n_tetras(verts_per_ring, n_slices, repeat_center_point)
-    if (.not. size(verts, dim=2) == n_tetras .and. size(neighbours, dim=2) == n_tetras &
-            .and. size(neighbour_faces, dim=2) == n_tetras) then
-        print *, "Invalid size of output arrays for function calc_mesh"
-        stop
-    end if
 
     tetras_per_slice = n_tetras / n_slices
     
@@ -266,6 +261,11 @@ subroutine calc_mesh(verts_per_ring, n_slices, points, n_tetras, &
              perbou_phi(4, n_tetras), perbou_theta(4, n_tetras))
     allocate(top_facing_prisms(verts_per_slice - 1))
 
+    if (.not. (size(verts, dim=2) == n_tetras .and. size(neighbours, dim=2) == n_tetras &
+        .and. size(neighbour_faces, dim=2) == n_tetras)) then
+        print *, "Invalid size of output arrays for function calc_mesh"
+        stop
+    end if
     ! 
     !     7------6
     !    /|     /|
