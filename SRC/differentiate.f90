@@ -8,7 +8,7 @@
 !                   n                 - number of functions to differentiate
 !                   f(4,n)            - values of functions at the vertices
 ! Output parameters:
-!           Formal: fx(n),fy(n),fz(n) - deivatives of functions over x,y and z, resp.
+!           Formal: fx(n),fy(n),fz(n) - derivatives of functions over x,y and z, resp.
 !
 ! Called routines:  dgesv             - from the Lapack library
 !

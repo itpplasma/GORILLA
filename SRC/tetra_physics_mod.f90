@@ -10,7 +10,7 @@
       double precision :: dist_ref               ! normal distance of vertex1 to face1 * |n_1| <-- normal vector to face 1
       double precision, dimension(4)    :: dist_ref_vec
       double precision :: tetra_dist_ref         ! distance reference of a tetrahdron in unit length
-      double precision, dimension(3,4) :: anorm  ! normals to faces pointing invards
+      double precision, dimension(3,4) :: anorm  ! normals to faces pointing inwards
       !Field properties
       double precision, dimension(3)   :: curlA  ! $\epsilon^{ijk}\difp{A_k}{x^j}$ = vector a_4^i ("curl A")
       double precision :: bmod1                  ! module of B in the first vertex
