@@ -60,6 +60,10 @@
 !
         subroutine load_tetra_grid_inp()
 !
+            use input_files, only: gfile, convexfile
+            use field_eq_mod, only: iaxieq, use_fpol
+            use field_mod, only: icall
+!
             open(unit=9, file='tetra_grid.inp', status='unknown')
             read(9,nml=tetra_grid_nml)
             close(9)
@@ -73,6 +77,13 @@
             end select
 !
             print *,'Tetrahedronal Grid: Loaded input data from tetra_grid.inp'
+!
+            call read_field_input
+            gfile = g_file_filename
+            convexfile = convex_wall_filename
+            iaxieq = iaxieq_in
+            icall = 1
+            use_fpol = .false.
 !            
         end subroutine load_tetra_grid_inp
 !
