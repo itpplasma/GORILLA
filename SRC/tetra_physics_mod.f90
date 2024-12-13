@@ -1023,7 +1023,7 @@ enddo
           endif
         enddo
 !
-        if (all(cur_dist_value .ge. 0.d0)) then
+        if (all(cur_dist_value .ge. -dist_min)) then
           bool_isinside  = .true.
         else
           bool_isinside = .false.
