@@ -3,12 +3,12 @@
   end module rhs_surf_mod
 !
   module field_line_integration_mod
-     ! If a circular mesh with large aspect ratio is used, this gives the scale factor.
-     ! In this case, o_point and x_point are input instead of output variables.
-     ! Set to 0 for regular toroidal geometry.
-     integer :: circ_mesh_scale = 0
-     double precision, dimension(2) :: o_point, x_point, theta_axis
-     double precision :: theta0
+    ! If a circular mesh with large aspect ratio is used, this gives the scale factor.
+    ! In this case, o_point and x_point are input instead of output variables.
+    ! Set to 0 for regular toroidal geometry.
+    integer :: circ_mesh_scale = 0
+    double precision, dimension(2) :: o_point, x_point, theta_axis
+    double precision :: theta0
   end module field_line_integration_mod
 !
   subroutine field_line_integration_for_SYNCH(nstep,nsurfmax,nlabel,ntheta,    &
@@ -54,6 +54,7 @@
 !  external :: rhs_axis, rhs_surf, rhs_surf_theta
   external :: rhs_axis, rhs_surf  !, rhs_surf_theta
   double precision, external :: cross_2d_sign
+  double precision, dimension(0:0,4) :: coef
 !
 !
   relerr = 1.d-9
@@ -283,11 +284,11 @@
 !
 ! Computation of flux functions: effective radius, safety factor, poloidal and toroidal fluxes
 !
-  do isurf=1,nlabel
+  do isurf=2,nlabel
     phi=0.d0
     phiout=h
     phi_sep=phi
-    ymet(1:2)=[raxis, zaxis] + theta_axis * (isurf * 1.d0) / nlabel
+    ymet(1:2)=[raxis, zaxis] + theta_axis * ((isurf-1) * 1.d0) / (nlabel-1)
     ymet(3)=0.d0
     ymet(4)=0.d0
 
@@ -325,12 +326,21 @@
                   ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
     rbeg(isurf) = hypot(rrr - raxis, zzz - zaxis)
-    rsmall(isurf)=sqrt(abs(ymet(3))/pi)
+    rsmall(isurf) = sqrt(abs(ymet(3))/pi)
 !    qsaf(isurf)=1.d0/aiota
     qsaf(isurf) = sigma / aiota
-    psisurf(isurf)=psif-psi_axis
-    phitor(isurf)=ymet(4)/(2.d0*pi)
+    psisurf(isurf) = psif-psi_axis
+    phitor(isurf) = ymet(4)/(2.d0*pi)
   enddo
+!
+  rbeg(1) = 0.d0
+  rsmall(1) = 0.d0
+
+  call plag_coeff(4,0,0.d0,rbeg(2:5),coef)
+
+  qsaf(1) = sum(qsaf(2:5)*coef(0,1:4))
+  psisurf(1) = 0.d0
+  phitor(1) = 0.d0
 !
   print *,'Flux functions done'
 !
@@ -338,12 +348,12 @@
 !
 ! Compute 2D functions:
 !
-  do isurf=1,nlabel
+  do isurf=2,nlabel
     phi = 0.d0
 !    phiout = 2.d0*pi*qsaf(isurf)/ntheta * sigma
     phiout = 2.d0*pi*1.d0*qsaf(isurf)/ntheta
 !
-    ymet(1:2)=[raxis, zaxis] + theta_axis * (isurf * 1.d0) / nlabel
+    ymet(1:2)=[raxis, zaxis] + theta_axis * ((isurf-1) * 1.d0) / (nlabel-1)
     ymet(3) = 0.d0
     ymet(4) = 0.d0
 !
@@ -364,6 +374,15 @@
     enddo
 !
   enddo
+!
+  R_st(1,:) = raxis
+  Z_st(1,:) = zaxis
+
+  call field_eq(raxis,phi,zaxis,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ  &
+  ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
+
+  bmod_st(1,:) = sqrt(Br**2+Bp**2+Bz**2)
+  sqgnorm_st(1,:) = raxis/abs(Bp)
 !
   print *,'2D functions done'
 !

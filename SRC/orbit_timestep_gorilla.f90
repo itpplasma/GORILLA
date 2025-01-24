@@ -181,6 +181,10 @@ module orbit_timestep_gorilla_mod
                 boole_grid = .true.
                 boole_physics = .true.
             endif
+            if (i_option.ge.10) then
+                boole_grid = .true.
+                boole_physics = .true.
+            endif
 !
             if(present(ipert_in)) then
                 ipert = ipert_in
