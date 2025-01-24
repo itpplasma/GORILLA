@@ -247,7 +247,7 @@ endif
             double precision, dimension(:), allocatable           :: t_hamiltonian_list
             integer                                               :: i_step_root
             double precision                                      :: t_remain_new
-!         
+!
             call initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
             !In case of first call of orbit integration -> initialize the intermediate_steps_array
             if (.not.(allocated(tau_steps_list).OR.allocated(intermediate_z0_list))) call manage_intermediate_steps_arrays(0)
@@ -352,7 +352,7 @@ if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: Analytic app
                 call check_three_planes(z,iface_new,boole_face_correct)
                 call check_face_convergence(z,iface_new,boole_face_correct)
                 call check_exit_time(tau,tau_max,boole_face_correct,poly_order)
-!                
+!
                 !If previous checks were fine, check for velocity and potentially prolong trajectory (only for 2nd order here)
                 if (boole_face_correct) then
                     !Validation for vnorm
