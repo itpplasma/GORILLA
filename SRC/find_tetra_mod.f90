@@ -404,27 +404,6 @@ if ((numerical_corr_minus.eq.1).or.(numerical_corr_plus.eq.1)) print*, 'hello'
 !print*, 'starting position is out of computation domain'
                         ind_tetr_out = -1
                         iface = -1
-! print*, 'hexahedron_index = ', hexahedron_index
-! print*, box_centres(hexahedron_index,ind_a)-delta_a/2,box_centres(hexahedron_index,ind_a)+delta_a/2, &
-! box_centres(hexahedron_index,ind_b)-delta_b/2,box_centres(hexahedron_index,ind_b)+delta_b/2, &
-! box_centres(hexahedron_index,ind_c)-delta_c/2,box_centres(hexahedron_index,ind_c)+delta_c/2
-! print*, equidistant_grid(hexahedron_index,:)
-! print*, entry_counter(hexahedron_index)
-! do i = 1,6
-!     print*, isinside(94680+i,x)
-! enddo
-! do i = 1,12
-!     print*, isinside(94854+i,x)
-! enddo
-! do i = 1,6
-!     print*, isinside(95034+i,x)
-! enddo
-! print*, (x(ind_c)-cmin)/delta_c + 1
-! print*, int((x(ind_c)-cmin)/delta_c + 1)
-! print*, (cmax-cmin)/delta_c
-! print*, cmin + 54*delta_c, cmin + 55*delta_c, delta_c
-! print*, a,b,c,na,nb,nc,(b-1)*na*nc + (c-1)*na + a
-! print*, boole_axi_symmetry, b_factor, n_field_periods, amin, amax, bmin, bmax, cmin, cmax
                         return
                     endif
                 else
@@ -460,125 +439,125 @@ if ((numerical_corr_minus.eq.1).or.(numerical_corr_plus.eq.1)) print*, 'hello'
 !
             if (isinside(ind_search_tetra,x)) then !inside tetrahedron
 !
-            ind_tetr_out = ind_search_tetra
-            iface = 0
+                ind_tetr_out = ind_search_tetra
+                iface = 0
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-            do ind_normdist = 1,4 !calculate distances
-                if (ind_normdist .ne. 1) then
-                cur_dist_value(ind_normdist) = &
-                    & sum(tetra_physics(ind_search_tetra)%anorm(:,ind_normdist)*(x-tetra_physics(ind_search_tetra)%x1))
-                else ! ind_normdist .eq. 1
-                cur_dist_value(ind_normdist) = sum(tetra_physics(ind_search_tetra)%anorm(:,ind_normdist)*&
-                &(x-tetra_physics(ind_search_tetra)%x1))+tetra_physics(ind_search_tetra)%dist_ref
-                endif
-            enddo
+                do ind_normdist = 1,4 !calculate distances
+                    if (ind_normdist .ne. 1) then
+                    cur_dist_value(ind_normdist) = &
+                        & sum(tetra_physics(ind_search_tetra)%anorm(:,ind_normdist)*(x-tetra_physics(ind_search_tetra)%x1))
+                    else ! ind_normdist .eq. 1
+                    cur_dist_value(ind_normdist) = sum(tetra_physics(ind_search_tetra)%anorm(:,ind_normdist)*&
+                    &(x-tetra_physics(ind_search_tetra)%x1))+tetra_physics(ind_search_tetra)%dist_ref
+                    endif
+                enddo
 !
-            !Check, if particle is in vicinity of a plane (converged on plane)
-            boole_plane_conv = abs(cur_dist_value) .le. (eps*abs(tetra_physics(ind_search_tetra)%dist_ref))
-            n_plane_conv = sum(logical2integer(boole_plane_conv),1)
+                !Check, if particle is in vicinity of a plane (converged on plane)
+                boole_plane_conv = abs(cur_dist_value) .le. (eps*abs(tetra_physics(ind_search_tetra)%dist_ref))
+                n_plane_conv = sum(logical2integer(boole_plane_conv),1)
 !
-            if ( n_plane_conv.gt.0 ) then !if it is inside and next to a plane, set iface to the index of where it is 0
+                if ( n_plane_conv.gt.0 ) then !if it is inside and next to a plane, set iface to the index of where it is 0
 !
-                !Initialize starting values and 'working' constants in module for tetrahedron
-                !Squared perpendicular velocity
-                vperp2 = vperp**2
+                    !Initialize starting values and 'working' constants in module for tetrahedron
+                    !Squared perpendicular velocity
+                    vperp2 = vperp**2
 !
-                !Parallel velocity and position
-                z(1:3) = x-tetra_physics(ind_tetr_out)%x1
-                z(4) = vpar
+                    !Parallel velocity and position
+                    z(1:3) = x-tetra_physics(ind_tetr_out)%x1
+                    z(4) = vpar
 !
-                !Temporary iface
-                iface_new = minloc(abs(cur_dist_value),1)
+                    !Temporary iface
+                    iface_new = minloc(abs(cur_dist_value),1)
 !
-                ! Allocate and initialize vector with tried indices
-                allocate(ind_tetr_tried(2*n_plane_conv))
-                ind_tetr_tried = 0
+                    ! Allocate and initialize vector with tried indices
+                    allocate(ind_tetr_tried(2*n_plane_conv))
+                    ind_tetr_tried = 0
 !
-                !Compute perpendicular invariant of particle
-                perpinv=-0.5d0*vperp2/(tetra_physics(ind_tetr_out)%bmod1+sum(tetra_physics(ind_tetr_out)%gb*z(1:3)))
-                call initialize_const_motion_rk(perpinv,perpinv**2)
+                    !Compute perpendicular invariant of particle
+                    perpinv=-0.5d0*vperp2/(tetra_physics(ind_tetr_out)%bmod1+sum(tetra_physics(ind_tetr_out)%gb*z(1:3)))
+                    call initialize_const_motion_rk(perpinv,perpinv**2)
 !
-                !Loop over all possible tetrahedra options
-                try_loop: do i_tetra_try = 1,(2*n_plane_conv)
+                    !Loop over all possible tetrahedra options
+                    try_loop: do i_tetra_try = 1,(2*n_plane_conv)
 !
 !print *, 'i_tetra_try',i_tetra_try
 !print *, 'ind_tetr',ind_tetr_out
 !print *, 'x',x
 !
-                    !Write 'tried' tetrahedron in 'memory'-vector
-                    ind_tetr_tried(i_tetra_try) = ind_tetr_out
+                        !Write 'tried' tetrahedron in 'memory'-vector
+                        ind_tetr_tried(i_tetra_try) = ind_tetr_out
 !
-                    z(1:3) = x-tetra_physics(ind_tetr_out)%x1
+                        z(1:3) = x-tetra_physics(ind_tetr_out)%x1
 !
-                    call initialize_pusher_tetra_rk_mod(ind_tetr_out,x,iface_new,vpar,dble(sign_t_step))
+                        call initialize_pusher_tetra_rk_mod(ind_tetr_out,x,iface_new,vpar,dble(sign_t_step))
 !
-                    cur_dist_value = normal_distances_func(z(1:3))
+                        cur_dist_value = normal_distances_func(z(1:3))
 !print *, 'norm',cur_dist_value
 !
-                    !Check, if particle is inside the tetrahedron
-                    if (any(cur_dist_value.lt.(-dist_min) )) then
-                        print *, 'Error in find_tetra: Particle is not inside the tetrahedron while searching.'
-                        stop
-                    endif
-!
-                    boole_plane_conv_temp = abs(cur_dist_value) .le. (eps*abs(tetra_physics(ind_tetr_out)%dist_ref))
-!
-                    !call rk4 at z with dtau = 0 to get the velocity
-                    call rk4_step(z,0.d0,dzdtau)
-!
-                    !Now, ALL normal velocites, where particle is converged  on plane, must be positive
-                    counter_vnorm_pos = 0
-                    do l = 1,4
-                        if(.not.boole_plane_conv_temp(l)) cycle
-                        vnorm = normal_velocity_func(l,dzdtau,z)
-!print *, 'l',l,'norm(l)', normal_distance_func(z(1:3),l),'vnorm(l)',vnorm, 'boole',boole_plane_conv_temp(l)
-                        if (vnorm .gt. 0.d0) then
-                            counter_vnorm_pos = counter_vnorm_pos + 1
+                        !Check, if particle is inside the tetrahedron
+                        if (any(cur_dist_value.lt.(-dist_min) )) then
+                            print *, 'Error in find_tetra: Particle is not inside the tetrahedron while searching.'
+                            stop
                         endif
-                    enddo
 !
-!print *, 'counter_vnorm_pos',counter_vnorm_pos
-
-                    if (counter_vnorm_pos.eq.n_plane_conv) then
-                        iface = iface_new
-!print *, 'gotcha'
-                        exit try_loop!this means the tetrahedron was found
-                    else
-                        ind_tetr_save = ind_tetr_out
-                        x_save = x
-                        iface_new_save = iface_new
+                        boole_plane_conv_temp = abs(cur_dist_value) .le. (eps*abs(tetra_physics(ind_tetr_out)%dist_ref))
 !
+                        !call rk4 at z with dtau = 0 to get the velocity
+                        call rk4_step(z,0.d0,dzdtau)
+!
+                        !Now, ALL normal velocites, where particle is converged  on plane, must be positive
+                        counter_vnorm_pos = 0
                         do l = 1,4
                             if(.not.boole_plane_conv_temp(l)) cycle
                             vnorm = normal_velocity_func(l,dzdtau,z)
-                            if (vnorm.gt.0.d0) cycle
-                            iface_new = l
-                            call pusher_handover2neighbour(ind_tetr_save,ind_tetr_out,iface_new,x,iper_phi)
-!
-                            if( any(ind_tetr_out.eq.ind_tetr_tried)) then
-!print *, 'Denied ind_tetr',ind_tetr_out
-!print *, 'Denied iface_new', l
-                                x = x_save
-                                iface_new = iface_new_save
-                            else
-!print *, 'Succesful iface_new',l
-                                exit !New try
+!print *, 'l',l,'norm(l)', normal_distance_func(z(1:3),l),'vnorm(l)',vnorm, 'boole',boole_plane_conv_temp(l)
+                            if (vnorm .gt. 0.d0) then
+                                counter_vnorm_pos = counter_vnorm_pos + 1
                             endif
                         enddo
-                        
-                    endif
+!
+!print *, 'counter_vnorm_pos',counter_vnorm_pos
 
-                enddo try_loop !l = i_tetra_try,n_exactly_conv
+                        if (counter_vnorm_pos.eq.n_plane_conv) then
+                            iface = iface_new
+!print *, 'gotcha'
+                            exit try_loop!this means the tetrahedron was found
+                        else
+                            ind_tetr_save = ind_tetr_out
+                            x_save = x
+                            iface_new_save = iface_new
 !
-                deallocate(ind_tetr_tried)
+                            do l = 1,4
+                                if(.not.boole_plane_conv_temp(l)) cycle
+                                vnorm = normal_velocity_func(l,dzdtau,z)
+                                if (vnorm.gt.0.d0) cycle
+                                iface_new = l
+                                call pusher_handover2neighbour(ind_tetr_save,ind_tetr_out,iface_new,x,iper_phi)
 !
-            endif ! n_plane_conv.gt.0
+                                if( any(ind_tetr_out.eq.ind_tetr_tried)) then
+!print *, 'Denied ind_tetr',ind_tetr_out
+!print *, 'Denied iface_new', l
+                                    x = x_save
+                                    iface_new = iface_new_save
+                                else
+!print *, 'Succesful iface_new',l
+                                    exit !New try
+                                endif
+                            enddo
+                            
+                        endif
+
+                    enddo try_loop !l = i_tetra_try,n_exactly_conv
+!
+                    deallocate(ind_tetr_tried)
+!
+                endif ! n_plane_conv.gt.0
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-            exit !this means the tetrahedron was found
+                exit !this means the tetrahedron was found
 !
             else !not inside
                 ind_tetr_out = -1
