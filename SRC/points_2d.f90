@@ -34,6 +34,9 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
     double precision :: s,psi,theta,q,dq_ds,sqrtg,bmod,dbmod_dtheta,R,dR_ds,dR_dtheta,Z,dZ_ds,dZ_dtheta
 !
     integer :: n_center_point
+
+    integer :: n
+    double precision :: s_ratio, r_frac_n
 !
     n_center_point = 1
     if (present(repeat_center_point)) then
@@ -53,8 +56,25 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
 !    ! loads points that are calculated in preload_for_SYNCH into globals from magdata_in_symfluxcoor_mod and spline interpolats them
 !    ! this is done so we can then call magdata_in_symfluxcoord_ext on this interpolated fine grid.
 !    call load_magdata_in_symfluxcoord()
+
+
+! start: make first few entries of r_frac non-equidistant in order to avoid very thin triangles close to the magnetic axis
+    s_ratio = (1.d0-s_min)/((dble(nlabel))*s_min)
+    n = int(abs(log(s_ratio)/log(10d0)))
+
+    if ((n.gt.1).and.(nlabel.gt.(n+1))) then
+        r_frac_n = s_min + (1.d0-s_min)/(dble(nlabel-n+1))
+        do i = 1,n-1
+            r_frac(i) = exp(log(s_min) + dble(i)*(log(r_frac_n)-log(s_min))/dble(n))
+        enddo
+    endif
+! end: make first few entries of r_frac non-equidistant in order to avoid very thin triangles close to the magnetic axis
+!      when using this version, be sure to comment out the line sstarting with "r_frac =" instead of "r_frac(n:nlabel) ="
 !
-    r_frac = s_min + [(dble(i)*(1.d0-s_min), i=1, size(r_frac), 1)] / (dble(nlabel))
+    r_frac(n:nlabel) = s_min + [(dble(i)*(1.d0-s_min), i=1, nlabel-n+1, 1)] / (dble(nlabel-n+1))
+
+
+    !r_frac = s_min + [(dble(i)*(1.d0-s_min), i=1, nlabel, 1)] / (dble(nlabel))
 !
     !r_frac = [(i, i = 1, nlabel,1)] / dfloat(nlabel)
     if (present(r_scaling_func)) r_frac = r_scaling_func(r_frac)
