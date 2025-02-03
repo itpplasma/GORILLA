@@ -15,9 +15,14 @@
     integer,public,protected  :: n2
     integer,public,protected  :: n3
 !
+    !In certain regions (e.g. close to the magnetic axis and / or close to rational surfaces), extra grid points might be added in 
+    ! radial direction if grid_kind = 2 or 3
+    integer,public,protected  :: n_extra_rings
+!
     !Grid Size - for practicability - NO input quantity
-    !Rectangular grid: [n1,n2,n3] = [nR,nphi,nZ], Field-aligned grid: [n1,n2,n3] = [nr,nphi,ntheta]
+    !Rectangular grid: [n1+n_extra_rings,n2,n3] = [nR,nphi,nZ], Field-aligned grid: [n1+n_extra_rings,n2,n3] = [nr,nphi,ntheta]
     integer, dimension(3),public,protected  :: grid_size
+
 !
     !Grid kind - Selection of grid kind
     !(1 ... rectangular grid, 2 ... field-aligned grid EFIT, 3 ... field-aligned grid VMEC, 4 ... SOLEDGE3X-EIRENE grid)
@@ -95,8 +100,18 @@
             implicit none
 !
             integer, dimension(3),intent(in)  :: grid_size_in
+            double precision :: s_ratio
 !
+            if ((grid_kind.eq.2).or.(grid_kind.eq.3)) then
+                !s_ratio = ratio of innermost s value (= sfc_s_min) and s value at second innermost ring
+                s_ratio = (sfc_s_min + (1.d0-sfc_s_min)/(dble(grid_size_in(1)))) / sfc_s_min
+                n_extra_rings = int(abs(log(s_ratio)/log(10d0)))
+            else
+                n_extra_rings = 0
+            endif
+
             grid_size = grid_size_in
+            grid_size(1) = grid_size(1) + n_extra_rings
 !
         end subroutine set_grid_size
 !

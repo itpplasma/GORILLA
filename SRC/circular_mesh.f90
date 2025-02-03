@@ -13,7 +13,7 @@ subroutine create_points(verts_per_ring, n_slices, points_rphiz, points_sthetaph
     use points_2d, only: create_points_2d, create_points_2d_vmec, scaling_func
 
     integer, intent(in) :: n_slices,efit_vmec,n_field_periods_in
-    integer, dimension(:), intent(in) :: verts_per_ring ! without venter vert; e.g. (/6, 8, 10/)
+    integer, dimension(:), intent(in) :: verts_per_ring ! without center vert; e.g. (/6, 8, 10/)
     double precision, dimension(:, :), allocatable, intent(out) :: points_rphiz !(r, phi, z)
     double precision, dimension(:, :), allocatable, intent(out) :: points_sthetaphi !(s, theta, phi)
     double precision, dimension(:), allocatable, intent(out),optional :: verts_theta_vmec !(theta in VMEC coordinates)
