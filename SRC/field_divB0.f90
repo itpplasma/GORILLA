@@ -73,6 +73,8 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
   double precision :: rm,zm,Brc,Bpc,Bzc,dBrdRc,dBrdpc,dBrdZc   &
                      ,dBpdRc,dBpdpc,dBpdZc,dBzdRc,dBzdpc,dBzdZc
   character*1024 :: dummy
+  ! logical :: boole_reverse_field = .false.
+
 !
   if(icall .eq. 0) then
      icall = 1
@@ -182,6 +184,21 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
     endif
 !
    end if
+!
+  !  if (boole_reverse_field) then
+  !   Brc = -Brc
+  !   Bpc = -Bpc
+  !   Bzc = -Bzc
+  !   dBrdRc = -dBrdRc
+  !   dBrdpc = -dBrdpc
+  !   dBrdZc = -dBrdZc
+  !   dBpdRc = -dBpdRc
+  !   dBpdpc = -dBpdpc
+  !   dBpdZc = -dBpdZc
+  !   dBzdRc = -dBzdRc
+  !   dBzdpc = -dBzdpc
+  !   dBzdZc = -dBzdZc
+  !  endif
 !
    return
  end subroutine field
@@ -707,10 +724,8 @@ subroutine field_c(rrr,ppp,zzz,Brad,Bphi,Bzet,dBrdR,dBrdp,dBrdZ  &
   endif
   !------- end first call ----------------------------------------------
 !
-print *,'field_divfree'
   call field_divfree(rrr,ppp,zzz,Brad,Bphi,Bzet,dBrdR,dBrdp,dBrdZ    &
                     ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
-print *,'end field_divfree'
 !
   return
 end subroutine field_c

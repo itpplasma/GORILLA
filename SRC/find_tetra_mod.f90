@@ -397,7 +397,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                     if(abs(x(ind_b)*nphi_hexa/(2.0_dp*pi/n_field_periods) - dble(ind_phi_hexa)).gt.(1.0_dp-eps)) then
                         numerical_corr_plus = 1
                     endif
-                    if((abs(x(ind_b)*nphi_hexa/(2_0dp*pi/n_field_periods) - dble(ind_phi_hexa)).lt.eps)) then 
+                    if((abs(x(ind_b)*nphi_hexa/(2.0_dp*pi/n_field_periods) - dble(ind_phi_hexa)).lt.eps)) then 
                         numerical_corr_minus = 1
                     endif
 !
@@ -425,6 +425,8 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
         !search tetrahedra one by one 
         do i = 1,ntetr_searched
 !
+!print*, 'tetra_physics(142)%dist_ref = ', tetra_physics(142)%dist_ref
+!stop
             if (use_grid.eqv..true.) then
                 if (i.le.entry_counter(hexahedron_index)) then
                     ind_search_tetra = equidistant_grid(hexahedron_index,i)
