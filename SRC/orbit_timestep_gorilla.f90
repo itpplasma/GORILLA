@@ -177,11 +177,11 @@ module orbit_timestep_gorilla_mod
                         boole_grid = .true.
                         boole_physics = .true.
                 end select
+                if (i_option.ge.10) then
+                    boole_grid = .true.
+                    boole_physics = .true.
+                endif
             else
-                boole_grid = .true.
-                boole_physics = .true.
-            endif
-            if (i_option.ge.10) then
                 boole_grid = .true.
                 boole_physics = .true.
             endif

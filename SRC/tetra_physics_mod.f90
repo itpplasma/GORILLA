@@ -132,6 +132,7 @@
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
             & non_axi_noise_eps_A, boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
+      use differentiate_mod, only: differentiate
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in

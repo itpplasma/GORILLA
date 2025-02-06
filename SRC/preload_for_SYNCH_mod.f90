@@ -1,4 +1,12 @@
+module preload_for_SYNCH_mod
+
+  implicit none
+
+  contains
+
   subroutine preload_for_SYNCH
+
+    use field_line_integration_for_SYNCH_mod, only: field_line_integration_for_SYNCH
 !
   implicit none
 !
@@ -63,3 +71,5 @@
   deallocate(R_st,Z_st,bmod_st,sqgnorm_st)
 !
   end subroutine preload_for_SYNCH
+
+end module preload_for_SYNCH_mod

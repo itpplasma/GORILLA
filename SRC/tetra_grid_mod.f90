@@ -194,6 +194,7 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
     use constants, only: pi
     use circular_mesh, only : calc_mesh, create_points, calc_points_circular, calc_n_tetras, calc_n_verts
     use scaling_r_theta, only: scaling_r, scaling_theta
+    use preload_for_SYNCH_mod, only: preload_for_SYNCH
 !
     implicit none
 !

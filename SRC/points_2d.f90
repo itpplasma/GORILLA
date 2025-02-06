@@ -237,6 +237,7 @@ end subroutine create_points_2d
     use magdata_in_symfluxcoor_mod, only : raxis,zaxis
     use field_line_integration_mod, only: theta0
     use tetra_grid_settings_mod, only: theta0_at_xpoint
+    use binsrc_mod, only: binsrc
 !
     implicit none
 !
