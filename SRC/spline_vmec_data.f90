@@ -4,6 +4,7 @@
   use new_vmec_stuff_mod
   use vector_potentail_mod, only : ns,hs,torflux,sA_phi
   use spl_three_to_five_mod
+  use vmecin_mod, only: vmecin
 !
   implicit none
 !

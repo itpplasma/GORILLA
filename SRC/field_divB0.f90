@@ -65,6 +65,7 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
   use inthecore_mod, only : incore,cutoff
   use field_eq_mod, only : nwindow_r,nwindow_z
   use tetra_grid_settings_mod, only: g_file_filename, convex_wall_filename, iaxieq_in !=> Michael Eder, 05 May 2022
+  !use utils_bdivfree_mod, only: field_fourier, field_fourier_derivs
 !
   implicit none
 !
@@ -209,6 +210,7 @@ subroutine field_eq(r,ppp,z,Brad,Bphi,Bzet,dBrdR,dBrdp,dBrdZ  &
   use input_files
   use field_eq_mod
   use field_mod, only : iaxieq
+  use spline5_RZ_mod, only: spline, s2dcut
 !
   implicit none
 !
@@ -650,6 +652,7 @@ subroutine field_c(rrr,ppp,zzz,Brad,Bphi,Bzet,dBrdR,dBrdp,dBrdZ  &
 !
   use input_files
   use field_c_mod
+  !use utils_bdivfree_mod, only: field_divfree, vector_potentials
 !
   implicit none
 !
@@ -1226,6 +1229,7 @@ end subroutine read_field4
   subroutine spline_fpol
 !
   use field_eq_mod, only : nrad,hfpol,splfpol
+  use spline5_RZ_mod, only: spl_five_reg
 !
   implicit none
 !

@@ -3,6 +3,9 @@ module odeint_mod
 contains
 
 subroutine odeint_allroutines(y, nvar, x1, x2, eps, derivs)
+
+    use rkf45_mod, only: r8_rkf45
+
     implicit none
 
     external :: derivs

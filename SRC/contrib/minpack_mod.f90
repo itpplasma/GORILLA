@@ -1,3 +1,9 @@
+module minpack_mod
+
+  implicit none
+  
+  contains
+
 subroutine chkder ( m, n, x, fvec, fjac, ldfjac, xp, fvecp, mode, err )
 
 !*****************************************************************************80
@@ -167,7 +173,8 @@ subroutine chkder ( m, n, x, fvec, fjac, ldfjac, xp, fvecp, mode, err )
   end if
 
   return
-end
+end subroutine chkder
+
 subroutine dogleg ( n, r, lr, diag, qtb, delta, x )
 
 !*****************************************************************************80
@@ -377,7 +384,8 @@ subroutine dogleg ( n, r, lr, diag, qtb, delta, x )
   x(1:n) = temp * wa1(1:n) + alpha * x(1:n)
 
   return
-end
+end subroutine dogleg
+
 function enorm ( n, x )
 
 !*****************************************************************************80
@@ -426,7 +434,8 @@ function enorm ( n, x )
   enorm = sqrt ( sum ( x(1:n) ** 2 ))
 
   return
-end
+end function enorm
+
 function enorm2 ( n, x )
 
 !*****************************************************************************80
@@ -556,7 +565,8 @@ function enorm2 ( n, x )
   end if
 
   return
-end
+end function enorm2 
+
 subroutine fdjac1 ( fcn, n, x, fvec, fjac, ldfjac, iflag, ml, mu, epsfcn )
 
 !*****************************************************************************80
@@ -733,7 +743,8 @@ subroutine fdjac1 ( fcn, n, x, fvec, fjac, ldfjac, iflag, ml, mu, epsfcn )
   end if
 
   return
-end
+end subroutine fdjac1
+
 subroutine fdjac2 ( fcn, m, n, x, fvec, fjac, ldfjac, iflag, epsfcn )
 
 !*****************************************************************************80
@@ -854,7 +865,8 @@ subroutine fdjac2 ( fcn, m, n, x, fvec, fjac, ldfjac, iflag, epsfcn )
   end do
 
   return
-end
+end subroutine fdjac2
+
 subroutine hybrd ( fcn, n, x, fvec, xtol, maxfev, ml, mu, epsfcn, diag, mode, &
   factor, nprint, info, nfev, fjac, ldfjac, r, lr, qtf )
 
@@ -1403,7 +1415,8 @@ subroutine hybrd ( fcn, n, x, fvec, xtol, maxfev, ml, mu, epsfcn, diag, mode, &
   end if
 
   return
-end
+end subroutine hybrd
+
 subroutine hybrd1 ( fcn, n, x, fvec, tol, info )
 
 !*****************************************************************************80
@@ -1539,7 +1552,8 @@ subroutine hybrd1 ( fcn, n, x, fvec, tol, info )
   end if
 
   return
-end
+end subroutine hybrd1
+
 subroutine hybrj ( fcn, n, x, fvec, fjac, ldfjac, xtol, maxfev, diag, mode, &
   factor, nprint, info, nfev, njev, r, lr, qtf )
 
@@ -2108,7 +2122,8 @@ subroutine hybrj ( fcn, n, x, fvec, fjac, ldfjac, xtol, maxfev, diag, mode, &
 !
   end do
 
-end
+end subroutine hybrj
+
 subroutine hybrj1 ( fcn, n, x, fvec, fjac, ldfjac, tol, info )
 
 !*****************************************************************************80
@@ -2243,7 +2258,8 @@ subroutine hybrj1 ( fcn, n, x, fvec, fjac, ldfjac, tol, info )
   end if
 
   return
-end
+end subroutine hybrj1
+
 subroutine lmder ( fcn, m, n, x, fvec, fjac, ldfjac, ftol, xtol, gtol, maxfev, &
   diag, mode, factor, nprint, info, nfev, njev, ipvt, qtf )
 
@@ -2771,7 +2787,8 @@ subroutine lmder ( fcn, m, n, x, fvec, fjac, ldfjac, ftol, xtol, gtol, maxfev, &
   end if
 
   return
-end
+end subroutine lmder
+
 subroutine lmder1 ( fcn, m, n, x, fvec, fjac, ldfjac, tol, info )
 
 !*****************************************************************************80
@@ -2923,7 +2940,8 @@ subroutine lmder1 ( fcn, m, n, x, fvec, fjac, ldfjac, tol, info )
   end if
 
   return
-end
+end subroutine lmder1
+
 subroutine lmdif ( fcn, m, n, x, fvec, ftol, xtol, gtol, maxfev, epsfcn, &
   diag, mode, factor, nprint, info, nfev, fjac, ldfjac, ipvt, qtf )
 
@@ -3454,7 +3472,8 @@ subroutine lmdif ( fcn, m, n, x, fvec, ftol, xtol, gtol, maxfev, epsfcn, &
   end if
 
   return
-end
+end subroutine lmdif
+
 subroutine lmdif1 ( fcn, m, n, x, fvec, tol, info )
 
 !*****************************************************************************80
@@ -3590,7 +3609,8 @@ subroutine lmdif1 ( fcn, m, n, x, fvec, tol, info )
   end if
 
   return
-end
+end subroutine lmdif1
+
 subroutine lmpar ( n, r, ldr, ipvt, diag, qtb, delta, par, x, sdiag )
 
 !*****************************************************************************80
@@ -3895,7 +3915,8 @@ subroutine lmpar ( n, r, ldr, ipvt, diag, qtb, delta, par, x, sdiag )
   end if
 
   return
-end
+end subroutine lmpar
+
 subroutine lmstr ( fcn, m, n, x, fvec, fjac, ldfjac, ftol, xtol, gtol, maxfev, &
   diag, mode, factor, nprint, info, nfev, njev, ipvt, qtf )
 
@@ -4444,7 +4465,8 @@ subroutine lmstr ( fcn, m, n, x, fvec, fjac, ldfjac, ftol, xtol, gtol, maxfev, &
   end if
 
   return
-end
+end subroutine lmstr
+
 subroutine lmstr1 ( fcn, m, n, x, fvec, fjac, ldfjac, tol, info )
 
 !*****************************************************************************80
@@ -4615,7 +4637,8 @@ subroutine lmstr1 ( fcn, m, n, x, fvec, fjac, ldfjac, tol, info )
   end if
 
   return
-end
+end subroutine lmstr1
+
 subroutine qform ( m, n, q, ldq )
 
 !*****************************************************************************80
@@ -4716,7 +4739,8 @@ subroutine qform ( m, n, q, ldq )
   end do
 
   return
-end
+end subroutine qform
+
 subroutine qrfac ( m, n, a, lda, pivot, ipvt, lipvt, rdiag, acnorm )
 
 !*****************************************************************************80
@@ -4913,7 +4937,8 @@ subroutine qrfac ( m, n, a, lda, pivot, ipvt, lipvt, rdiag, acnorm )
   end do
 
   return
-end
+end subroutine qrfac
+
 subroutine qrsolv ( n, r, ldr, ipvt, diag, qtb, x, sdiag )
 
 !*****************************************************************************80
@@ -5131,7 +5156,8 @@ subroutine qrsolv ( n, r, ldr, ipvt, diag, qtb, x, sdiag )
   end do
 
   return
-end
+end subroutine qrsolv
+
 subroutine r1mpyq ( m, n, a, lda, v, w )
 
 !*****************************************************************************80
@@ -5242,7 +5268,8 @@ subroutine r1mpyq ( m, n, a, lda, v, w )
   end do
 
   return
-end
+end subroutine r1mpyq
+
 subroutine r1updt ( m, n, s, ls, u, v, w, sing )
 
 !*****************************************************************************80
@@ -5476,7 +5503,8 @@ subroutine r1updt ( m, n, s, ls, u, v, w, sing )
   end if
 
   return
-end
+end subroutine r1updt
+
 function r8_uniform_01 ( seed )
 
 !*****************************************************************************80
@@ -5575,7 +5603,8 @@ function r8_uniform_01 ( seed )
   r8_uniform_01 = real ( seed, kind = 8 ) * 4.656612875D-10
 
   return
-end
+end function r8_uniform_01
+
 subroutine r8mat_print ( m, n, a, title )
 
 !*****************************************************************************80
@@ -5619,7 +5648,8 @@ subroutine r8mat_print ( m, n, a, title )
   call r8mat_print_some ( m, n, a, 1, 1, m, n, title )
 
   return
-end
+end subroutine r8mat_print
+
 subroutine r8mat_print_some ( m, n, a, ilo, jlo, ihi, jhi, title )
 
 !*****************************************************************************80
@@ -5728,7 +5758,8 @@ subroutine r8mat_print_some ( m, n, a, ilo, jlo, ihi, jhi, title )
   end do
 
   return
-end
+end subroutine r8mat_print_some
+
 subroutine r8vec_print ( n, a, title )
 
 !*****************************************************************************80
@@ -5775,7 +5806,8 @@ subroutine r8vec_print ( n, a, title )
   end do
 
   return
-end
+end subroutine r8vec_print
+
 subroutine rwupdt ( n, r, ldr, w, b, alpha, c, s )
 
 !*****************************************************************************80
@@ -5902,7 +5934,8 @@ subroutine rwupdt ( n, r, ldr, w, b, alpha, c, s )
   end do
 
   return
-end
+end subroutine rwupdt
+
 subroutine timestamp ( )
 
 !*****************************************************************************80
@@ -5980,4 +6013,6 @@ subroutine timestamp ( )
     d, trim ( month(m) ), y, h, ':', n, ':', s, '.', mm, trim ( ampm )
 
   return
-end
+end subroutine timestamp
+
+end module minpack_mod
