@@ -19,12 +19,13 @@ SOURCES = SetWorkingPrecision.f90\
 	gorilla_diag_mod.f90 \
 	canonical_coordinates_mod.f90 \
 	nctools_module.f90 \
-	rkf45.f90 \
+	rkf45_mod.f90 \
 	odeint_rkf45.f90 \
 	runge_kutta_mod.f90 \
 	magfie.f90 \
-	chamb_m.f90 \
-	vmecinm_m.f90 \
+	chamb_can_mod.f90 \
+	vmecin_mod.f90 \
+	spline5_RZ_mod.f90 \
 	spl_three_to_five_mod.f90 \
 	spline_vmec_data.f90 \
 	new_vmec_allocation_stuff.f90 \
@@ -39,13 +40,12 @@ SOURCES = SetWorkingPrecision.f90\
 	circular_mesh.f90\
 	circular_mesh_SOLEDGE3X_EIRENE.f90\
 	tetra_grid_mod.f90 \
-	make_grid_rect.f90 \
+	make_grid_rect_mod.f90 \
 	bdivfree.f90 \
 	strong_electric_field_mod.f90 \
 	differentiate_mod.f90 \
 	tetra_physics_mod.f90 \
 	tetra_physics_poly_precomp_mod.f90 \
-	spline5_RZ.f90 \
 	supporting_functions_mod.f90 \
 	pusher_tetra_func_mod.f90 \
 	pusher_tetra_poly.f90 \

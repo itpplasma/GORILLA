@@ -1,3 +1,8 @@
+module vmecin_mod
+
+  implicit none
+
+  contains
 !
 ! Usage:
 !
@@ -96,3 +101,5 @@
   RT0=rmajor*1.d2
 !
   end subroutine stevvo
+
+end module vmecin_mod

@@ -1,3 +1,9 @@
+module rkf45_mod
+
+  implicit none
+  
+  contains
+
 subroutine r4_fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
 
 !*****************************************************************************80
@@ -145,7 +151,8 @@ subroutine r4_fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
   )
 
   return
-end
+end subroutine r4_fehl
+
 subroutine r4_rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 
 !*****************************************************************************80
@@ -764,7 +771,8 @@ subroutine r4_rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
   flag = -2
 
   return
-end
+end subroutine r4_rkf45
+
 subroutine r8_fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
 
 !*****************************************************************************80
@@ -912,7 +920,8 @@ subroutine r8_fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
   )
 
   return
-end
+end subroutine r8_fehl
+
 subroutine r8_rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 
 !*****************************************************************************80
@@ -1532,7 +1541,8 @@ subroutine r8_rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
   flag = -2
 
   return
-end
+end subroutine r8_rkf45
+
 subroutine timestamp ( )
 
 !*****************************************************************************80
@@ -1610,5 +1620,6 @@ subroutine timestamp ( )
     d, trim ( month(m) ), y, h, ':', n, ':', s, '.', mm, trim ( ampm )
 
   return
-end
+end subroutine timestamp
 
+end module rkf45_mod

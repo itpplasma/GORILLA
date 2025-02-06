@@ -1,8 +1,8 @@
-! module chamb_sub
+module chamb_can_mod
 
-! implicit none
+      implicit none
 
-! contains
+      contains
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -29,4 +29,4 @@
 !
       end subroutine chamb_can
 
-!end module chamb_sub
+end module chamb_can_mod

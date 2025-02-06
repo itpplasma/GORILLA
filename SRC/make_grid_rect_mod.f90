@@ -1,3 +1,8 @@
+! module make_grid_rect_mod
+
+!   implicit none
+
+!   contains
 !
   subroutine make_grid_rect(tetra,verts_rphiz,grid_size,Rmin,Rmax,Zmin,Zmax)
 !
@@ -392,3 +397,4 @@ b: do ind_tetr=1,ntetr
 !
 !ccccccccccccccccccccccccccccccccccccccccccc
 !
+!end module make_grid_rect_mod

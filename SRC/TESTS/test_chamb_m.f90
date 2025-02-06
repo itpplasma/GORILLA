@@ -1,5 +1,6 @@
 module test_chamb_m
    use funit
+   use chamb_can_mod, only: chamb_can
    implicit none
 !
 ! Background:

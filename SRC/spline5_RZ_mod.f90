@@ -1,3 +1,8 @@
+module spline5_RZ_mod
+
+  implicit none
+
+  contains
 !
   subroutine spl_five_reg(n,h,a,b,c,d,e,f)
 !
@@ -136,7 +141,7 @@
   deallocate(alp,bet,gam)
 !
   return
-  end
+  end subroutine spl_five_reg
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
   subroutine s2dcut(nx,ny,hx,hy,f,imi,ima,jmi,jma,icount,spl,ipoint)
@@ -180,8 +185,15 @@
 !
   implicit double precision (a-h,o-z)
 !
-  dimension f(nx,ny),spl(6,6,icount),ipoint(nx,ny)
-  dimension imi(ny),ima(ny),jmi(nx),jma(nx)
+  integer :: nx, ny, icount
+  integer, dimension(nx) :: jmi,jma
+  integer, dimension(ny) :: imi,ima
+  integer, dimension(nx,ny) :: ipoint
+  integer :: ic, nmax, nsi
+  integer :: i, j, jj, l, ii
+!
+  dimension f(nx,ny),spl(6,6,icount)!,ipoint(nx,ny)
+  !dimension imi(ny),ima(ny),jmi(nx),jma(nx)
 !
   double precision, dimension(:), allocatable :: ai,bi,ci,di,ei,fi
 !
@@ -245,7 +257,7 @@
   deallocate( ai,bi,ci,di,ei,fi )
 !
   return
-  end
+  end subroutine s2dcut
 !
 ! ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -259,7 +271,10 @@
 
   implicit double precision (a-h,o-z)
 !
-  dimension spl(6,6,icount),x(nx),y(ny),ipoint(nx,ny)
+  integer :: nx,ny,icount, ierr
+  integer :: kx, ky, l
+  integer, dimension(nx,ny) :: ipoint
+  dimension spl(6,6,icount),x(nx),y(ny)!,ipoint(nx,ny)
   dimension a(6),ax(6),axx(6)
 !
   xk=(xb-x(1))/hx
@@ -303,4 +318,6 @@
   uyy = 2.d0*a(3) + dy*(6.d0*a(4) + dy*(12.d0*a(5) + dy*20.d0*a(6)))
 
   return
-  end
+  end subroutine spline
+
+end module spline5_RZ_mod
