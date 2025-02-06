@@ -21,50 +21,15 @@ module pusher_tetra_poly_mod
     implicit none
 !
     interface poly_multiplication
-    pure function scalar_multiplication_without_precomp(scalar_coef_1,scalar_coef_2)
-        implicit none
-        double precision, dimension(:), intent(in)           :: scalar_coef_1,scalar_coef_2
-        double precision, dimension(:), allocatable          :: scalar_multiplication_without_precomp
-    end function scalar_multiplication_without_precomp
-!
-    pure function vector_multiplication_without_precomp(scalar_coef,vector_coef)
-        implicit none
-        double precision, dimension(:), intent(in)           :: scalar_coef
-        double precision, dimension(:,:), intent(in)         :: vector_coef
-        double precision, dimension(:,:), allocatable        :: vector_multiplication_without_precomp
-        end function vector_multiplication_without_precomp
-!
-    pure function tensor_multiplication_without_precomp(vector_coef_1,vector_coef_2)
-        implicit none
-        double precision, dimension(:,:), intent(in)         :: vector_coef_1,vector_coef_2
-        double precision, dimension(:,:,:), allocatable      :: tensor_multiplication_without_precomp
-        end function tensor_multiplication_without_precomp
+    module procedure scalar_multiplication_without_precomp
+    module procedure vector_multiplication_without_precomp
+    module procedure tensor_multiplication_without_precomp
     end interface poly_multiplication
 !
     interface moment_integration
-    pure function scalar_integral_without_precomp(poly_order,tau,scalar_coef)
-        implicit none
-        integer, intent(in)                                  :: poly_order
-        double precision, intent(in)                         :: tau
-        double precision, dimension(:), intent(in)           :: scalar_coef
-        double precision                                     :: scalar_integral_without_precomp
-    end function scalar_integral_without_precomp
-!
-    pure function vector_integral_without_precomp(poly_order,tau,vector_coef)
-        implicit none
-        integer, intent(in)                                   :: poly_order
-        double precision, intent(in)                          :: tau
-        double precision, dimension(:,:), intent(in)          :: vector_coef
-        double precision, dimension(:), allocatable           :: vector_integral_without_precomp
-    end function vector_integral_without_precomp
-!
-    pure function tensor_integral_without_precomp(poly_order,tau,tensor_coef)
-        implicit none
-        integer, intent(in)                             :: poly_order
-        double precision, intent(in)                    :: tau
-        double precision, dimension(:,:,:), intent(in)  :: tensor_coef
-        double precision, dimension(:,:), allocatable   :: tensor_integral_without_precomp
-    end function tensor_integral_without_precomp
+    module procedure scalar_integral_without_precomp
+    module procedure vector_integral_without_precomp
+    module procedure tensor_integral_without_precomp
     end interface moment_integration
 !
     !change those for adaptive step sizes, probably allocatable
@@ -2989,6 +2954,156 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting: Safety margin'
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+    pure function scalar_multiplication_without_precomp(scalar_coef_1,scalar_coef_2)
+        implicit none
+        double precision, dimension(:), intent(in)           :: scalar_coef_1,scalar_coef_2
+        double precision, dimension(:), allocatable          :: scalar_multiplication_without_precomp
+        integer                                              :: k
+!
+        k = maxval((/size(scalar_coef_1),size(scalar_coef_2)/))
+        allocate(scalar_multiplication_without_precomp(k))
+        call poly_multiplication_coef(scalar_coef_1,scalar_coef_2,scalar_multiplication_without_precomp)
+!
+    end function scalar_multiplication_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function vector_multiplication_without_precomp(scalar_coef,vector_coef)
+        implicit none
+        double precision, dimension(:), intent(in)           :: scalar_coef
+        double precision, dimension(:,:), intent(in)         :: vector_coef
+        double precision, dimension(:), allocatable          :: scalar_coef_res
+        integer                                              :: i,j,k
+        double precision, dimension(:,:), allocatable        :: vector_multiplication_without_precomp
+!
+        j = size(vector_coef(:,1))
+        k = maxval((/size(vector_coef(1,:)),size(scalar_coef)/))
+        allocate(scalar_coef_res(k))
+        allocate(vector_multiplication_without_precomp(j,k))
+!
+        do i = 1,j
+                call poly_multiplication_coef(scalar_coef,vector_coef(i,:),scalar_coef_res)
+                vector_multiplication_without_precomp(i,:) = scalar_coef_res
+        enddo
+        deallocate(scalar_coef_res)
+    end function vector_multiplication_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function tensor_multiplication_without_precomp(vector_coef_1,vector_coef_2)
+        implicit none
+        double precision, dimension(:,:), intent(in)         :: vector_coef_1,vector_coef_2
+        integer                                              :: i,j,k,l,m
+        double precision, dimension(:), allocatable          :: scalar_coef_res
+        double precision, dimension(:,:,:), allocatable      :: tensor_multiplication_without_precomp
+!
+        k = size(vector_coef_1(:,1))
+        l = size(vector_coef_2(:,1))
+        m = maxval((/size(vector_coef_1(1,:)),size(vector_coef_2(1,:))/))
+        allocate(scalar_coef_res(m))
+        allocate(tensor_multiplication_without_precomp(k,l,m))
+!
+                do i = 1,k
+                    do j = 1,l
+                        call poly_multiplication_coef(vector_coef_1(i,:),vector_coef_2(j,:),scalar_coef_res)
+                        tensor_multiplication_without_precomp(i,j,:) = scalar_coef_res
+                    enddo
+                enddo
+        deallocate(scalar_coef_res)
+!
+    end function tensor_multiplication_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function scalar_integral_without_precomp(poly_order,tau,scalar_coef)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                                  :: poly_order
+        double precision, intent(in)                         :: tau
+        double precision, dimension(:), intent(in)           :: scalar_coef
+
+        double precision                                     :: scalar_integral_without_precomp
+!
+        if(poly_order.ge.1) then
+            scalar_integral_without_precomp = scalar_coef(1)*tau + tau**2 * 0.5d0 * scalar_coef(2)
+        endif
+!
+        if(poly_order.ge.2) then
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**3/3.d0 * scalar_coef(3)
+        endif
+!
+        if(poly_order.ge.3) then
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**4/4.d0 * scalar_coef(4)
+        endif
+!
+        if(poly_order.ge.4) then
+            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**5/5.d0 * scalar_coef(5)
+        endif
+!
+    end function scalar_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+!
+    pure function vector_integral_without_precomp(poly_order,tau,vector_coef)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        implicit none
+
+        
+!
+        integer, intent(in)                                   :: poly_order
+        double precision, intent(in)                          :: tau
+        double precision, dimension(:,:), intent(in)          :: vector_coef
+!
+        double precision, dimension(:), allocatable           :: vector_integral_without_precomp
+!
+        integer                                               :: i,m
+!
+        m = size(vector_coef(:,1))
+        allocate(vector_integral_without_precomp(m))
+        do i = 1,m
+        vector_integral_without_precomp(i) = moment_integration(poly_order,tau,vector_coef(i,:))
+        enddo
+!
+    end function vector_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    pure function tensor_integral_without_precomp(poly_order,tau,tensor_coef)
+!
+        !This function shall only be called within the subroutine "calc_optional_quantities"
+        !Values in modules are used that need to be precomputed/set in that subroutine.
+!
+        implicit none
+!
+        integer, intent(in)                             :: poly_order
+        double precision, intent(in)                    :: tau
+        double precision, dimension(:,:,:), intent(in)  :: tensor_coef
+!
+        double precision, dimension(:,:), allocatable   :: tensor_integral_without_precomp
+        integer :: j,k,m,n
+!
+        m = size(tensor_coef(:,1,1))
+        n = size(tensor_coef(1,:,1))
+        allocate(tensor_integral_without_precomp(m,n))
+!
+        do j = 1,m
+            do k = 1,n
+                tensor_integral_without_precomp(j,k) = moment_integration(poly_order,tau,tensor_coef(j,k,:))
+            enddo
+        enddo
+!
+    end function tensor_integral_without_precomp
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
 end module pusher_tetra_poly_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -3267,162 +3382,3 @@ endif
     end subroutine analytic_integration_external
 !
 end module par_adiab_inv_poly_mod
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-pure function scalar_multiplication_without_precomp(scalar_coef_1,scalar_coef_2)
-use pusher_tetra_poly_mod, only: poly_multiplication_coef
-implicit none
-double precision, dimension(:), intent(in)           :: scalar_coef_1,scalar_coef_2
-double precision, dimension(:), allocatable          :: scalar_multiplication_without_precomp
-integer                                              :: k
-!
-k = maxval((/size(scalar_coef_1),size(scalar_coef_2)/))
-allocate(scalar_multiplication_without_precomp(k))
-call poly_multiplication_coef(scalar_coef_1,scalar_coef_2,scalar_multiplication_without_precomp)
-!
-end function scalar_multiplication_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-pure function vector_multiplication_without_precomp(scalar_coef,vector_coef)
-use pusher_tetra_poly_mod, only: poly_multiplication_coef
-implicit none
-double precision, dimension(:), intent(in)           :: scalar_coef
-double precision, dimension(:,:), intent(in)         :: vector_coef
-double precision, dimension(:), allocatable          :: scalar_coef_res
-integer                                              :: i,j,k
-double precision, dimension(:,:), allocatable        :: vector_multiplication_without_precomp
-!
-j = size(vector_coef(:,1))
-k = maxval((/size(vector_coef(1,:)),size(scalar_coef)/))
-allocate(scalar_coef_res(k))
-allocate(vector_multiplication_without_precomp(j,k))
-!
-do i = 1,j
-        call poly_multiplication_coef(scalar_coef,vector_coef(i,:),scalar_coef_res)
-        vector_multiplication_without_precomp(i,:) = scalar_coef_res
-enddo
-deallocate(scalar_coef_res)
-end function vector_multiplication_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-pure function tensor_multiplication_without_precomp(vector_coef_1,vector_coef_2)
-use pusher_tetra_poly_mod, only: poly_multiplication_coef
-implicit none
-double precision, dimension(:,:), intent(in)         :: vector_coef_1,vector_coef_2
-integer                                              :: i,j,k,l,m
-double precision, dimension(:), allocatable          :: scalar_coef_res
-double precision, dimension(:,:,:), allocatable      :: tensor_multiplication_without_precomp
-!
-k = size(vector_coef_1(:,1))
-l = size(vector_coef_2(:,1))
-m = maxval((/size(vector_coef_1(1,:)),size(vector_coef_2(1,:))/))
-allocate(scalar_coef_res(m))
-allocate(tensor_multiplication_without_precomp(k,l,m))
-!
-        do i = 1,k
-            do j = 1,l
-                call poly_multiplication_coef(vector_coef_1(i,:),vector_coef_2(j,:),scalar_coef_res)
-                tensor_multiplication_without_precomp(i,j,:) = scalar_coef_res
-            enddo
-        enddo
-deallocate(scalar_coef_res)
-!
-end function tensor_multiplication_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-pure function scalar_integral_without_precomp(poly_order,tau,scalar_coef)
-!
-        !This function shall only be called within the subroutine "calc_optional_quantities"
-        !Values in modules are used that need to be precomputed/set in that subroutine.
-!
-        implicit none
-!
-        integer, intent(in)                                  :: poly_order
-        double precision, intent(in)                         :: tau
-        double precision, dimension(:), intent(in)           :: scalar_coef
-
-        double precision                                     :: scalar_integral_without_precomp
-!
-        if(poly_order.ge.1) then
-            scalar_integral_without_precomp = scalar_coef(1)*tau + tau**2 * 0.5d0 * scalar_coef(2)
-        endif
-!
-        if(poly_order.ge.2) then
-            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**3/3.d0 * scalar_coef(3)
-        endif
-!
-        if(poly_order.ge.3) then
-            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**4/4.d0 * scalar_coef(4)
-        endif
-!
-        if(poly_order.ge.4) then
-            scalar_integral_without_precomp = scalar_integral_without_precomp + tau**5/5.d0 * scalar_coef(5)
-        endif
-!
-    end function scalar_integral_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-!
-    pure function vector_integral_without_precomp(poly_order,tau,vector_coef)
-!
-        !This function shall only be called within the subroutine "calc_optional_quantities"
-        !Values in modules are used that need to be precomputed/set in that subroutine.
-    !
-    use pusher_tetra_poly_mod, only: moment_integration
-!
-        implicit none
-
-        
-!
-        integer, intent(in)                                   :: poly_order
-        double precision, intent(in)                          :: tau
-        double precision, dimension(:,:), intent(in)          :: vector_coef
-!
-        double precision, dimension(:), allocatable           :: vector_integral_without_precomp
-!
-        integer                                               :: i,m
-!
-        m = size(vector_coef(:,1))
-        allocate(vector_integral_without_precomp(m))
-        do i = 1,m
-        vector_integral_without_precomp(i) = moment_integration(poly_order,tau,vector_coef(i,:))
-        enddo
-!
-    end function vector_integral_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    pure function tensor_integral_without_precomp(poly_order,tau,tensor_coef)
-!
-        !This function shall only be called within the subroutine "calc_optional_quantities"
-        !Values in modules are used that need to be precomputed/set in that subroutine.
-!
-    use pusher_tetra_poly_mod, only: moment_integration
-        implicit none
-!
-        integer, intent(in)                             :: poly_order
-        double precision, intent(in)                    :: tau
-        double precision, dimension(:,:,:), intent(in)  :: tensor_coef
-!
-        double precision, dimension(:,:), allocatable   :: tensor_integral_without_precomp
-        integer :: j,k,m,n
-!
-        m = size(tensor_coef(:,1,1))
-        n = size(tensor_coef(1,:,1))
-        allocate(tensor_integral_without_precomp(m,n))
-!
-        do j = 1,m
-            do k = 1,n
-                tensor_integral_without_precomp(j,k) = moment_integration(poly_order,tau,tensor_coef(j,k,:))
-            enddo
-        enddo
-!
-    end function tensor_integral_without_precomp
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
