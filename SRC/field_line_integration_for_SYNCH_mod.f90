@@ -11,6 +11,12 @@
     double precision :: theta0
   end module field_line_integration_mod
 !
+module field_line_integration_for_SYNCH_mod
+
+  implicit none
+
+  contains 
+  
   subroutine field_line_integration_for_SYNCH(nstep,nsurfmax,nlabel,ntheta,    &
                                               rmn,rmx,zmn,zmx,raxis,zaxis,     &
                                               rbeg,rsmall,qsaf,psisurf,phitor, &
@@ -50,10 +56,6 @@
   double precision, dimension(neq)           :: ymet
   double precision, dimension(nlabel)        :: rbeg,rsmall,qsaf,psisurf,phitor
   double precision, dimension(nlabel,ntheta) :: R_st,Z_st,bmod_st,sqgnorm_st
-!
-!  external :: rhs_axis, rhs_surf, rhs_surf_theta
-  external :: rhs_axis, rhs_surf  !, rhs_surf_theta
-  double precision, external :: cross_2d_sign
   double precision, dimension(0:0,4) :: coef
 !
 !
@@ -389,70 +391,65 @@
 !-------------------------------------------------------------------------------
 !
   end subroutine field_line_integration_for_SYNCH
-! -----------------------------------------------------------------
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
+
   subroutine rhs_axis(phi,y,dy)
 !
-  implicit none
+    implicit none
 !
-  integer, parameter :: ndim = 4
+    integer, parameter :: ndim = 4
 !
-  double precision, dimension(ndim) :: y,dy
-  double precision :: R,phi,Z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ,   &
-                      dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
+    double precision, dimension(ndim) :: y,dy
+    double precision :: R,phi,Z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ,   &
+                        dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
 !
-  R=y(1)
-  Z=y(2)
+    R=y(1)
+    Z=y(2)
 !
-  call field_eq(R,phi,Z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
-               ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
+    call field_eq(R,phi,Z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
+                  ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
-  dy(1)=Br*R/Bp
-  dy(2)=Bz*R/Bp
-  dy(3)=y(1)
-  dy(4)=y(2)
+    dy(1)=Br*R/Bp
+    dy(2)=Bz*R/Bp
+    dy(3)=y(1)
+    dy(4)=y(2)
 !
-  return
+    return
   end subroutine rhs_axis
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-!-------------------------------------------------------------------------------
-!
+
   subroutine rhs_surf(phi,y,dy)
 !
-  use rhs_surf_mod , only: dr_dphi, dz_dphi
+    use rhs_surf_mod , only: dr_dphi, dz_dphi
 !
-  implicit none
+    implicit none
 !
-  integer, parameter :: ndim = 4
+    integer, parameter :: ndim = 4
 !
-  double precision, dimension(ndim) :: y,dy
-  double precision :: R,phi,Z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ,   &
-                      dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
+    double precision, dimension(ndim) :: y,dy
+    double precision :: R,phi,Z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ,   &
+                        dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
 !
-  R=y(1)
-  Z=y(2)
+    R=y(1)
+    Z=y(2)
 !
-  call field_eq(R,phi,Z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
-               ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
+    call field_eq(R,phi,Z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
+                  ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
-  dy(1)=Br*R/Bp
-  dy(2)=Bz*R/Bp
-  dy(3)=y(1)*dy(2)
-  dy(4)=y(1)*y(2)*Br
+    dy(1)=Br*R/Bp
+    dy(2)=Bz*R/Bp
+    dy(3)=y(1)*dy(2)
+    dy(4)=y(1)*y(2)*Br
 !
-  dr_dphi=dy(1)
-  dz_dphi=dy(2)
+    dr_dphi=dy(1)
+    dz_dphi=dy(2)
 !
-  return
+    return
   end subroutine rhs_surf
 
-pure double precision function cross_2d_sign(a, b)
-  ! compute the sign of the 2d cross product a x b 
-  double precision, intent(in), dimension(2) :: a, b
-  
-  cross_2d_sign = sign(1.d0, a(1) * b(2) - a(2) * b(1))
-end function cross_2d_sign
+  pure double precision function cross_2d_sign(a, b)
+    ! compute the sign of the 2d cross product a x b 
+    double precision, intent(in), dimension(2) :: a, b
+    
+    cross_2d_sign = sign(1.d0, a(1) * b(2) - a(2) * b(1))
+  end function cross_2d_sign
+
+end module field_line_integration_for_SYNCH_mod

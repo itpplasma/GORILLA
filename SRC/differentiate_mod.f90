@@ -1,3 +1,8 @@
+module differentiate_mod
+
+  implicit none
+
+  contains
 !
   subroutine differentiate(x,y,z,n,f,fx,fy,fz)
 !
@@ -56,3 +61,5 @@
   deallocate(df)
 !
   end subroutine differentiate
+!
+end module differentiate_mod

@@ -149,6 +149,7 @@
   !                 dZ_dtheta - derivative of Z over polidal angle of symmetry flux coordinates theta
   !
   use magdata_in_symfluxcoor_mod
+  use binsrc_mod, only: binsrc
   !
   implicit none
   !
