@@ -31,6 +31,7 @@
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi
         use new_vmec_stuff_mod, only: nper
+        use spline_vmec_data_mod, only: spline_vmec_data
         !use make_grid_rect_mod, only: make_grid_rect
 !
         implicit none

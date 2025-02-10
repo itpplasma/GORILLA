@@ -30,6 +30,7 @@ module field_line_integration_for_SYNCH_mod
   use tetra_grid_settings_mod, only: theta0_at_xpoint
   use field_line_integration_mod, only: circ_mesh_scale, o_point, x_point, &
                                       & theta_axis, theta0
+  use plag_coeff_mod, only: plag_coeff
 !
   implicit none
 !

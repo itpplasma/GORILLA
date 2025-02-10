@@ -11,6 +11,7 @@ contains
 subroutine create_points(verts_per_ring, n_slices, points_rphiz, points_sthetaphi, efit_vmec,n_field_periods_in,n_verts, &
                          verts_theta_vmec,r_scaling_func, theta_scaling_func,repeat_center_point)
     use points_2d, only: create_points_2d, create_points_2d_vmec, scaling_func
+    use spline_vmec_data_mod, only: splint_vmec_data
 
     integer, intent(in) :: n_slices,efit_vmec,n_field_periods_in
     integer, dimension(:), intent(in) :: verts_per_ring ! without center vert; e.g. (/6, 8, 10/)
@@ -166,6 +167,8 @@ end subroutine
 
 function theta_vmec2theta_sym_flux(s,theta_vmec,varphi) result(theta_sym_flux) 
 !
+        use spline_vmec_data_mod, only: splint_vmec_data
+
         implicit none
 !        
         double precision :: s,theta_vmec,theta_sym_flux,varphi,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,       &
@@ -179,6 +182,8 @@ function theta_vmec2theta_sym_flux(s,theta_vmec,varphi) result(theta_sym_flux)
 end function theta_vmec2theta_sym_flux
 !
 function theta_sym_flux2theta_vmec(s,theta_sym_flux,varphi) result(theta_vmec)
+!
+  use spline_vmec_data_mod, only: splint_lambda
 !
   implicit none
 !

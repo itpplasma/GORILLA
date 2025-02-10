@@ -1,3 +1,8 @@
+module spline_vmec_data_mod
+
+  implicit none
+
+  contains
 !
   subroutine spline_vmec_data
 !
@@ -5,6 +10,7 @@
   use vector_potentail_mod, only : ns,hs,torflux,sA_phi
   use spl_three_to_five_mod
   use vmecin_mod, only: vmecin
+  use new_vmec_allocation_stuff_mod, only: new_allocate_vmec_stuff, new_deallocate_vmec_stuff
 !
   implicit none
 !
@@ -452,57 +458,6 @@
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-  subroutine vmec_field(s,theta,varphi,A_theta,A_phi,dA_theta_ds,dA_phi_ds,aiota,     &
-                        sqg,alam,dl_ds,dl_dt,dl_dp,Bctrvr_vartheta,Bctrvr_varphi,     &
-                        Bcovar_r,Bcovar_vartheta,Bcovar_varphi)
-                        
-!
-  implicit none
-!
-  double precision :: s,theta,varphi,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,        &
-                      R,Z,alam,dR_ds,dR_dt,dR_dp,dZ_ds,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp
-  double precision :: Bctrvr_vartheta,Bctrvr_varphi,Bcovar_vartheta,Bcovar_varphi,sqg
-  double precision :: cjac,sqgV,Bcovar_r
-  double precision, dimension(3,3) :: cmat,gV,g
-!
-!
-  call splint_vmec_data(s,theta,varphi,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,      &
-                        R,Z,alam,dR_ds,dR_dt,dR_dp,dZ_ds,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp)
-!
-  gV(1,1)=dR_ds**2+dZ_ds**2
-  gV(1,2)=dR_ds*dR_dt+dZ_ds*dZ_dt
-  gV(1,3)=dR_ds*dR_dp+dZ_ds*dZ_dp
-  gV(2,1)=gV(1,2)
-  gV(2,2)=dR_dt**2+dZ_dt**2
-  gV(2,3)=dR_dt*dR_dp+dZ_dt*dZ_dp
-  gV(3,1)=gV(1,3)
-  gV(3,2)=gV(2,3)
-  gV(3,3)=R**2+dR_dp**2+dZ_dp**2
-  sqgV=R*(dR_dt*dZ_ds-dR_ds*dZ_dt)
-!
-  cjac=1.d0/(1.d0+dl_dt)
-  sqg=sqgV*cjac
-  Bctrvr_vartheta=-dA_phi_ds/sqg
-  Bctrvr_varphi=dA_theta_ds/sqg
-!
-  cmat(1,2:3)=0.d0
-  cmat(3,1:2)=0.d0
-  cmat(1,1)=1.d0
-  cmat(3,3)=1.d0
-  cmat(2,1)=-dl_ds*cjac
-  cmat(2,2)=cjac
-  cmat(2,3)=-dl_dp*cjac
-!
-  g=matmul(transpose(cmat),matmul(gV,cmat))
-!
-  Bcovar_r=g(1,2)*Bctrvr_vartheta+g(1,3)*Bctrvr_varphi
-  Bcovar_vartheta=g(2,2)*Bctrvr_vartheta+g(2,3)*Bctrvr_varphi
-  Bcovar_varphi=g(3,2)*Bctrvr_vartheta+g(3,3)*Bctrvr_varphi
-!
-  end subroutine vmec_field
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
   subroutine splint_iota(s,aiota,daiota_ds)
 !
   use vector_potentail_mod, only : ns,hs,torflux,sA_phi
@@ -696,3 +651,59 @@
   deallocate(splcoe)
 !
   end subroutine s_to_rho_healaxis
+
+  end module spline_vmec_data_mod
+
+  !
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+  subroutine vmec_field(s,theta,varphi,A_theta,A_phi,dA_theta_ds,dA_phi_ds,aiota,     &
+    sqg,alam,dl_ds,dl_dt,dl_dp,Bctrvr_vartheta,Bctrvr_varphi,     &
+    Bcovar_r,Bcovar_vartheta,Bcovar_varphi)
+
+    use spline_vmec_data_mod, only: splint_vmec_data
+    
+!
+implicit none
+!
+double precision :: s,theta,varphi,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,        &
+  R,Z,alam,dR_ds,dR_dt,dR_dp,dZ_ds,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp
+double precision :: Bctrvr_vartheta,Bctrvr_varphi,Bcovar_vartheta,Bcovar_varphi,sqg
+double precision :: cjac,sqgV,Bcovar_r
+double precision, dimension(3,3) :: cmat,gV,g
+!
+!
+call splint_vmec_data(s,theta,varphi,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,      &
+    R,Z,alam,dR_ds,dR_dt,dR_dp,dZ_ds,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp)
+!
+gV(1,1)=dR_ds**2+dZ_ds**2
+gV(1,2)=dR_ds*dR_dt+dZ_ds*dZ_dt
+gV(1,3)=dR_ds*dR_dp+dZ_ds*dZ_dp
+gV(2,1)=gV(1,2)
+gV(2,2)=dR_dt**2+dZ_dt**2
+gV(2,3)=dR_dt*dR_dp+dZ_dt*dZ_dp
+gV(3,1)=gV(1,3)
+gV(3,2)=gV(2,3)
+gV(3,3)=R**2+dR_dp**2+dZ_dp**2
+sqgV=R*(dR_dt*dZ_ds-dR_ds*dZ_dt)
+!
+cjac=1.d0/(1.d0+dl_dt)
+sqg=sqgV*cjac
+Bctrvr_vartheta=-dA_phi_ds/sqg
+Bctrvr_varphi=dA_theta_ds/sqg
+!
+cmat(1,2:3)=0.d0
+cmat(3,1:2)=0.d0
+cmat(1,1)=1.d0
+cmat(3,3)=1.d0
+cmat(2,1)=-dl_ds*cjac
+cmat(2,2)=cjac
+cmat(2,3)=-dl_dp*cjac
+!
+g=matmul(transpose(cmat),matmul(gV,cmat))
+!
+Bcovar_r=g(1,2)*Bctrvr_vartheta+g(1,3)*Bctrvr_varphi
+Bcovar_vartheta=g(2,2)*Bctrvr_vartheta+g(2,3)*Bctrvr_varphi
+Bcovar_varphi=g(3,2)*Bctrvr_vartheta+g(3,3)*Bctrvr_varphi
+!
+end subroutine vmec_field
