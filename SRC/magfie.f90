@@ -26,6 +26,8 @@
 !  Called routines: vmec_field
 !
 !
+  !use spline_vmec_data_mod, only: vmec_field
+!
   implicit none
 !
   double precision, parameter :: twopi=2.d0*3.14159265358979d0, hs=1.d-3, ht=hs*twopi, hp=ht/5.d0

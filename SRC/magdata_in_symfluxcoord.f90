@@ -150,6 +150,7 @@
   !
   use magdata_in_symfluxcoor_mod
   use binsrc_mod, only: binsrc
+  use plag_coeff_mod, only: plag_coeff
   !
   implicit none
   !

@@ -27,14 +27,14 @@ SOURCES = SetWorkingPrecision.f90\
 	vmecin_mod.f90 \
 	spline5_RZ_mod.f90 \
 	spl_three_to_five_mod.f90 \
-	spline_vmec_data.f90 \
-	new_vmec_allocation_stuff.f90 \
+	new_vmec_allocation_stuff_mod.f90 \
+	spline_vmec_data_mod.f90 \
 	binsrc_mod.f90 \
 	field_divB0.f90 \
 	scaling_r_theta.f90\
+	plag_coeff_mod.f90 \
 	field_line_integration_for_SYNCH_mod.f90 \
 	preload_for_SYNCH_mod.f90 \
-	plag_coeff.f90 \
 	magdata_in_symfluxcoord.f90 \
 	points_2d.f90\
 	circular_mesh.f90\

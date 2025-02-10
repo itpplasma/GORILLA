@@ -1,5 +1,9 @@
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
+module plag_coeff_mod
+
+   implicit none
+
+   contains
+
   SUBROUTINE plag_coeff(npoi,nder,x,xp,coef)
     !
     ! npoi - number of points (determines the order of Lagrange
@@ -57,4 +61,6 @@
     !
     RETURN
   END SUBROUTINE plag_coeff
+
+end module plag_coeff_mod
 

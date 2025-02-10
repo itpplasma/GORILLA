@@ -238,6 +238,7 @@ end subroutine create_points_2d
     use field_line_integration_mod, only: theta0
     use tetra_grid_settings_mod, only: theta0_at_xpoint
     use binsrc_mod, only: binsrc
+    use plag_coeff_mod, only: plag_coeff
 !
     implicit none
 !

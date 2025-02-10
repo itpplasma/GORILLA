@@ -133,6 +133,7 @@
             & non_axi_noise_eps_A, boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
       use differentiate_mod, only: differentiate
+      use spline_vmec_data_mod, only: splint_vmec_data
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in
@@ -1125,6 +1126,8 @@ enddo
       subroutine vector_potential_sthetaphi_vmec(s,theta,phi,ipert,bmod_multiplier,A_s,A_theta,A_phi, &
                                                  & B_s,B_vartheta,B_varphi,bmod,sqg,dR_ds,dZ_ds)
 !
+        use spline_vmec_data_mod, only: splint_vmec_data!, vmec_field
+
         implicit none
 !
         integer, intent(in) :: ipert

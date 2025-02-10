@@ -18,6 +18,7 @@
   use exchange_get_cancoord_mod, only : vartheta_c,varphi_c,sqg,aiota,Bcovar_vartheta,Bcovar_varphi, &
                                         theta,onlytheta
   use new_vmec_stuff_mod, only : n_theta,n_phi,h_theta,h_phi,ns_s,ns_tp
+  use spline_vmec_data_mod, only: deallocate_vmec_spline
 !
   implicit none
 !
@@ -179,6 +180,7 @@
 !
   use exchange_get_cancoord_mod, only : vartheta_c,varphi_c,sqg,aiota,Bcovar_vartheta,Bcovar_varphi, &
                                         theta,onlytheta
+  use spline_vmec_data_mod, only: splint_iota, splint_lambda!, vmec_field
 !
   implicit none
 !

@@ -1,3 +1,8 @@
+module new_vmec_allocation_stuff_mod
+
+  implicit none
+
+  contains
 !
   subroutine new_allocate_vmec_stuff
 !
@@ -40,3 +45,5 @@
   deallocate(axm,axn,soa,aiota,sps,phi,s,rmn,zmn,almn)
 !
   end subroutine new_deallocate_vmec_stuff
+
+end module new_vmec_allocation_stuff_mod
