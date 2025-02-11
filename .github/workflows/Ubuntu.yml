@@ -10,7 +10,7 @@ on:
 
 jobs:
   Ubuntu-coverage:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     
     env:
       FC: gfortran
@@ -79,24 +79,24 @@ jobs:
           
       - name: Build
         run: |
-          ./build.sh
+          make
           
       - name: Run examples
         run: |
           cd EXAMPLES/example_1
-          ./test_gorilla_main_cmake.x
+          ../BUILD/test_gorilla_main.x
           cd ../../EXAMPLES/example_2
-          ./test_gorilla_main_cmake.x
+          ../BUILD/test_gorilla_main.x
           cd ../../EXAMPLES/example_3
-          ./test_gorilla_main_cmake.x
+          ../BUILD/test_gorilla_main.x
           cd ../../EXAMPLES/example_4
-          ./test_gorilla_main_cmake.x
+          ../BUILD/test_gorilla_main.x
           cd ../../EXAMPLES/example_5
-          ./test_gorilla_main_cmake.x
+          ../BUILD/test_gorilla_main.x
           cd ../../EXAMPLES/example_6
-          ./test_gorilla_main_cmake.x
+          ../BUILD/test_gorilla_main.x
           cd ../../EXAMPLES/example_7
-          ./test_gorilla_main_cmake.x
+          ../BUILD/test_gorilla_main.x
           
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v1
