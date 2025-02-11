@@ -35,4 +35,10 @@ endif()
 
 add_subdirectory(SRC)
 
+add_executable(test_gorilla_main.x
+  SRC/test_gorilla_main.f90
+)
+
+target_link_libraries(test_gorilla_main.x GORILLA netcdff netcdf lapack)
+
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
