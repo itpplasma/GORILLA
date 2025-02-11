@@ -1,1 +1,1 @@
-../../test_gorilla_main.x
+../../BUILD/test_gorilla_main.x
