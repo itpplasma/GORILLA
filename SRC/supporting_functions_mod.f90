@@ -12,6 +12,7 @@
       use tetra_physics_mod, only: coord_system
       use tetra_grid_settings_mod, only: grid_kind
       use spline_vmec_data_mod, only: splint_vmec_data
+      use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
 !
       implicit none
 !

@@ -19,6 +19,7 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
 !
     use tetra_grid_settings_mod, only: s_min => sfc_s_min,theta_geom_flux, n_extra_rings
     use magdata_in_symfluxcoor_mod, only: psipol_max
+    use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
 !
     integer, intent(in) :: inp_label
     integer, dimension(:), intent(in) :: n_theta
@@ -239,6 +240,7 @@ end subroutine create_points_2d
     use tetra_grid_settings_mod, only: theta0_at_xpoint
     use binsrc_mod, only: binsrc
     use plag_coeff_mod, only: plag_coeff
+    use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
 !
     implicit none
 !

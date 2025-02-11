@@ -1023,6 +1023,7 @@
 !
   use inthecore_mod, only : psi_sep,psi_cut
   use theta_rz_mod,  only : psiaxis
+  use field_divB0_mod, only: inthecore, localizer
 !
   implicit none
 !
@@ -1056,6 +1057,7 @@ subroutine vector_potentials(nr_in,np_in,nz_in,ntor_in,      &
 !
 use bdivfree_mod
 use spline5_RZ_mod, only: s2dcut
+use field_divB0_mod, only: stretch_coords
 !
 implicit none
 !
@@ -1614,6 +1616,8 @@ subroutine field_fourier_derivs(r,phi,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ    &
 ! Computes the field and its derivatives using central differences 
 ! for the field components computed by "field_fourier".
 !
+use field_divB0_mod, only: field_eq, stretch_coords, inthecore
+
 implicit none
 !
 double precision, parameter :: eps=1.d-7
