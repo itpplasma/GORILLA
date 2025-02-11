@@ -15,6 +15,12 @@
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+module magdata_in_symfluxcoordinates_mod
+
+  implicit none
+
+  contains
+
   subroutine load_magdata_in_symfluxcoord
 !
 ! Reads and splines magnetic data over theta
@@ -235,3 +241,5 @@
 end subroutine magdata_in_symfluxcoord_ext
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+end module magdata_in_symfluxcoordinates_mod

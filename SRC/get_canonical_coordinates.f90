@@ -6,6 +6,12 @@
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+module get_canonical_coordinates_mod
+
+  implicit none
+
+  contains
+
   subroutine get_canonical_coordinates
 !
   use odeint_mod, only: odeint_allroutines
@@ -32,7 +38,7 @@
   double precision :: r,r1,r2,G_beg,dG_c_dt,dG_c_dp
   integer :: is
 !
-  external rhs_cancoord
+  !external rhs_cancoord
 !
 !
   ns_c=ns
@@ -403,6 +409,60 @@
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+  subroutine can_to_vmec(r,vartheta_c_in,varphi_c_in,theta_vmec,varphi_vmec)
+!
+  use exchange_get_cancoord_mod, only : vartheta_c,varphi_c,theta
+!
+  implicit none
+!
+  logical :: fullset
+  double precision :: theta_vmec,varphi_vmec
+  double precision :: r,vartheta_c_in,varphi_c_in,                                     &
+                      A_phi,A_theta,dA_phi_dr,dA_theta_dr,d2A_phi_dr2,                 &
+                      sqg_c,dsqg_c_dr,dsqg_c_dt,dsqg_c_dp,                             &
+                      B_vartheta_c,dB_vartheta_c_dr,dB_vartheta_c_dt,dB_vartheta_c_dp, &
+                      B_varphi_c,dB_varphi_c_dr,dB_varphi_c_dt,dB_varphi_c_dp,G_c
+  double precision, dimension(1) :: y,dy
+!
+  fullset=.true.
+!
+  call splint_can_coord(r,vartheta_c_in,varphi_c_in,                                     &
+                        A_theta,A_phi,dA_theta_dr,dA_phi_dr,d2A_phi_dr2,                 &
+                        sqg_c,dsqg_c_dr,dsqg_c_dt,dsqg_c_dp,                             &
+                        B_vartheta_c,dB_vartheta_c_dr,dB_vartheta_c_dt,dB_vartheta_c_dp, &
+                        B_varphi_c,dB_varphi_c_dr,dB_varphi_c_dt,dB_varphi_c_dp,         &
+                        fullset,G_c)
+!
+  vartheta_c=vartheta_c_in
+  varphi_c=varphi_c_in
+  y(1)=G_c
+!
+  call rhs_cancoord(r,y,dy)
+!
+  theta_vmec=theta
+  varphi_vmec=varphi_c_in+G_c
+!
+  end subroutine can_to_vmec
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+  subroutine deallocate_can_coord
+!
+  use canonical_coordinates_mod, only : s_sqg_c,s_B_vartheta_c,s_B_varphi_c,s_G_c
+!
+  implicit none
+!
+  deallocate(s_sqg_c,s_B_vartheta_c,s_B_varphi_c)
+  if(allocated(s_G_c)) deallocate(s_G_c)
+!
+  end subroutine deallocate_can_coord
+
+end module get_canonical_coordinates_mod
+
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+
   subroutine splint_can_coord(r,vartheta_c,varphi_c,                                           &
                               A_theta,A_phi,dA_theta_dr,dA_phi_dr,d2A_phi_dr2,                 &
                               sqg_c,dsqg_c_dr,dsqg_c_dt,dsqg_c_dp,                             &
@@ -583,53 +643,3 @@
 ! End interpolation over $\varphi$
 !
   end subroutine splint_can_coord
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine can_to_vmec(r,vartheta_c_in,varphi_c_in,theta_vmec,varphi_vmec)
-!
-  use exchange_get_cancoord_mod, only : vartheta_c,varphi_c,theta
-!
-  implicit none
-!
-  logical :: fullset
-  double precision :: theta_vmec,varphi_vmec
-  double precision :: r,vartheta_c_in,varphi_c_in,                                     &
-                      A_phi,A_theta,dA_phi_dr,dA_theta_dr,d2A_phi_dr2,                 &
-                      sqg_c,dsqg_c_dr,dsqg_c_dt,dsqg_c_dp,                             &
-                      B_vartheta_c,dB_vartheta_c_dr,dB_vartheta_c_dt,dB_vartheta_c_dp, &
-                      B_varphi_c,dB_varphi_c_dr,dB_varphi_c_dt,dB_varphi_c_dp,G_c
-  double precision, dimension(1) :: y,dy
-!
-  fullset=.true.
-!
-  call splint_can_coord(r,vartheta_c_in,varphi_c_in,                                     &
-                        A_theta,A_phi,dA_theta_dr,dA_phi_dr,d2A_phi_dr2,                 &
-                        sqg_c,dsqg_c_dr,dsqg_c_dt,dsqg_c_dp,                             &
-                        B_vartheta_c,dB_vartheta_c_dr,dB_vartheta_c_dt,dB_vartheta_c_dp, &
-                        B_varphi_c,dB_varphi_c_dr,dB_varphi_c_dt,dB_varphi_c_dp,         &
-                        fullset,G_c)
-!
-  vartheta_c=vartheta_c_in
-  varphi_c=varphi_c_in
-  y(1)=G_c
-!
-  call rhs_cancoord(r,y,dy)
-!
-  theta_vmec=theta
-  varphi_vmec=varphi_c_in+G_c
-!
-  end subroutine can_to_vmec
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine deallocate_can_coord
-!
-  use canonical_coordinates_mod, only : s_sqg_c,s_B_vartheta_c,s_B_varphi_c,s_G_c
-!
-  implicit none
-!
-  deallocate(s_sqg_c,s_B_vartheta_c,s_B_varphi_c)
-  if(allocated(s_G_c)) deallocate(s_G_c)
-!
-  end subroutine deallocate_can_coord

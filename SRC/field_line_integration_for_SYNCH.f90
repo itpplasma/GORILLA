@@ -31,6 +31,7 @@ module field_line_integration_for_SYNCH_mod
   use field_line_integration_mod, only: circ_mesh_scale, o_point, x_point, &
                                       & theta_axis, theta0
   use plag_coeff_mod, only: plag_coeff
+  use field_divB0_mod, only: field_eq
 !
   implicit none
 !
@@ -395,6 +396,8 @@ module field_line_integration_for_SYNCH_mod
 
   subroutine rhs_axis(phi,y,dy)
 !
+    use field_divB0_mod, only: field_eq
+
     implicit none
 !
     integer, parameter :: ndim = 4
@@ -420,6 +423,7 @@ module field_line_integration_for_SYNCH_mod
   subroutine rhs_surf(phi,y,dy)
 !
     use rhs_surf_mod , only: dr_dphi, dz_dphi
+    use field_divB0_mod, only: field_eq
 !
     implicit none
 !

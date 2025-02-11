@@ -330,6 +330,7 @@ end subroutine
 subroutine vector_potential_rz(r,z,A_phi)
 !
     use field_eq_mod, only : rtf,btf,psif
+    use field_divB0_mod, only: field
 !
     implicit none
 !

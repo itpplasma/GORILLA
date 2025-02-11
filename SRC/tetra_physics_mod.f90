@@ -134,6 +134,8 @@
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
       use differentiate_mod, only: differentiate
       use spline_vmec_data_mod, only: splint_vmec_data
+      use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
+      use field_divB0_mod, only: field
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in
@@ -1040,6 +1042,7 @@ enddo
         use field_eq_mod,                 only : rtf,btf,psif
         use field_mod,                    only : ampl
         use getout_vector_potentials_mod, only : ar,az
+        use field_divB0_mod, only: field
 
 !
         implicit none
@@ -1080,6 +1083,8 @@ enddo
         use magdata_in_symfluxcoor_mod,   only : psitor_max
         use gorilla_settings_mod,         only : boole_helical_pert, helical_pert_eps_Aphi, helical_pert_m_fourier, &
                                                & helical_pert_n_fourier
+        use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext  
+        use field_divB0_mod, only: field
 !
         implicit none
 !

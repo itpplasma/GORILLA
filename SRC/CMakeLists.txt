@@ -51,12 +51,6 @@ if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 		)
 endif()
 
-add_executable(test_gorilla_main.x
-  test_gorilla_main.f90
-  )
-
-target_link_libraries(test_gorilla_main.x GORILLA netcdff netcdf lapack)
-
 set_target_properties (GORILLA PROPERTIES
   Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -65,5 +59,3 @@ target_include_directories(GORILLA PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	add_subdirectory(TESTS)
 endif()
-
-

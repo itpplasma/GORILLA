@@ -1,3 +1,9 @@
+module magfie_mod
+  
+  implicit none
+  
+  contains
+!  
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
   subroutine magfie_vmec(x,bmod,sqrtg,bder,hcovar,hctrvr,hcurl)
@@ -199,6 +205,8 @@
 !
 !  Called routines: canonical_field
 !
+  !use get_canonical_coordinates_mod, only: splint_can_coord
+!
   implicit none
 !
   logical :: fullset
@@ -250,3 +258,5 @@
   hcurl(3)=(dB_vartheta_c_dr/bmod-bder(1)*hcovar(2))/sqg_c
 !
   end subroutine magfie_can
+
+end module magfie_mod

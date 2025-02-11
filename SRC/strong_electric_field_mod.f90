@@ -90,6 +90,7 @@ contains
 !
         use field_eq_mod,                 only : psif
         use gorilla_settings_mod,         only: eps_Phi
+        use field_divB0_mod, only: field
 !
         implicit none
 !
