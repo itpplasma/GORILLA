@@ -23,11 +23,11 @@
     double precision, dimension(:,:,:,:,:,:), allocatable :: sR,sZ,slam
   end module new_vmec_stuff_mod
 !
-  module vector_potentail_mod
+  module vector_potential_mod
     integer :: ns
     double precision :: hs,torflux
     double precision, dimension(:,:),         allocatable :: sA_phi
-  end module vector_potentail_mod
+  end module vector_potential_mod
 !
   module canonical_coordinates_mod
     integer, parameter :: ns_max=6, n_qua=3

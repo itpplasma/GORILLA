@@ -1,71 +1,70 @@
 !
-  module bdivfree_mod
-    integer :: nr,nz,ntor,icp
-    integer, dimension(:,:), allocatable :: ipoint
-    double precision :: rmin,zmin,hr,hz,pmin,pfac
-    double precision, dimension(:),       allocatable :: rpoi,zpoi
-    double precision, dimension(:,:,:),   allocatable :: apav,rbpav_coef
-    double precision, dimension(:,:,:,:), allocatable :: aznre,aznim,arnre,arnim
-  end module bdivfree_mod
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  module theta_rz_mod
-    integer :: icall=0
-    integer :: nsqp,nlab,nthe,icp_pt
-    integer, dimension(:,:), allocatable :: ipoint_pt
-    real(kind=8) :: hsqpsi,hlabel,htheqt,psiaxis,sigma_qt,raxis,zaxis
-    real(kind=8), dimension(:,:),   allocatable :: spllabel
-    real(kind=8), dimension(:,:,:), allocatable :: splthet
-    real(kind=8), dimension(:),     allocatable :: sqpsi,flab,theqt
-  end module theta_rz_mod
+module bdivfree_mod
+  integer :: nr,nz,ntor,icp
+  integer, dimension(:,:), allocatable :: ipoint
+  double precision :: rmin,zmin,hr,hz,pmin,pfac
+  double precision, dimension(:),       allocatable :: rpoi,zpoi
+  double precision, dimension(:,:,:),   allocatable :: apav,rbpav_coef
+  double precision, dimension(:,:,:,:), allocatable :: aznre,aznim,arnre,arnim
+end module bdivfree_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-  module amn_mod
+module amn_mod
 ! Fourier ampitudes of the original field:
-    integer :: ntor_amn=1,mpol,ntor_ff,mpol_ff,nsqpsi,icall=0
-    double precision :: sqpsimin,sqpsimax,hsqpsi
-    complex(kind=8), dimension(:,:,:,:), allocatable :: splapsi,splatet
-    complex(kind=8), dimension(:,:), allocatable :: amnpsi,   amntet,     &
-                                                   amnpsi_s, amntet_s,   &
-                                                   amnpsi_ss,amntet_ss
-    complex(kind=8), dimension(:),   allocatable :: expthe,expphi
+  integer :: ntor_amn=1,mpol,ntor_ff,mpol_ff,nsqpsi,icall=0
+  double precision :: sqpsimin,sqpsimax,hsqpsi
+  complex(kind=8), dimension(:,:,:,:), allocatable :: splapsi,splatet
+  complex(kind=8), dimension(:,:), allocatable :: amnpsi,   amntet,     &
+                                                  amnpsi_s, amntet_s,   &
+                                                  amnpsi_ss,amntet_ss
+  complex(kind=8), dimension(:),   allocatable :: expthe,expphi
 ! Formfactors:
-    integer :: nsqpsi_ff,nmodes_ff
-    double precision :: sqpsimin_ff,sqpsimax_ff,hsqpsi_ff
-    integer,        dimension(:,:), allocatable :: ipoi_ff
-    complex(kind=8), dimension(:,:,:), allocatable :: splffp,splfft
-    complex(kind=8), dimension(:),   allocatable :: fmnpsi,   fmntet,     &
-                                                   fmnpsi_s, fmntet_s,   &
-                                                   fmnpsi_ss,fmntet_ss
-  end module amn_mod
+  integer :: nsqpsi_ff,nmodes_ff
+  double precision :: sqpsimin_ff,sqpsimax_ff,hsqpsi_ff
+  integer,        dimension(:,:), allocatable :: ipoi_ff
+  complex(kind=8), dimension(:,:,:), allocatable :: splffp,splfft
+  complex(kind=8), dimension(:),   allocatable :: fmnpsi,   fmntet,     &
+                                                  fmnpsi_s, fmntet_s,   &
+                                                  fmnpsi_ss,fmntet_ss
+end module amn_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-  module extract_fluxcoord_mod
-    integer :: load_extract_fluxcoord=1
-    integer :: nphinorm
-    double precision :: psif_extract,theta_extract,psifmin,hpsif
-    double precision :: psifmax,phifmax,sigcos
-    double precision, dimension(:), allocatable :: phinorm_arr
-  end module extract_fluxcoord_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-  module getout_vector_potentials_mod
-    double precision :: ar,az
-  end module getout_vector_potentials_mod
+module getout_vector_potentials_mod
+  double precision :: ar,az
+end module getout_vector_potentials_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-! module utils_bdivfree_mod
+module inthecore_mod
+  logical :: prop=.true.
+  integer :: npoi,ijumpb,ibeg,iend
+  double precision, parameter :: epssep=1.d-6
+  double precision :: rc,zc,twopi,sig,psi_sep,psi_cut,sigpsi,cutoff
+  double precision, dimension(:), allocatable :: rho2i,theti
+  integer          :: incore
+  double precision :: vacf,dvacdr,dvacdz,d2vacdr2,d2vacdrdz,d2vacdz2
+  double precision :: plaf,dpladr,dpladz,d2pladr2,d2pladrdz,d2pladz2
+end module inthecore_mod
+!
 
-!   implicit none
+module field_mod
+  integer          :: icall=0
+  integer          :: ipert,iequil,iaxieq=0
+  double precision :: ampl
+end module field_mod
+!
+module utils_field_divB0_mod
 
-!   contains
+  implicit none
 
-  subroutine field_divfree(r,phi,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ    &
+  contains
+
+subroutine field_divfree(r,phi,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ    &
                           ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
   use bdivfree_mod
@@ -194,1429 +193,568 @@
   enddo
 !
   return
-  end subroutine field_divfree
-!
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine indef_bdf(u,umin,dum1,nup,indu)
-! defines interval for 1D interpolation on uniform mesh, normally 
-! looks for the central interval of stencil, but
-! stops moving of stencil at the boundary (works for mp=4 only!)
-! Input:
-!    u - coordinate of a point (to be interpolated)
-!    umin - minimal value of u
-!    dum1 = 1./h reciprocal to length of mesh interval
-!    nup - total number of mesh points
-! Output:
-!    indu(mp) - relative index of stencil points
-!
-! the power 3 of polinomial is fixed strictly:
-!
-      implicit double precision (a-h,o-z)
-!
-      parameter(mp=4)
-      integer indu(mp)  
-                             
-      indu(1) = int((u-umin)*dum1)
-      if( indu(1) .le. 0 ) indu(1) = 1
-      indu(mp) = indu(1) + mp - 1
-      if( indu(mp) .gt. nup ) then
-         indu(mp) = nup
-         indu(1) = indu(mp) - mp + 1
-      endif
-      do i=2,mp-1
-         indu(i) = indu(i-1) + 1
-      enddo
-
-      return 
-  end subroutine indef_bdf
-!---------------------------------------------------------------------
-  subroutine indsmp_bdf(index,nup,indu)
-! defines interval for 1D interpolation on uniform mesh
-! by known index.
-! Normally looks for the central interval of stencil, but
-! stops moving of stencil at the boundary (works for mp=4 only!)
-! Input:
-!    index - number of a cell on the mesh
-!    nup - total number of mesh points
-! Output:
-!    indu(mp) - relative index of stencil points
-
-! the power 3 of polinomial is fixed strictly:
-      parameter(mp=4)
-      integer indu(mp)  
-                             
-      indu(1) = index - 1
-      if( indu(1) .le. 0 ) indu(1) = 1
-      indu(mp) = indu(1) + mp - 1
-      if( indu(mp) .gt. nup ) then
-         indu(mp) = nup
-         indu(1) = indu(mp) - mp + 1
-      endif
-      do i=2,mp-1
-         indu(i) = indu(i-1) + 1
-      enddo
-
-      return 
-  end subroutine indsmp_bdf
-!---------------------------------------------------------------------
-  subroutine plag2d_bdf(x,y,fp,dxm1,dym1,xp,yp,polyl2d)
-!
-      implicit double precision (a-h,o-z)
-!
-! 2D interpolation by means of Lagrange polynomial
-! the power 3 is fixed strictly:
-      parameter(mp=4)
-! uniform mesh (increasingly ordered) in all dimensions is implied
-!
-! Input parameters:
-!   x,y - coordinates of the point for interpolation
-!   dxm1,dym1 - inverse steps in each direction
-!   xp,yp - vertices of stencil
-!
-! Output parameters:
-! polyl2d - polynomial itself
-      dimension cx(mp),cy(mp),fp(mp,mp),xp(mp),yp(mp)
-!
-      call coefs_bdf(x,xp,dxm1,cx)
-      call coefs_bdf(y,yp,dym1,cy)
-!
-      polyl2d = 0.d0
-      do j=1,mp
-        do i=1,mp
-          polyl2d = polyl2d + fp(i,j)*cx(i)*cy(j)
-        enddo
-      enddo
-!
-      return
-  end subroutine plag2d_bdf
-!---------------------------------------------------------------------
-  subroutine coefs_bdf(u,up,dum1,cu)
-!
-      implicit double precision (a-h,o-z)
-!
-      parameter(mp=4)
-      dimension up(mp),cu(mp)
-      data one6/0.16666666666667d0/
-      du3 = dum1**3
-      cu(1) = (u - up(2)) * (u - up(3)) * (u - up(4)) * (-one6*du3)
-      cu(2) = (u - up(1)) * (u - up(3)) * (u - up(4)) * (0.5d0*du3)
-      cu(3) = (u - up(1)) * (u - up(2)) * (u - up(4)) * (-0.5d0*du3)
-      cu(4) = (u - up(1)) * (u - up(2)) * (u - up(3)) * (one6*du3)
-      return
-  end subroutine coefs_bdf
-!---------------------------------------------------------------------
-!
-  subroutine invert_mono_reg(nx,arry,xmin,xmax,ny,arrx,ymin,ymax)
-!
-! Inverts the monotonous function y(x) given on the equidistant grid 
-! of x values on the interval [xmin,xmax] by the array y_i=arry(i). 
-! The result, function x(y), is given on the equidistant grid of y values 
-! at the interval [ymin,ymax] by the array x_i=arrx(i).
-!
-  implicit none
-!
-  integer :: ny,nx,iy,ix,ixfix,ix1,ix2,ix3,ix4
-!
-  double precision :: xmin,xmax,ymin,ymax,hy,y,hx,x1,x2,x3,x4,y1,y2,y3,y4
-  double precision, dimension(0:nx) :: arry
-  double precision, dimension(0:ny) :: arrx
-!
-  ymin=arry(0)
-  ymax=arry(nx)
-!
-  hy=(ymax-ymin)/ny
-  hx=(xmax-xmin)/nx
-!
-  arrx(0)=xmin
-  arrx(ny)=xmax
-!
-  do iy=1,ny-1
-    y=ymin+iy*hy
-    do ix=0,nx
-      if(arry(ix).gt.y) then
-        ixfix=ix-3
-        exit
-      endif
-    enddo
-    ixfix=max(ixfix,-1)
-    ixfix=min(ixfix,nx-4)
-    ix1=ixfix+1
-    ix2=ixfix+2
-    ix3=ixfix+3
-    ix4=ixfix+4
-    x1=xmin+ix1*hx
-    x2=xmin+ix2*hx
-    x3=xmin+ix3*hx
-    x4=xmin+ix4*hx
-    y1=arry(ix1)
-    y2=arry(ix2)
-    y3=arry(ix3)
-    y4=arry(ix4)
-    arrx(iy) = x1*(y-y2)/(y1-y2)*(y-y3)/(y1-y3)*(y-y4)/(y1-y4)    & 
-             + x2*(y-y3)/(y2-y3)*(y-y4)/(y2-y4)*(y-y1)/(y2-y1)    &
-             + x3*(y-y4)/(y3-y4)*(y-y1)/(y3-y1)*(y-y2)/(y3-y2)    &
-             + x4*(y-y1)/(y4-y1)*(y-y2)/(y4-y2)*(y-y3)/(y4-y3)
-  enddo
-!
-  return
-  end subroutine invert_mono_reg  
-!
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine invert_mono_per(nx,arry_in,xmin,xmax,ny,arrx,ymin,ymax)
-!
-! Inverts the monotonous function y(x) given on the equidistant grid
-! of x values on the interval [xmin,xmax] by the array y_i=arry(i).
-! Special case: y(x) is a sum of linear and periodic functions.
-! The result, function x(y), is given on the equdistant grid of y values
-! at the interval [ymin,ymax] by the array x_i=arrx(i).
-!
-  implicit none
-!
-  integer :: ny,nx,iy,ix,ixfix,ix1,ix2,ix3,ix4
-!
-  double precision :: xmin,xmax,ymin,ymax,hy,y,hx,x1,x2,x3,x4,y1,y2,y3,y4
-  double precision, dimension(0:nx) :: arry_in
-  double precision, dimension(0:ny) :: arrx
-  double precision, dimension(:), allocatable :: arry
-!
-  allocate(arry(-1:nx+1))
-  arry(0:nx)=arry_in
-!
-  ymin=arry(0)
-  ymax=arry(nx)
-  arry(-1)=arry(nx-1)-ymax+ymin
-  arry(nx+1)=arry(1)+ymax-ymin
-!
-  hy=(ymax-ymin)/ny
-  hx=(xmax-xmin)/nx
-!
-  arrx(0)=xmin
-  arrx(ny)=xmax
-!
-  do iy=1,ny-1
-    y=ymin+iy*hy
-    do ix=0,nx
-      if(arry(ix).gt.y) then
-        ixfix=ix-3
-        exit
-      endif
-    enddo
-!    ixfix=max(ixfix,-1)
-!    ixfix=min(ixfix,nx-4)
-    ix1=ixfix+1
-    ix2=ixfix+2
-    ix3=ixfix+3
-    ix4=ixfix+4
-    x1=xmin+ix1*hx
-    x2=xmin+ix2*hx
-    x3=xmin+ix3*hx
-    x4=xmin+ix4*hx
-    y1=arry(ix1)
-    y2=arry(ix2)
-    y3=arry(ix3)
-    y4=arry(ix4)
-    arrx(iy) = x1*(y-y2)/(y1-y2)*(y-y3)/(y1-y3)*(y-y4)/(y1-y4)    &
-             + x2*(y-y3)/(y2-y3)*(y-y4)/(y2-y4)*(y-y1)/(y2-y1)    &
-             + x3*(y-y4)/(y3-y4)*(y-y1)/(y3-y1)*(y-y2)/(y3-y2)    &
-             + x4*(y-y1)/(y4-y1)*(y-y2)/(y4-y2)*(y-y3)/(y4-y3)
-  enddo
-!
-  return
-  end subroutine invert_mono_per
-!
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine spl_five_per(n,h,a,b,c,d,e,f)
-!
-! Periodic spline of the 5-th order. First and last values of function must
-! be the same.
-!
-  implicit none
-!
-  integer :: n,i,ip1,ip2
-  double precision :: h,rhop,rhom,fac,xplu,xmin,gammao_m,gammao_p
-  double precision :: c_gammao_m,c_gammao_p
-  double precision, dimension(n) :: a,b,c,d,e,f
-  double precision, dimension(:), allocatable :: alp,bet,gam
-!
-  rhop=13.d0+sqrt(105.d0)
-  rhom=13.d0-sqrt(105.d0)
-!
-  allocate(alp(n),bet(n),gam(n))
-!
-  alp(1)=0.0d0
-  bet(1)=0.0d0
-!
-  do i=1,n-4
-    ip1=i+1
-    alp(ip1)=-1.d0/(rhop+alp(i))
-    bet(ip1)=alp(ip1)*(bet(i)- &
-             5.d0*(a(i+4)-4.d0*a(i+3)+6.d0*a(i+2)-4.d0*a(ip1)+a(i)))
-  enddo
-  alp(n-2)=-1.d0/(rhop+alp(n-3))
-  bet(n-2)=alp(n-2)*(bet(n-3)- &
-           5.d0*(a(2)-4.d0*a(1)+6.d0*a(n-1)-4.d0*a(n-2)+a(n-3)))
-  alp(n-1)=-1.d0/(rhop+alp(n-2))
-  bet(n-1)=alp(n-1)*(bet(n-2)- &
-           5.d0*(a(3)-4.d0*a(2)+6.d0*a(1)-4.d0*a(n-1)+a(n-2)))
-  alp(n)=-1.d0/(rhop+alp(n-1))
-  bet(n)=alp(n)*(bet(n-1)- &
-           5.d0*(a(4)-4.d0*a(3)+6.d0*a(2)-4.d0*a(1)+a(n-1)))
-!
-  gam(n)=bet(n)
-  do i=n-1,1,-1
-    gam(i)=gam(i+1)*alp(i)+bet(i)
-  enddo
-!
-  xplu=sqrt(0.25d0*rhop**2-1.d0)-0.5d0*rhop
-  xmin=-sqrt(0.25d0*rhop**2-1.d0)-0.5d0*rhop
-  gammao_m=(gam(2)+xplu*gam(n))/(xmin-xplu)
-  gammao_p=(gam(2)+xmin*gam(n))/(xplu-xmin)
-  if(abs(xmin).lt.1) then
-    c_gammao_m=gammao_m/(xmin**(n-1)-1.d0)
-  else
-    c_gammao_m=gammao_m*(1.d0/xmin)**(n-1)/(1.d0-(1.d0/xmin)**(n-1))
-  endif
-  if(abs(xplu).lt.1) then
-    c_gammao_p=gammao_p/(xplu**(n-1)-1.d0)
-  else
-    c_gammao_p=gammao_p*(1.d0/xplu)**(n-1)/(1.d0-(1.d0/xplu)**(n-1))
-  endif
-  gam(1)=gam(1)+c_gammao_m+c_gammao_p
-  do i=2,n
-    if(abs(xmin).lt.1) then
-      c_gammao_m=gammao_m*xmin**(i-1)/(xmin**(n-1)-1.d0)
-    else
-      c_gammao_m=gammao_m*(1.d0/xmin)**(n-i)/(1.d0-(1.d0/xmin)**(n-1))
-    endif
-    if(abs(xplu).lt.1) then
-      c_gammao_p=gammao_p*xplu**(i-1)/(xplu**(n-1)-1.d0)
-    else
-      c_gammao_p=gammao_p*(1.d0/xplu)**(n-i)/(1.d0-(1.d0/xplu)**(n-1))
-    endif
-    gam(i)=gam(i)+c_gammao_m+c_gammao_p
-  enddo
-!
-  alp(1)=0.0d0
-  bet(1)=0.d0
-!
-  do i=1,n-1
-    ip1=i+1
-    alp(ip1)=-1.d0/(rhom+alp(i))
-    bet(ip1)=alp(ip1)*(bet(i)-gam(i))
-  enddo
-!
-  e(n)=bet(n)
-  do i=n-1,1,-1
-    e(i)=e(i+1)*alp(i)+bet(i)
-  enddo
-!
-  xplu=sqrt(0.25d0*rhom**2-1.d0)-0.5d0*rhom
-  xmin=-sqrt(0.25d0*rhom**2-1.d0)-0.5d0*rhom
-  gammao_m=(e(2)+xplu*e(n))/(xmin-xplu)
-  gammao_p=(e(2)+xmin*e(n))/(xplu-xmin)
-  if(abs(xmin).lt.1) then
-    c_gammao_m=gammao_m/(xmin**(n-1)-1.d0)
-  else
-    c_gammao_m=gammao_m*(1.d0/xmin)**(n-1)/(1.d0-(1.d0/xmin)**(n-1))
-  endif
-  if(abs(xplu).lt.1) then
-    c_gammao_p=gammao_p/(xplu**(n-1)-1.d0)
-  else
-    c_gammao_p=gammao_p*(1.d0/xplu)**(n-1)/(1.d0-(1.d0/xplu)**(n-1))
-  endif
-  e(1)=e(1)+c_gammao_m+c_gammao_p
-  do i=2,n
-    if(abs(xmin).lt.1) then
-      c_gammao_m=gammao_m*xmin**(i-1)/(xmin**(n-1)-1.d0)
-    else
-      c_gammao_m=gammao_m*(1.d0/xmin)**(n-i)/(1.d0-(1.d0/xmin)**(n-1))
-    endif
-    if(abs(xplu).lt.1) then
-      c_gammao_p=gammao_p*xplu**(i-1)/(xplu**(n-1)-1.d0)
-    else
-      c_gammao_p=gammao_p*(1.d0/xplu)**(n-i)/(1.d0-(1.d0/xplu)**(n-1))
-    endif
-    e(i)=e(i)+c_gammao_m+c_gammao_p
-  enddo
-!
-  do i=n-1,1,-1
-    f(i)=(e(i+1)-e(i))/5.d0
-  enddo
-  f(n)=f(1)
-!
-  d(n-1)=(a(3)-3.d0*a(2)+3.d0*a(1)-a(n-1))/6.d0 &
-      -(e(3)+27.d0*e(2)+93.d0*e(1)+59.d0*e(n-1))/30.d0
-  d(n-2)=(a(2)-3.d0*a(1)+3.d0*a(n-1)-a(n-2))/6.d0 &
-      -(e(2)+27.d0*e(1)+93.d0*e(n-1)+59.d0*e(n-2))/30.d0
-  do i=n-3,1,-1
-    d(i)=(a(i+3)-3.d0*a(i+2)+3.d0*a(i+1)-a(i))/6.d0 &
-        -(e(i+3)+27.d0*e(i+2)+93.d0*e(i+1)+59.d0*e(i))/30.d0
-  enddo
-  d(n)=d(1)
-  c(n-1)=0.5d0*(a(2)+a(n-1))-a(1)-0.5d0*d(1)-2.5d0*d(n-1) &
-      -0.1d0*(e(2)+18.d0*e(1)+31.d0*e(n-1))
-  b(n-1)=a(1)-a(n-1)-c(n-1)-d(n-1)-0.2d0*(4.d0*e(n-1)+e(1))
-!
-  do i=n-2,1,-1
-    c(i)=0.5d0*(a(i+2)+a(i))-a(i+1)-0.5d0*d(i+1)-2.5d0*d(i) &
-        -0.1d0*(e(i+2)+18.d0*e(i+1)+31.d0*e(i))
-    b(i)=a(i+1)-a(i)-c(i)-d(i)-0.2d0*(4.d0*e(i)+e(i+1))
-  enddo
-  b(n)=b(1)
-  c(n)=c(1)
-!
-  fac=1.d0/h
-  b=b*fac
-  fac=fac/h
-  c=c*fac
-  fac=fac/h
-  d=d*fac
-  fac=fac/h
-  e=e*fac
-  fac=fac/h
-  f=f*fac
-!
-  deallocate(alp,bet,gam)
-!
-  return
-  end subroutine spl_five_per
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine s2dring(nx,ny,hx,hy,f,icount,spl,ipoint)
-!
-! Calculates coefficients of a 2D spline for a ring domain
-! (periodic over y variable)
-! equidistant mesh, but hx must not be = hy
-!
-!  Input parameters:
-!                    nx           - horizontal size of the mesh (over x)
-!                    ny           - vertical size of the mesh (over y)
-!                    hx           - step of the mesh over x
-!                    hy           - step of the mesh over y
-!                    f(i,j)       - array of values to be interpolated
-!                                   (i = 1, ..., nx; j = 1, ..., ny).
-!
-!                                   For the case of non-rectangular domain:
-!                                   numbers of the mesh points which
-!                                   correspond to the boundaries of the
-!                                   interpolation region:
-!                    icount       - maximum number of entries in spl
-! Output parameters:
-!                    spl(l,m,k)   - spline coefficients (i,j = 1, ... , n;
-!                    ipoint(i,j)    l,m = 1, ..., 4; i,j - numbers of the
-!                                   mesh point in horizontal and vertical
-!                                   direction (over x and over y), l,m -
-!                                   the numbers of expansion power over x
-!                                   and y (~ dx**(l-1)*dy**(m-1) ))
-!                                   ipoint(i,j) contains the pointer to k
-!
-    use spline5_RZ_mod, only: spl_five_reg
-!
-  implicit double precision (a-h,o-z)
-! 
-  dimension f(nx,ny),spl(6,6,icount),ipoint(nx,ny)
-! 
-  integer,          dimension(:), allocatable :: imi,ima,jmi,jma
-  double precision, dimension(:), allocatable :: ai,bi,ci,di,ei,fi
-! 
-  nmax=max(nx,ny)
-! 
-  allocate( ai(nmax),bi(nmax),ci(nmax),di(nmax),ei(nmax),fi(nmax) )
-  allocate(imi(ny),ima(ny),jmi(nx),jma(nx))
-!
-  imi=1
-  ima=nx
-  jmi=1
-  jma=ny
-! 
-  spl=0.d0
-  ipoint=-1
-!
-!  spline along Y-axis
-!
-  ic = 0
-  do i=1,nx
-    if(jmi(i).gt.0) then
-      nsi=jma(i)-jmi(i)+1
-      do j=jmi(i),jma(i)
-        ai(j-jmi(i)+1)=f(i,j)
-      enddo
-      call spl_five_per(nsi,hy,ai,bi,ci,di,ei,fi)
-      do j=jmi(i),jma(i)
-        jj=j-jmi(i)+1
-        ic = ic+1
-        ipoint(i,j)=ic
-        spl(1,1,ic)=ai(jj)
-        spl(1,2,ic)=bi(jj)
-        spl(1,3,ic)=ci(jj)
-        spl(1,4,ic)=di(jj)
-        spl(1,5,ic)=ei(jj)
-        spl(1,6,ic)=fi(jj)
-      enddo
-    endif
-  enddo
-!
-  if (ic .ne. icount) then
-    write (6,*) 'Warning, ic, icount:  ',ic,icount
-  endif
-!
-!  spline along X-axis
-!
-  do j=1,ny
-    if(imi(j).gt.0) then
-      nsi=ima(j)-imi(j)+1
-      do l=1,6
-        do i=imi(j),ima(j)
-          ai(i-imi(j)+1)=spl(1,l,ipoint(i,j))
-        enddo
-        call spl_five_reg(nsi,hx,ai,bi,ci,di,ei,fi)
-        do i=imi(j),ima(j)
-          ii=i-imi(j)+1
-          spl(2,l,ipoint(i,j))=bi(ii)
-          spl(3,l,ipoint(i,j))=ci(ii)
-          spl(4,l,ipoint(i,j))=di(ii)
-          spl(5,l,ipoint(i,j))=ei(ii)
-          spl(6,l,ipoint(i,j))=fi(ii)
-        enddo
-      enddo
-    endif
-  enddo
-!
-  deallocate( ai,bi,ci,di,ei,fi )
-!
-  return
-  end subroutine s2dring
-!
-! ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine load_theta
-!
-  use theta_rz_mod
-  use input_files, only : iunit,fluxdatapath
-  use spline5_RZ_mod, only: spl_five_reg
+end subroutine field_divfree
+!
+subroutine vector_potentials(nr_in,np_in,nz_in,ntor_in,      &
+  rmin_in,rmax_in,pmin_in,pmax_in,zmin_in,zmax_in,  &
+  br,bp,bz)
+!
+  use bdivfree_mod
+  use spline5_RZ_mod, only: s2dcut
+  use utils_bdivfree_mod, only: indef_bdf, plag2d_bdf
 !
   implicit none
 !
   double precision, parameter :: pi=3.14159265358979d0
 !
-  integer :: nsqpsi,nlabel,ntheta,i
-  real(kind=8) :: sqpsimin,sqpsimax
-  real(kind=8) :: flabel_min,flabel_max
+  integer :: nr_in,np_in,nz_in,ntor_in,ip,np,n,ir,iz  
+  integer, dimension(:), allocatable :: imi,ima,jmi,jma
 !
-  real(kind=8), dimension(:),   allocatable :: flabel
-  real(kind=8), dimension(:,:), allocatable :: theta_of_theta_qt
+  integer :: nashli_rukami
+  integer :: irmin, irmax, i,j
+  double precision, dimension(4), parameter :: weight=(/-1., 13., 13., -1./)/24.
 !
-  open(iunit,form='unformatted',                                 &
-       file=trim(fluxdatapath)//'/theta_of_theta_qt_flabel.dat')
-  read (iunit) nsqpsi,nlabel,ntheta,sqpsimin,sqpsimax,flabel_min,flabel_max &
-              ,raxis,zaxis,psiaxis,sigma_qt
-  allocate(theta_of_theta_qt(nlabel,0:ntheta),flabel(0:nsqpsi))
-  read (iunit) theta_of_theta_qt
-  read (iunit) flabel
-  close(iunit)
+  double precision :: rmin_in,rmax_in,pmin_in,pmax_in,zmin_in,zmax_in
+  double precision :: hp,r,rm,zm,sumbz,hrm1,hzm1
+  double precision, dimension(nr_in,np_in,nz_in)  :: br,bp,bz
+  double precision, dimension(:),     allocatable :: dummy
+  double precision, dimension(:,:),   allocatable :: a_re, a_im, rbpav_dummy
+  double precision, dimension(:,:),   allocatable :: brm,bpm,bzm
 !
-  nsqp=nsqpsi
-  nlab=nlabel
-  nthe=ntheta+1
+  complex(kind=8) :: four_ampl
+  complex(kind=8), dimension(:,:), allocatable :: expon
 !
-  hsqpsi=(sqpsimax-sqpsimin)/(nsqp-1)
-  hlabel=(flabel_max-flabel_min)/(nlab-1)
-  htheqt=2.d0*pi/ntheta
+  integer, parameter :: mp=4 ! power of Lagrange's polynomial =3
+  integer,          dimension(mp)    :: indx,indy
+  double precision, dimension(mp)    :: xp,yp
+  double precision, dimension(mp,mp) :: fp
 !
-  allocate(sqpsi(nsqp),flab(nlab),theqt(nthe))
+  nr=nr_in
+  nz=nz_in
+  np=np_in-1
+  ntor=ntor_in
+  nashli_rukami=(nr_in+1)/2
 !
-  do i=1,nsqp
-    sqpsi(i)=sqpsimin+hsqpsi*(i-1)
+  rmin=rmin_in
+  zmin=zmin_in
+  hr=(rmax_in-rmin_in)/(nr-1)
+  hz=(zmax_in-zmin_in)/(nz-1)
+  hp=2.d0*pi/np
+  pmin=pmin_in
+  pfac = dble(nint(2.d0*pi/(pmax_in-pmin_in)))
+!
+  allocate(expon(np,ntor),a_re(nr,nz),a_im(nr,nz),rbpav_dummy(nr,nz))
+  allocate(imi(nz),ima(nz),jmi(nr),jma(nr), dummy(nr))
+  allocate(rpoi(nr),zpoi(nz))
+  allocate(brm(nr,nz),bpm(nr,nz),bzm(nr,nz))
+!
+  imi=1
+  ima=nr
+  jmi=1
+  jma=nz
+  do ir=1,nr
+  rpoi(ir)=rmin+hr*(ir-1)
   enddo
-!
-  do i=1,nlab
-    flab(i)=flabel_min+hlabel*(i-1)
+  do iz=1,nz
+  zpoi(iz)=zmin+hz*(iz-1)
   enddo
-!
-  do i=1,nthe
-    theqt(i)=htheqt*(i-1)
-  enddo
-!
-  icp_pt=nthe*nlab
-  allocate( splthet(6,6,icp_pt), ipoint_pt(nlab,nthe) )
-!
-  call s2dring(nlab,nthe,hlabel,htheqt,theta_of_theta_qt(:,0:ntheta), &
-               icp_pt,splthet,ipoint_pt)
-!
-  allocate(spllabel(6,nsqpsi))
-  spllabel(1,:)=flabel(1:nsqpsi)
-  call spl_five_reg(nsqpsi,hsqpsi,spllabel(1,:),spllabel(2,:),spllabel(3,:) &
-                   ,              spllabel(4,:),spllabel(5,:),spllabel(6,:))
-!
-  return
-  end subroutine load_theta
-!
-! ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine psithet_rz(rrr,zzz,                                          &
-                        theta,theta_r,theta_z,theta_rr,theta_rz,theta_zz, &
-                        flabel,s_r,s_z,s_rr,s_rz,s_zz,s0,ds0ds,dds0ds)
-!
-  use theta_rz_mod
-  use field_eq_mod, only : nrad,nzet,rad,zet,hrad,hzet,icp,splpsi,ipoint  &
-                         , psif,dpsidr,dpsidz,d2psidr2,d2psidrdz,d2psidz2
-  use extract_fluxcoord_mod, only : psif_extract,theta_extract
-  use spline5_RZ_mod, only: spline
-! 
-  implicit none
-! 
-  real(kind=8), parameter :: pi=3.14159265358979d0
-! 
-  integer :: npoint,i,j,ierr,k
-  real(kind=8) :: rrr,zzz,theta,theta_r,theta_z,theta_rr,theta_rz,theta_zz
-  real(kind=8) :: theta_s,theta_t,theta_ss,theta_st,theta_tt
-  real(kind=8) :: sqpsi_qt,s_r,s_z,s_rr,s_rz,s_zz
-  real(kind=8) :: theta_qt,t_r,t_z,t_rr,t_rz,t_zz
-  real(kind=8) :: rho2,rho4,dr,dz,flabel,dflabel,ddflabel,dx,dfl_dpsi,ddfl_dpsi
-  real(kind=8) :: s0,ds0ds,dds0ds
-! 
-  if(icall.eq.0) then
-    icall=1
-    call load_theta
-  endif
-! 
-  call spline(nrad,nzet,rad,zet,hrad,hzet,icp,splpsi,ipoint,rrr,zzz, &
-              psif,dpsidr,dpsidz,d2psidr2,d2psidrdz,d2psidz2,ierr)
-! 
-  sqpsi_qt=sqrt(abs(psif-psiaxis))
-!
-  k=min(int(sqpsi_qt/hsqpsi),nsqp)
-  dx=sqpsi_qt-hsqpsi*k
-  flabel=spllabel(1,k)+dx*(spllabel(2,k)+dx*(spllabel(3,k)           &
-        +dx*(spllabel(4,k)+dx*(spllabel(5,k)+dx*spllabel(6,k)))))
-  dflabel=spllabel(2,k)+dx*(2.d0*spllabel(3,k)                       &
-          +dx*(3.d0*spllabel(4,k)+dx*(4.d0*spllabel(5,k)             &
-          +dx*5.d0*spllabel(6,k))))
-  ddflabel=2.d0*spllabel(3,k)+dx*(6.d0*spllabel(4,k)                 &
-           +dx*(12.d0*spllabel(5,k)+dx*20.d0*spllabel(6,k)))
-!
-!  dfl_dpsi=0.5d0*dflabel/sqpsi_qt
-  dfl_dpsi=sign(0.5d0,psif-psiaxis)*dflabel/sqpsi_qt
-  ddfl_dpsi=0.25d0*(ddflabel-dflabel/sqpsi_qt)/abs(psif-psiaxis)
-  s_r=dpsidr*dfl_dpsi
-  s_z=dpsidz*dfl_dpsi
-  s_rr=d2psidr2*dfl_dpsi+dpsidr**2*ddfl_dpsi
-  s_rz=d2psidrdz*dfl_dpsi+dpsidr*dpsidz*ddfl_dpsi
-  s_zz=d2psidz2*dfl_dpsi+dpsidz**2*ddfl_dpsi
-!
-  s0=sqpsi_qt
-  ds0ds=1.d0/dflabel
-  dds0ds=-ds0ds**3*ddflabel
-!
-  dr=rrr-raxis
-  dz=zzz-zaxis
-  rho2=dr**2+dz**2
-  rho4=rho2**2
-  theta_qt=mod(sigma_qt*atan2(dz,dr)+2*pi,2*pi)
-  t_r=-sigma_qt*dz/rho2
-  t_z=sigma_qt*dr/rho2
-  t_rr=2.d0*sigma_qt*dr*dz/rho4
-  t_zz=-t_rr
-  t_rz=sigma_qt*(dz**2-dr**2)/rho4
-! 
-  call spline(nlab,nthe,flab,theqt,hlabel,htheqt,icp_pt,splthet,ipoint_pt, &
-              flabel,theta_qt,                                             &
-              theta,theta_s,theta_t,theta_ss,theta_st,theta_tt,ierr)
-!
-  theta=theta+theta_qt
-  theta_r=theta_s*s_r+(theta_t+1.d0)*t_r
-  theta_z=theta_s*s_z+(theta_t+1.d0)*t_z
-  theta_rr=theta_ss*s_r**2+2.d0*theta_st*s_r*t_r+theta_tt*t_r**2 &
-          +theta_s*s_rr+(theta_t+1.d0)*t_rr
-  theta_rz=theta_ss*s_r*s_z+theta_st*(s_r*t_z+s_z*t_r)+theta_tt*t_r*t_z &
-          +theta_s*s_rz+(theta_t+1.d0)*t_rz
-  theta_zz=theta_ss*s_z**2+2.d0*theta_st*s_z*t_z+theta_tt*t_z**2 &
-          +theta_s*s_zz+(theta_t+1.d0)*t_zz
-!
-  psif_extract=psif
-  theta_extract=theta
-!
-  return
-  end subroutine psithet_rz
-!
-! ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine cspl_five_reg(n,h,a,b,c,d,e,f)
-!
-  implicit none
-!
-  integer :: n,i,ip1,ip2
-  double precision :: h,rhop,rhom,fac,fpl31,fpl40,fmn31,fmn40          ,x
-  double precision :: a11,a12,a13,a21,a22,a23,a31,a32,a33,det
-  complex(kind=8) :: abeg,bbeg,cbeg,dbeg,ebeg,fbeg
-  complex(kind=8) :: aend,bend,cend,dend,eend,fend
-  complex(kind=8) :: b1,b2,b3
-  complex(kind=8), dimension(n) :: a,b,c,d,e,f
-  complex(kind=8), dimension(:), allocatable :: alp,bet,gam
-!
-  rhop=13.d0+sqrt(105.d0)
-  rhom=13.d0-sqrt(105.d0)
-!
-  a11=1.d0
-  a12=1.d0/4.d0
-  a13=1.d0/16.d0
-  a21=3.d0
-  a22=27.d0/4.d0
-  a23=9.d0*27.d0/16.d0
-  a31=5.d0
-  a32=125.d0/4.d0
-  a33=5.d0**5/16.d0
-  det=a11*a22*a33+a12*a23*a31+a13*a21*a32-a12*a21*a33-a13*a22*a31-a11*a23*a32
-  b1=a(4)-a(3)
-  b2=a(5)-a(2)
-  b3=a(6)-a(1)
-  bbeg=b1*a22*a33+a12*a23*b3+a13*b2*a32-a12*b2*a33-a13*a22*b3-b1*a23*a32
-  bbeg=bbeg/det
-  dbeg=a11*b2*a33+b1*a23*a31+a13*a21*b3-b1*a21*a33-a13*b2*a31-a11*a23*b3
-  dbeg=dbeg/det
-  fbeg=a11*a22*b3+a12*b2*a31+b1*a21*a32-a12*a21*b3-b1*a22*a31-a11*b2*a32
-  fbeg=fbeg/det
-  b1=a(n-2)-a(n-3)
-  b2=a(n-1)-a(n-4)
-  b3=a(n)-a(n-5)
-  bend=b1*a22*a33+a12*a23*b3+a13*b2*a32-a12*b2*a33-a13*a22*b3-b1*a23*a32
-  bend=bend/det
-  dend=a11*b2*a33+b1*a23*a31+a13*a21*b3-b1*a21*a33-a13*b2*a31-a11*a23*b3
-  dend=dend/det
-  fend=a11*a22*b3+a12*b2*a31+b1*a21*a32-a12*a21*b3-b1*a22*a31-a11*b2*a32
-  fend=fend/det
-  a11=2.d0
-  a12=1.d0/2.d0
-  a13=1.d0/8.d0
-  a21=2.d0
-  a22=9.d0/2.d0
-  a23=81.d0/8.d0
-  a31=2.d0
-  a32=25.d0/2.d0
-  a33=625.d0/8.d0
-  det=a11*a22*a33+a12*a23*a31+a13*a21*a32-a12*a21*a33-a13*a22*a31-a11*a23*a32
-  b1=a(4)+a(3)
-  b2=a(5)+a(2)
-  b3=a(6)+a(1)
-  abeg=b1*a22*a33+a12*a23*b3+a13*b2*a32-a12*b2*a33-a13*a22*b3-b1*a23*a32
-  abeg=abeg/det
-  cbeg=a11*b2*a33+b1*a23*a31+a13*a21*b3-b1*a21*a33-a13*b2*a31-a11*a23*b3
-  cbeg=cbeg/det
-  ebeg=a11*a22*b3+a12*b2*a31+b1*a21*a32-a12*a21*b3-b1*a22*a31-a11*b2*a32
-  ebeg=ebeg/det
-  b1=a(n-2)+a(n-3)
-  b2=a(n-1)+a(n-4)
-  b3=a(n)+a(n-5)
-  aend=b1*a22*a33+a12*a23*b3+a13*b2*a32-a12*b2*a33-a13*a22*b3-b1*a23*a32
-  aend=aend/det
-  cend=a11*b2*a33+b1*a23*a31+a13*a21*b3-b1*a21*a33-a13*b2*a31-a11*a23*b3
-  cend=cend/det
-  eend=a11*a22*b3+a12*b2*a31+b1*a21*a32-a12*a21*b3-b1*a22*a31-a11*b2*a32
-  eend=eend/det
-!
-  allocate(alp(n),bet(n),gam(n))
-!
-  alp(1)=0.0d0
-  bet(1)=ebeg*(2.d0+rhom)-5.d0*fbeg*(3.d0+1.5d0*rhom) !gamma1
-!
-  do i=1,n-4
-    ip1=i+1
-    alp(ip1)=-1.d0/(rhop+alp(i))
-    bet(ip1)=alp(ip1)*(bet(i)- &
-             5.d0*(a(i+4)-4.d0*a(i+3)+6.d0*a(i+2)-4.d0*a(ip1)+a(i)))
-  enddo
-!
-  gam(n-2)=eend*(2.d0+rhom)+5.d0*fend*(3.d0+1.5d0*rhom) !gamma
-  do i=n-3,1,-1
-    gam(i)=gam(i+1)*alp(i)+bet(i)
-  enddo
-!
-  alp(1)=0.0d0
-  bet(1)=ebeg-2.5d0*5.d0*fbeg !e1
-!
-  do i=1,n-2
-    ip1=i+1
-    alp(ip1)=-1.d0/(rhom+alp(i))
-    bet(ip1)=alp(ip1)*(bet(i)-gam(i))
-  enddo
-!
-  e(n)=eend+2.5d0*5.d0*fend
-  e(n-1)=e(n)*alp(n-1)+bet(n-1)
-  f(n-1)=(e(n)-e(n-1))/5.d0
-  e(n-2)=e(n-1)*alp(n-2)+bet(n-2)
-  f(n-2)=(e(n-1)-e(n-2))/5.d0
-  d(n-2)=dend+1.5d0*4.d0*eend+1.5d0**2*10.d0*fend
-!
-  do i=n-3,1,-1
-    e(i)=e(i+1)*alp(i)+bet(i)
-    f(i)=(e(i+1)-e(i))/5.d0
-    d(i)=(a(i+3)-3.d0*a(i+2)+3.d0*a(i+1)-a(i))/6.d0 &
-        -(e(i+3)+27.d0*e(i+2)+93.d0*e(i+1)+59.d0*e(i))/30.d0
-    c(i)=0.5d0*(a(i+2)+a(i))-a(i+1)-0.5d0*d(i+1)-2.5d0*d(i) &
-        -0.1d0*(e(i+2)+18.d0*e(i+1)+31.d0*e(i))
-    b(i)=a(i+1)-a(i)-c(i)-d(i)-0.2d0*(4.d0*e(i)+e(i+1))
-  enddo
-!
-  do i=n-3,n
-    b(i)=b(i-1)+2.d0*c(i-1)+3.d0*d(i-1)+4.d0*e(i-1)+5.d0*f(i-1)
-    c(i)=c(i-1)+3.d0*d(i-1)+6.d0*e(i-1)+10.d0*f(i-1)
-    d(i)=d(i-1)+4.d0*e(i-1)+10.d0*f(i-1)
-    if(i.ne.n) f(i)= a(i+1)-a(i)-b(i)-c(i)-d(i)-e(i)
-  enddo
-  f(n)=f(n-1)
-!
-  fac=1.d0/h
-  b=b*fac
-  fac=fac/h
-  c=c*fac
-  fac=fac/h
-  d=d*fac
-  fac=fac/h
-  e=e*fac
-  fac=fac/h
-  f=f*fac
-!
-  deallocate(alp,bet,gam)
-!
-  return
-  end subroutine cspl_five_reg
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine extract_fluxcoord(phinorm,theta)
-!
-  use extract_fluxcoord_mod
-  use input_files, only : iunit,fluxdatapath
-!
-  implicit none
-!
-  integer :: k
-  double precision :: phinorm,theta,xpsif
-!
-  if(load_extract_fluxcoord.eq.1) then
-    load_extract_fluxcoord=0
-    open(iunit,file=trim(fluxdatapath)//'/phinorm_arr.dat')
-    read (iunit,*) nphinorm,psifmin,hpsif
-    allocate(phinorm_arr(nphinorm))
-    do k=1,nphinorm
-      read (iunit,*) phinorm_arr(k)
-    enddo
-    close(iunit)
-  endif
-!
-  xpsif=(psif_extract-psifmin)/hpsif
-  k=min(nphinorm-2,max(0,int(xpsif)))
-  phinorm=phinorm_arr(k+1)*(k+1-xpsif)+phinorm_arr(k+2)*(xpsif-k)
-!
-  theta=theta_extract
-!
-  end subroutine extract_fluxcoord
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-  subroutine smear_formfactors(nmodes_ff,nsqpsi_ff,sqpsimin_ff,sqpsimax_ff, &
-                               formfactors)
-!
-  use inthecore_mod, only : psi_sep,psi_cut
-  use theta_rz_mod,  only : psiaxis
-  use field_divB0_mod, only: inthecore, localizer
-!
-  implicit none
-!
-  integer :: nmodes_ff,nsqpsi_ff,i
-  double precision :: sqpsimin_ff,sqpsimax_ff,hsqpsi_ff,apsif
-  double precision :: apsi_sep,apsi_cut,weight,dweight,ddweight
-  double precision :: R=1.d0,Z=0.d0
-  complex(kind=8), dimension(nmodes_ff,nsqpsi_ff) :: formfactors
-!
-  call inthecore(R,Z)
-!
-  hsqpsi_ff=(sqpsimax_ff-sqpsimin_ff)/dfloat(nsqpsi_ff-1)
-  apsi_sep=abs(psi_sep-psiaxis)
-  apsi_cut=abs(psi_cut-psiaxis)
-!
-  do i=1,nsqpsi_ff
-    apsif=(sqpsimin_ff+hsqpsi_ff*dfloat(i-1))**2
-    call localizer(apsi_cut,apsi_sep,apsif,weight,dweight,ddweight)
-    formfactors(:,i)=weight*formfactors(:,i)+1.d0-weight
-  enddo
-!
-  end subroutine smear_formfactors
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-!end module utils_bdivfree_mod
-
-subroutine vector_potentials(nr_in,np_in,nz_in,ntor_in,      &
-  rmin_in,rmax_in,pmin_in,pmax_in,zmin_in,zmax_in,  &
-  br,bp,bz)
-!
-use bdivfree_mod
-use spline5_RZ_mod, only: s2dcut
-use field_divB0_mod, only: stretch_coords
-!
-implicit none
-!
-double precision, parameter :: pi=3.14159265358979d0
-!
-integer :: nr_in,np_in,nz_in,ntor_in,ip,np,n,ir,iz  
-integer, dimension(:), allocatable :: imi,ima,jmi,jma
-!
-integer :: nashli_rukami
-integer :: irmin, irmax, i,j
-double precision, dimension(4), parameter :: weight=(/-1., 13., 13., -1./)/24.
-!
-double precision :: rmin_in,rmax_in,pmin_in,pmax_in,zmin_in,zmax_in
-double precision :: hp,r,rm,zm,sumbz,hrm1,hzm1
-double precision, dimension(nr_in,np_in,nz_in)  :: br,bp,bz
-double precision, dimension(:),     allocatable :: dummy
-double precision, dimension(:,:),   allocatable :: a_re, a_im, rbpav_dummy
-double precision, dimension(:,:),   allocatable :: brm,bpm,bzm
-!
-complex(kind=8) :: four_ampl
-complex(kind=8), dimension(:,:), allocatable :: expon
-!
-integer, parameter :: mp=4 ! power of Lagrange's polynomial =3
-integer,          dimension(mp)    :: indx,indy
-double precision, dimension(mp)    :: xp,yp
-double precision, dimension(mp,mp) :: fp
-!
-nr=nr_in
-nz=nz_in
-np=np_in-1
-ntor=ntor_in
-nashli_rukami=(nr_in+1)/2
-!
-rmin=rmin_in
-zmin=zmin_in
-hr=(rmax_in-rmin_in)/(nr-1)
-hz=(zmax_in-zmin_in)/(nz-1)
-hp=2.d0*pi/np
-pmin=pmin_in
-pfac = dble(nint(2.d0*pi/(pmax_in-pmin_in)))
-!
-allocate(expon(np,ntor),a_re(nr,nz),a_im(nr,nz),rbpav_dummy(nr,nz))
-allocate(imi(nz),ima(nz),jmi(nr),jma(nr), dummy(nr))
-allocate(rpoi(nr),zpoi(nz))
-allocate(brm(nr,nz),bpm(nr,nz),bzm(nr,nz))
-!
-imi=1
-ima=nr
-jmi=1
-jma=nz
-do ir=1,nr
-rpoi(ir)=rmin+hr*(ir-1)
-enddo
-do iz=1,nz
-zpoi(iz)=zmin+hz*(iz-1)
-enddo
 !
 ! Truncation of data outside the limiting convex:
 !
-hrm1=1.d0/hr
-hzm1=1.d0/hz
-do ip=1,np
-do ir=1,nr
-do iz=1,nz
-call stretch_coords(rpoi(ir),zpoi(iz),rm,zm)
-call indef_bdf(rm,rmin,hrm1,nr,indx)
-call indef_bdf(zm,zmin,hzm1,nz,indy)
+  hrm1=1.d0/hr
+  hzm1=1.d0/hz
+  do ip=1,np
+  do ir=1,nr
+  do iz=1,nz
+  call stretch_coords(rpoi(ir),zpoi(iz),rm,zm)
+  call indef_bdf(rm,rmin,hrm1,nr,indx)
+  call indef_bdf(zm,zmin,hzm1,nz,indy)
 !
-do i=1,mp
-xp(i) = rpoi(indx(i))
-yp(i) = zpoi(indy(i))
-enddo
+  do i=1,mp
+  xp(i) = rpoi(indx(i))
+  yp(i) = zpoi(indy(i))
+  enddo
 !
-do j=1,mp
-do i=1,mp
- fp(i,j) = Br(indx(i),ip,indy(j))
-enddo
-enddo
-call plag2d_bdf(rm,zm,fp,hrm1,hzm1,xp,yp,brm(ir,iz))
-do j=1,mp
-do i=1,mp
- fp(i,j) = Bp(indx(i),ip,indy(j))
-enddo
-enddo
-call plag2d_bdf(rm,zm,fp,hrm1,hzm1,xp,yp,bpm(ir,iz))
-bpm(ir,iz)=bpm(ir,iz)*rm/rpoi(ir)
-do j=1,mp
-do i=1,mp
- fp(i,j) = Bz(indx(i),ip,indy(j))
-enddo
-enddo
-call plag2d_bdf(rm,zm,fp,hrm1,hzm1,xp,yp,bzm(ir,iz))
+  do j=1,mp
+  do i=1,mp
+  fp(i,j) = Br(indx(i),ip,indy(j))
+  enddo
+  enddo
+  call plag2d_bdf(rm,zm,fp,hrm1,hzm1,xp,yp,brm(ir,iz))
+  do j=1,mp
+  do i=1,mp
+  fp(i,j) = Bp(indx(i),ip,indy(j))
+  enddo
+  enddo
+  call plag2d_bdf(rm,zm,fp,hrm1,hzm1,xp,yp,bpm(ir,iz))
+  bpm(ir,iz)=bpm(ir,iz)*rm/rpoi(ir)
+  do j=1,mp
+  do i=1,mp
+  fp(i,j) = Bz(indx(i),ip,indy(j))
+  enddo
+  enddo
+  call plag2d_bdf(rm,zm,fp,hrm1,hzm1,xp,yp,bzm(ir,iz))
 !
-enddo
-enddo
-Br(:,ip,:)=brm
-Bp(:,ip,:)=bpm
-Bz(:,ip,:)=bzm
-enddo
+  enddo
+  enddo
+  Br(:,ip,:)=brm
+  Bp(:,ip,:)=bpm
+  Bz(:,ip,:)=bzm
+  enddo
 !
 ! End of data truncation
 !
-allocate(ipoint(nr,nz))
-icp=nr*nz
-allocate(aznre(6,6,icp,ntor),aznim(6,6,icp,ntor))
-allocate(arnre(6,6,icp,ntor),arnim(6,6,icp,ntor))
-allocate(apav(6,6,icp),rbpav_coef(6,6,icp))
+  allocate(ipoint(nr,nz))
+  icp=nr*nz
+  allocate(aznre(6,6,icp,ntor),aznim(6,6,icp,ntor))
+  allocate(arnre(6,6,icp,ntor),arnim(6,6,icp,ntor))
+  allocate(apav(6,6,icp),rbpav_coef(6,6,icp))
 !
-do n=1,ntor
-do ip=1,np
-expon(ip,n)=exp(dcmplx(0.d0,-n*(ip-1)*hp))/np
-enddo
-enddo
+  do n=1,ntor
+  do ip=1,np
+  expon(ip,n)=exp(dcmplx(0.d0,-n*(ip-1)*hp))/np
+  enddo
+  enddo
 !
-do n=1,ntor
-do ir=1,nr
-r=rmin+hr*(ir-1)
-do iz=1,nz
-four_ampl=sum(br(ir,1:np,iz)*expon(:,n))*dcmplx(0.d0,-r/(n*pfac))
-a_re(ir,iz)=dble(four_ampl)
-a_im(ir,iz)=aimag(four_ampl)
-enddo
-enddo
-call s2dcut(nr,nz,hr,hz,a_re,imi,ima,jmi,jma,icp,aznre(:,:,:,n),ipoint)
-call s2dcut(nr,nz,hr,hz,a_im,imi,ima,jmi,jma,icp,aznim(:,:,:,n),ipoint)
-do ir=1,nr
-r=rmin+hr*(ir-1)
-do iz=1,nz
-four_ampl=sum(bz(ir,1:np,iz)*expon(:,n))*dcmplx(0.d0,r/(n*pfac))
-a_re(ir,iz)=dble(four_ampl)
-a_im(ir,iz)=aimag(four_ampl)
-enddo
-enddo
-call s2dcut(nr,nz,hr,hz,a_re,imi,ima,jmi,jma,icp,arnre(:,:,:,n),ipoint)
-call s2dcut(nr,nz,hr,hz,a_im,imi,ima,jmi,jma,icp,arnim(:,:,:,n),ipoint)
-enddo
+  do n=1,ntor
+  do ir=1,nr
+  r=rmin+hr*(ir-1)
+  do iz=1,nz
+  four_ampl=sum(br(ir,1:np,iz)*expon(:,n))*dcmplx(0.d0,-r/(n*pfac))
+  a_re(ir,iz)=dble(four_ampl)
+  a_im(ir,iz)=aimag(four_ampl)
+  enddo
+  enddo
+  call s2dcut(nr,nz,hr,hz,a_re,imi,ima,jmi,jma,icp,aznre(:,:,:,n),ipoint)
+  call s2dcut(nr,nz,hr,hz,a_im,imi,ima,jmi,jma,icp,aznim(:,:,:,n),ipoint)
+  do ir=1,nr
+  r=rmin+hr*(ir-1)
+  do iz=1,nz
+  four_ampl=sum(bz(ir,1:np,iz)*expon(:,n))*dcmplx(0.d0,r/(n*pfac))
+  a_re(ir,iz)=dble(four_ampl)
+  a_im(ir,iz)=aimag(four_ampl)
+  enddo
+  enddo
+  call s2dcut(nr,nz,hr,hz,a_re,imi,ima,jmi,jma,icp,arnre(:,:,:,n),ipoint)
+  call s2dcut(nr,nz,hr,hz,a_im,imi,ima,jmi,jma,icp,arnim(:,:,:,n),ipoint)
+  enddo
 !
-do iz=1,nz
-do ir=1,nr
-r=rmin+hr*(ir-1)
-dummy(ir) = sum(bz(ir,1:np,iz))*hr*r/np
-enddo
-a_re(nashli_rukami,iz) = 0.
-sumbz=0.d0
-do ir=nashli_rukami+1,nr
-irmax = min(ir+1,nr) 
-irmin = irmax - 3
-sumbz = sumbz + sum(dummy(irmin:irmax)*weight)
-a_re(ir,iz)=sumbz
-enddo
-sumbz=0.d0
-do ir=nashli_rukami-1,1,-1
-irmin = max(ir-1,1) 
-irmax = irmin + 3
-sumbz = sumbz - sum(dummy(irmin:irmax)*weight)
-a_re(ir,iz)=sumbz
-enddo
-enddo
+  do iz=1,nz
+  do ir=1,nr
+  r=rmin+hr*(ir-1)
+  dummy(ir) = sum(bz(ir,1:np,iz))*hr*r/np
+  enddo
+  a_re(nashli_rukami,iz) = 0.
+  sumbz=0.d0
+  do ir=nashli_rukami+1,nr
+  irmax = min(ir+1,nr) 
+  irmin = irmax - 3
+  sumbz = sumbz + sum(dummy(irmin:irmax)*weight)
+  a_re(ir,iz)=sumbz
+  enddo
+  sumbz=0.d0
+  do ir=nashli_rukami-1,1,-1
+  irmin = max(ir-1,1) 
+  irmax = irmin + 3
+  sumbz = sumbz - sum(dummy(irmin:irmax)*weight)
+  a_re(ir,iz)=sumbz
+  enddo
+  enddo
 !
-call s2dcut(nr,nz,hr,hz,a_re,imi,ima,jmi,jma,icp,apav,ipoint)
+  call s2dcut(nr,nz,hr,hz,a_re,imi,ima,jmi,jma,icp,apav,ipoint)
 !
-do iz=1,nz
-do ir=1,nr
-r=rmin+hr*(ir-1)
-rbpav_dummy(ir,iz) = r*sum(bp(ir,1:np,iz))/np
-enddo
-enddo
+  do iz=1,nz
+  do ir=1,nr
+  r=rmin+hr*(ir-1)
+  rbpav_dummy(ir,iz) = r*sum(bp(ir,1:np,iz))/np
+  enddo
+  enddo
 !
-call s2dcut(nr,nz,hr,hz,rbpav_dummy,imi,ima,jmi,jma,icp,rbpav_coef,ipoint)
+  call s2dcut(nr,nz,hr,hz,rbpav_dummy,imi,ima,jmi,jma,icp,rbpav_coef,ipoint)
 !
-deallocate(expon,a_re,a_im,rbpav_dummy,imi,ima,jmi,jma,dummy,brm,bpm,bzm)
+  deallocate(expon,a_re,a_im,rbpav_dummy,imi,ima,jmi,jma,dummy,brm,bpm,bzm)
 !
-102 format(1000e15.7)
+  102 format(1000e15.7)
 !
-return
+  return
 end subroutine vector_potentials
 !
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-
 subroutine field_fourier(r,phi,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ              &
   ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
 ! Caution: derivatives are not computed, for derivatives call 
 ! a driver routine "field_fourier_derivs"
 !
-use amn_mod
-use input_files,           only : iunit,fluxdatapath
-use inthecore_mod, only : incore,psi_sep                                 &
-  , plaf,dpladr,dpladz,d2pladr2,d2pladrdz,d2pladz2
-use field_eq_mod,  only : psif,dpsidr,dpsidz,d2psidr2,d2psidrdz,d2psidz2
-use theta_rz_mod,  only : psiaxis
-use bdivfree_mod,  only : pfac
+  use amn_mod
+  use input_files,   only : iunit,fluxdatapath
+  use inthecore_mod, only : incore,psi_sep                                 &
+    , plaf,dpladr,dpladz,d2pladr2,d2pladrdz,d2pladz2
+  use field_eq_mod,  only : psif,dpsidr,dpsidz,d2psidr2,d2psidrdz,d2psidz2
+  use theta_rz_mod,  only : psiaxis
+  use bdivfree_mod,  only : pfac
+  use utils_bdivfree_mod, only:  psithet_rz, cspl_five_reg
 !
-implicit none
+  implicit none
 !
-integer :: m,n,i,k,ierr,ntor
-double precision :: r,phi,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ                &
-,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
-double precision :: sqpsi,dx,g11,g12,g11_r,g11_z,g12_r,g12_z
-double precision :: theta,theta_r,theta_z,theta_rr,theta_rz,theta_zz, &
-s_r,s_z,s_rr,s_rz,s_zz
-double precision :: fun,fr,fz,frr,frz,fzz
-double precision :: apsi,apsi_s,apsi_t,apsi_p
-double precision :: athe,athe_s,athe_t,athe_p
-double precision :: delbr,delbz,delbp,delar,delaz
-double precision :: deldBrdR,deldBrdp,deldBrdZ
-double precision :: deldBpdR,deldBpdp,deldBpdZ
-double precision :: deldBzdR,deldBzdp,deldBzdZ
-double precision :: delardR,delazdR,delardZ,delazdZ
-double precision :: fcjac,g11_t,g12_t,s0,ds0ds,dds0ds,sqpsi_sep
+  integer :: m,n,i,k,ierr,ntor
+  double precision :: r,phi,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ                &
+  ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
+  double precision :: sqpsi,dx,g11,g12,g11_r,g11_z,g12_r,g12_z
+  double precision :: theta,theta_r,theta_z,theta_rr,theta_rz,theta_zz, &
+  s_r,s_z,s_rr,s_rz,s_zz
+  double precision :: fun,fr,fz,frr,frz,fzz
+  double precision :: apsi,apsi_s,apsi_t,apsi_p
+  double precision :: athe,athe_s,athe_t,athe_p
+  double precision :: delbr,delbz,delbp,delar,delaz
+  double precision :: deldBrdR,deldBrdp,deldBrdZ
+  double precision :: deldBpdR,deldBpdp,deldBpdZ
+  double precision :: deldBzdR,deldBzdp,deldBzdZ
+  double precision :: delardR,delazdR,delardZ,delazdZ
+  double precision :: fcjac,g11_t,g12_t,s0,ds0ds,dds0ds,sqpsi_sep
 !
-integer, dimension(:,:), allocatable :: idummy2
+  integer, dimension(:,:), allocatable :: idummy2
 !
-complex(kind=8) :: expon
-complex(kind=8), dimension(:), allocatable :: a,b,c,d,e,f
-complex(kind=8), dimension(:,:,:), allocatable :: apsimn,athetmn
+  complex(kind=8) :: expon
+  complex(kind=8), dimension(:), allocatable :: a,b,c,d,e,f
+  complex(kind=8), dimension(:,:,:), allocatable :: apsimn,athetmn
 !
-integer, save :: nper
+  integer, save :: nper
 !
 ! Initialization ------------------------------------------------------------
 !
-if(icall.eq.0) then
-icall=1
+  if(icall.eq.0) then
+  icall=1
 !
-nper=nint(pfac)
-print *,'nper = ',nper
+  nper=nint(pfac)
+  print *,'nper = ',nper
 ! Toroidally symetric part of the vacuum perturbation field - comes now
 ! from the cylindrical vacuum field routine
 !
 !
 ! Fourier ampitudes of the non-axisymmetric vacuum perturbation field:
 !
-open(iunit,form='unformatted',file=trim(fluxdatapath)//'/amn.dat')
-read (iunit) ntor,mpol,nsqpsi,sqpsimin,sqpsimax
-allocate(apsimn(-mpol:mpol,ntor,nsqpsi))
-allocate(athetmn(-mpol:mpol,ntor,nsqpsi))
-read (iunit) apsimn,athetmn
-close(iunit)
+  open(iunit,form='unformatted',file=trim(fluxdatapath)//'/amn.dat')
+  read (iunit) ntor,mpol,nsqpsi,sqpsimin,sqpsimax
+  allocate(apsimn(-mpol:mpol,ntor,nsqpsi))
+  allocate(athetmn(-mpol:mpol,ntor,nsqpsi))
+  read (iunit) apsimn,athetmn
+  close(iunit)
 !
-call psithet_rz(r,z,                                              &
-theta,theta_r,theta_z,theta_rr,theta_rz,theta_zz, &
-sqpsi,s_r,s_z,s_rr,s_rz,s_zz,s0,ds0ds,dds0ds)
+  call psithet_rz(r,z,                                              &
+  theta,theta_r,theta_z,theta_rr,theta_rz,theta_zz, &
+  sqpsi,s_r,s_z,s_rr,s_rz,s_zz,s0,ds0ds,dds0ds)
 !
-nsqpsi_ff=0
-open(iunit,form='unformatted',file=trim(fluxdatapath)//'/formfactors.dat')
-read (iunit,end=1) nmodes_ff,nsqpsi_ff,mpol_ff,mpol_ff,ntor_ff,ntor_ff
-read (iunit) sqpsimin_ff,sqpsimax_ff
-print *,'nsqpsi_ff = ',nsqpsi_ff
-if(ntor_ff.ne.ntor.or.mpol_ff.ne.mpol) then
-print *,'Number of harmonics in formfactors differs from original field'
-print *,'ntor = ',ntor,'ntor_ff = ',ntor_ff, &
-'mpol = ',mpol,'mpol_ff = ',mpol_ff
-endif
-allocate(ipoi_ff(-mpol_ff:mpol_ff,ntor_ff))
-allocate(splfft(nmodes_ff,6,nsqpsi_ff))
-read (iunit) ipoi_ff(-mpol_ff:mpol_ff,1:ntor_ff)
-read (iunit) splfft(1:nmodes_ff,1,1:nsqpsi_ff)
-!splfft(1:nmodes_ff,1,1:nsqpsi_ff)=(0.d0,0.d0)
-!ipoi_ff(1,1)=-1
-!ipoi_ff(-1,1)=-1
-1   close(iunit)
+  nsqpsi_ff=0
+  open(iunit,form='unformatted',file=trim(fluxdatapath)//'/formfactors.dat')
+  read (iunit,end=1) nmodes_ff,nsqpsi_ff,mpol_ff,mpol_ff,ntor_ff,ntor_ff
+  read (iunit) sqpsimin_ff,sqpsimax_ff
+  print *,'nsqpsi_ff = ',nsqpsi_ff
+  if(ntor_ff.ne.ntor.or.mpol_ff.ne.mpol) then
+  print *,'Number of harmonics in formfactors differs from original field'
+  print *,'ntor = ',ntor,'ntor_ff = ',ntor_ff, &
+  'mpol = ',mpol,'mpol_ff = ',mpol_ff
+  endif
+  allocate(ipoi_ff(-mpol_ff:mpol_ff,ntor_ff))
+  allocate(splfft(nmodes_ff,6,nsqpsi_ff))
+  read (iunit) ipoi_ff(-mpol_ff:mpol_ff,1:ntor_ff)
+  read (iunit) splfft(1:nmodes_ff,1,1:nsqpsi_ff)
+  !splfft(1:nmodes_ff,1,1:nsqpsi_ff)=(0.d0,0.d0)
+  !ipoi_ff(1,1)=-1
+  !ipoi_ff(-1,1)=-1
+  1   close(iunit)
 !
-if(nsqpsi_ff.gt.0) then
+  if(nsqpsi_ff.gt.0) then
 !
-call smear_formfactors(nmodes_ff,nsqpsi_ff,sqpsimin_ff,sqpsimax_ff, &
-     splfft(1:nmodes_ff,1,1:nsqpsi_ff))
+  call smear_formfactors(nmodes_ff,nsqpsi_ff,sqpsimin_ff,sqpsimax_ff, &
+      splfft(1:nmodes_ff,1,1:nsqpsi_ff))
 !
 ! use those formfactors which available and necessary
-mpol_ff=min(mpol,mpol_ff)
-ntor_ff=min(ntor,ntor_ff)
-allocate(splffp(nmodes_ff,6,nsqpsi_ff))
-splffp(:,1,:)=splfft(:,1,:)
-allocate(idummy2(-mpol_ff:mpol_ff,ntor_ff))
-idummy2=ipoi_ff(-mpol_ff:mpol_ff,1:ntor_ff)
-deallocate(ipoi_ff)
-allocate(ipoi_ff(-mpol_ff:mpol_ff,ntor_ff))
-ipoi_ff=idummy2
-deallocate(idummy2)
-else
-print *,'Formfactor file formfactors.dat empty or absent,' &
-//' compute vacuum field'
-nmodes_ff=1
-mpol_ff=1
-ntor_ff=1
-nsqpsi_ff=10
-sqpsimin_ff=0.d0
-sqpsimax_ff=sqrt(abs(psi_sep-psiaxis))
-allocate(ipoi_ff(-mpol_ff:mpol_ff,ntor_ff))
-ipoi_ff=-1
-allocate(splffp(nmodes_ff,6,nsqpsi_ff))
-allocate(splfft(nmodes_ff,6,nsqpsi_ff))
-splffp(:,1,:)=1.d0
-splfft(:,1,:)=splffp(:,1,:)
-endif
+  mpol_ff=min(mpol,mpol_ff)
+  ntor_ff=min(ntor,ntor_ff)
+  allocate(splffp(nmodes_ff,6,nsqpsi_ff))
+  splffp(:,1,:)=splfft(:,1,:)
+  allocate(idummy2(-mpol_ff:mpol_ff,ntor_ff))
+  idummy2=ipoi_ff(-mpol_ff:mpol_ff,1:ntor_ff)
+  deallocate(ipoi_ff)
+  allocate(ipoi_ff(-mpol_ff:mpol_ff,ntor_ff))
+  ipoi_ff=idummy2
+  deallocate(idummy2)
+  else
+  print *,'Formfactor file formfactors.dat empty or absent,' &
+  //' compute vacuum field'
+  nmodes_ff=1
+  mpol_ff=1
+  ntor_ff=1
+  nsqpsi_ff=10
+  sqpsimin_ff=0.d0
+  sqpsimax_ff=sqrt(abs(psi_sep-psiaxis))
+  allocate(ipoi_ff(-mpol_ff:mpol_ff,ntor_ff))
+  ipoi_ff=-1
+  allocate(splffp(nmodes_ff,6,nsqpsi_ff))
+  allocate(splfft(nmodes_ff,6,nsqpsi_ff))
+  splffp(:,1,:)=1.d0
+  splfft(:,1,:)=splffp(:,1,:)
+  endif
 !
-mpol=mpol_ff
-ntor=ntor_ff
-ntor_amn=ntor
+  mpol=mpol_ff
+  ntor=ntor_ff
+  ntor_amn=ntor
 !
-allocate(splapsi(-mpol:mpol,ntor,6,nsqpsi))
-allocate(splatet(-mpol:mpol,ntor,6,nsqpsi))
+  allocate(splapsi(-mpol:mpol,ntor,6,nsqpsi))
+  allocate(splatet(-mpol:mpol,ntor,6,nsqpsi))
 !
-allocate(amnpsi(-mpol:mpol,ntor),amntet(-mpol:mpol,ntor))
-allocate(amnpsi_s(-mpol:mpol,ntor),amntet_s(-mpol:mpol,ntor))
-allocate(amnpsi_ss(-mpol:mpol,ntor),amntet_ss(-mpol:mpol,ntor))
+  allocate(amnpsi(-mpol:mpol,ntor),amntet(-mpol:mpol,ntor))
+  allocate(amnpsi_s(-mpol:mpol,ntor),amntet_s(-mpol:mpol,ntor))
+  allocate(amnpsi_ss(-mpol:mpol,ntor),amntet_ss(-mpol:mpol,ntor))
 !
-allocate(expthe(-mpol:mpol),expphi(ntor))
+  allocate(expthe(-mpol:mpol),expphi(ntor))
 !
-hsqpsi=(sqpsimax-sqpsimin)/(nsqpsi-1)
+  hsqpsi=(sqpsimax-sqpsimin)/(nsqpsi-1)
 !
-allocate(a(nsqpsi),b(nsqpsi),c(nsqpsi),d(nsqpsi),e(nsqpsi),f(nsqpsi))
+  allocate(a(nsqpsi),b(nsqpsi),c(nsqpsi),d(nsqpsi),e(nsqpsi),f(nsqpsi))
 !
-do m=-mpol,mpol
-do n=1,ntor
-a=apsimn(m,n,:)
-call cspl_five_reg(nsqpsi,hsqpsi,a,b,c,d,e,f)
-splapsi(m,n,1,:)=a
-splapsi(m,n,2,:)=b
-splapsi(m,n,3,:)=c
-splapsi(m,n,4,:)=d
-splapsi(m,n,5,:)=e
-splapsi(m,n,6,:)=f
-a=athetmn(m,n,:)
-call cspl_five_reg(nsqpsi,hsqpsi,a,b,c,d,e,f)
-splatet(m,n,1,:)=a
-splatet(m,n,2,:)=b
-splatet(m,n,3,:)=c
-splatet(m,n,4,:)=d
-splatet(m,n,5,:)=e
-splatet(m,n,6,:)=f
-enddo
-enddo
+  do m=-mpol,mpol
+  do n=1,ntor
+  a=apsimn(m,n,:)
+  call cspl_five_reg(nsqpsi,hsqpsi,a,b,c,d,e,f)
+  splapsi(m,n,1,:)=a
+  splapsi(m,n,2,:)=b
+  splapsi(m,n,3,:)=c
+  splapsi(m,n,4,:)=d
+  splapsi(m,n,5,:)=e
+  splapsi(m,n,6,:)=f
+  a=athetmn(m,n,:)
+  call cspl_five_reg(nsqpsi,hsqpsi,a,b,c,d,e,f)
+  splatet(m,n,1,:)=a
+  splatet(m,n,2,:)=b
+  splatet(m,n,3,:)=c
+  splatet(m,n,4,:)=d
+  splatet(m,n,5,:)=e
+  splatet(m,n,6,:)=f
+  enddo
+  enddo
 !   
 ! Formfactors:
 !
 !
-allocate(fmnpsi(nmodes_ff))
-allocate(fmntet(nmodes_ff))
-allocate(fmnpsi_s(nmodes_ff))
-allocate(fmntet_s(nmodes_ff))
-allocate(fmnpsi_ss(nmodes_ff))
-allocate(fmntet_ss(nmodes_ff))
+  allocate(fmnpsi(nmodes_ff))
+  allocate(fmntet(nmodes_ff))
+  allocate(fmnpsi_s(nmodes_ff))
+  allocate(fmntet_s(nmodes_ff))
+  allocate(fmnpsi_ss(nmodes_ff))
+  allocate(fmntet_ss(nmodes_ff))
 !
-hsqpsi_ff=(sqpsimax_ff-sqpsimin_ff)/(nsqpsi_ff-1)
+  hsqpsi_ff=(sqpsimax_ff-sqpsimin_ff)/(nsqpsi_ff-1)
 !
-deallocate(a,b,c,d,e,f)
-allocate(a(nsqpsi_ff),b(nsqpsi_ff),c(nsqpsi_ff))
-allocate(d(nsqpsi_ff),e(nsqpsi_ff),f(nsqpsi_ff))
+  deallocate(a,b,c,d,e,f)
+  allocate(a(nsqpsi_ff),b(nsqpsi_ff),c(nsqpsi_ff))
+  allocate(d(nsqpsi_ff),e(nsqpsi_ff),f(nsqpsi_ff))
 !
-do i=1,nmodes_ff
-a=splffp(i,1,:)
-call cspl_five_reg(nsqpsi_ff,hsqpsi_ff,a,b,c,d,e,f)
-splffp(i,1,:)=a
-splffp(i,2,:)=b
-splffp(i,3,:)=c
-splffp(i,4,:)=d
-splffp(i,5,:)=e
-splffp(i,6,:)=f
-a=splfft(i,1,:)
-call cspl_five_reg(nsqpsi_ff,hsqpsi_ff,a,b,c,d,e,f)
-splfft(i,1,:)=a
-splfft(i,2,:)=b
-splfft(i,3,:)=c
-splfft(i,4,:)=d
-splfft(i,5,:)=e
-splfft(i,6,:)=f
-enddo
+  do i=1,nmodes_ff
+  a=splffp(i,1,:)
+  call cspl_five_reg(nsqpsi_ff,hsqpsi_ff,a,b,c,d,e,f)
+  splffp(i,1,:)=a
+  splffp(i,2,:)=b
+  splffp(i,3,:)=c
+  splffp(i,4,:)=d
+  splffp(i,5,:)=e
+  splffp(i,6,:)=f
+  a=splfft(i,1,:)
+  call cspl_five_reg(nsqpsi_ff,hsqpsi_ff,a,b,c,d,e,f)
+  splfft(i,1,:)=a
+  splfft(i,2,:)=b
+  splfft(i,3,:)=c
+  splfft(i,4,:)=d
+  splfft(i,5,:)=e
+  splfft(i,6,:)=f
+  enddo
 !
 ! Normalize formfactors to 1 at the separatrix:
-sqpsi_sep=sqrt(abs(psi_sep-psiaxis))
-k=min(nsqpsi_ff,max(1,ceiling((sqpsi_sep-sqpsimin_ff)/hsqpsi_ff)))
-dx=sqpsi_sep-sqpsimin_ff-hsqpsi_ff*(k-1)
+  sqpsi_sep=sqrt(abs(psi_sep-psiaxis))
+  k=min(nsqpsi_ff,max(1,ceiling((sqpsi_sep-sqpsimin_ff)/hsqpsi_ff)))
+  dx=sqpsi_sep-sqpsimin_ff-hsqpsi_ff*(k-1)
 
-fmnpsi=splffp(:,1,k)+dx*(splffp(:,2,k)+dx*(splffp(:,3,k)        &
-+dx*(splffp(:,4,k)+dx*(splffp(:,5,k)+dx*splffp(:,6,k)))))
-fmntet=splfft(:,1,k)+dx*(splfft(:,2,k)+dx*(splfft(:,3,k)        &
-+dx*(splfft(:,4,k)+dx*(splfft(:,5,k)+dx*splfft(:,6,k)))))
-do i=1,6
-do k=1,nsqpsi_ff
-splffp(:,i,k)=splffp(:,i,k)/fmnpsi
-splfft(:,i,k)=splfft(:,i,k)/fmntet
-enddo
-enddo
-splffp(:,1,:)=splffp(:,1,:)-1.d0
-splfft(:,1,:)=splfft(:,1,:)-1.d0
+  fmnpsi=splffp(:,1,k)+dx*(splffp(:,2,k)+dx*(splffp(:,3,k)        &
+  +dx*(splffp(:,4,k)+dx*(splffp(:,5,k)+dx*splffp(:,6,k)))))
+  fmntet=splfft(:,1,k)+dx*(splfft(:,2,k)+dx*(splfft(:,3,k)        &
+  +dx*(splfft(:,4,k)+dx*(splfft(:,5,k)+dx*splfft(:,6,k)))))
+  do i=1,6
+  do k=1,nsqpsi_ff
+  splffp(:,i,k)=splffp(:,i,k)/fmnpsi
+  splfft(:,i,k)=splfft(:,i,k)/fmntet
+  enddo
+  enddo
+  splffp(:,1,:)=splffp(:,1,:)-1.d0
+  splfft(:,1,:)=splfft(:,1,:)-1.d0
 !
-endif
+  endif
 !
 ! End of initialization ------------------------------------------------------
 !
 ! Toroidally symmetric part of the perturbation field - not computed, comes
 ! from the vacuum routine
 !
-Br=0.d0
-Bp=0.d0
-Bz=0.d0
-dBrdR=0.d0
-dBrdZ=0.d0
-dBrdp=0.d0
-dBpdR=0.d0
-dBpdZ=0.d0
-dBpdp=0.d0
-dBzdR=0.d0
-dBzdZ=0.d0
-dBzdp=0.d0
+  Br=0.d0
+  Bp=0.d0
+  Bz=0.d0
+  dBrdR=0.d0
+  dBrdZ=0.d0
+  dBrdp=0.d0
+  dBpdR=0.d0
+  dBpdZ=0.d0
+  dBpdp=0.d0
+  dBzdR=0.d0
+  dBzdZ=0.d0
+  dBzdp=0.d0
 !
 ! Asymmetric part of the perturbation field:
 !
-call psithet_rz(r,z,                                              &
-theta,theta_r,theta_z,theta_rr,theta_rz,theta_zz, &
-sqpsi,s_r,s_z,s_rr,s_rz,s_zz,s0,ds0ds,dds0ds)
+  call psithet_rz(r,z,                                              &
+  theta,theta_r,theta_z,theta_rr,theta_rz,theta_zz, &
+  sqpsi,s_r,s_z,s_rr,s_rz,s_zz,s0,ds0ds,dds0ds)
 !
-g11=dpsidr**2+dpsidz**2
-g12=dpsidr*theta_r+dpsidz*theta_z
-g11_r=2.d0*dpsidr*d2psidr2+2.d0*dpsidz*d2psidrdz
-g11_z=2.d0*dpsidr*d2psidrdz+2.d0*dpsidz*d2psidz2
-g12_r=d2psidr2*theta_r+dpsidr*theta_rr+d2psidrdz*theta_z+dpsidz*theta_rz
-g12_z=d2psidrdz*theta_r+dpsidr*theta_rz+d2psidz2*theta_z+dpsidz*theta_zz
-fcjac=dpsidr*theta_z-dpsidz*theta_r
-g11_t=(dpsidr*g11_z-dpsidz*g11_r)/fcjac
-g12_t=(dpsidr*g12_z-dpsidz*g12_r)/fcjac
+  g11=dpsidr**2+dpsidz**2
+  g12=dpsidr*theta_r+dpsidz*theta_z
+  g11_r=2.d0*dpsidr*d2psidr2+2.d0*dpsidz*d2psidrdz
+  g11_z=2.d0*dpsidr*d2psidrdz+2.d0*dpsidz*d2psidz2
+  g12_r=d2psidr2*theta_r+dpsidr*theta_rr+d2psidrdz*theta_z+dpsidz*theta_rz
+  g12_z=d2psidrdz*theta_r+dpsidr*theta_rz+d2psidz2*theta_z+dpsidz*theta_zz
+  fcjac=dpsidr*theta_z-dpsidz*theta_r
+  g11_t=(dpsidr*g11_z-dpsidz*g11_r)/fcjac
+  g12_t=(dpsidr*g12_z-dpsidz*g12_r)/fcjac
 !
-k=min(nsqpsi,max(1,ceiling((sqpsi-sqpsimin)/hsqpsi)))
-dx=sqpsi-sqpsimin-hsqpsi*(k-1)
+  k=min(nsqpsi,max(1,ceiling((sqpsi-sqpsimin)/hsqpsi)))
+  dx=sqpsi-sqpsimin-hsqpsi*(k-1)
 !
-amnpsi=splapsi(:,:,1,k)+dx*(splapsi(:,:,2,k)+dx*(splapsi(:,:,3,k)       &
-+dx*(splapsi(:,:,4,k)+dx*(splapsi(:,:,5,k)+dx*splapsi(:,:,6,k)))))
-amntet=splatet(:,:,1,k)+dx*(splatet(:,:,2,k)+dx*(splatet(:,:,3,k)       &
-+dx*(splatet(:,:,4,k)+dx*(splatet(:,:,5,k)+dx*splatet(:,:,6,k)))))
-amnpsi_s=splapsi(:,:,2,k)+dx*(2.d0*splapsi(:,:,3,k)                     &
-+dx*(3.d0*splapsi(:,:,4,k)+dx*(4.d0*splapsi(:,:,5,k)            &
-+dx*5.d0*splapsi(:,:,6,k))))
-amntet_s=splatet(:,:,2,k)+dx*(2.d0*splatet(:,:,3,k)                     &
-+dx*(3.d0*splatet(:,:,4,k)+dx*(4.d0*splatet(:,:,5,k)            &
-+dx*5.d0*splatet(:,:,6,k))))
-amnpsi_ss=2.d0*splapsi(:,:,3,k)+dx*(6.d0*splapsi(:,:,4,k)               &
-+dx*(12.d0*splapsi(:,:,5,k)+dx*20.d0*splapsi(:,:,6,k)))
-amntet_ss=2.d0*splatet(:,:,3,k)+dx*(6.d0*splatet(:,:,4,k)               &
-+dx*(12.d0*splatet(:,:,5,k)+dx*20.d0*splatet(:,:,6,k)))
+  amnpsi=splapsi(:,:,1,k)+dx*(splapsi(:,:,2,k)+dx*(splapsi(:,:,3,k)       &
+  +dx*(splapsi(:,:,4,k)+dx*(splapsi(:,:,5,k)+dx*splapsi(:,:,6,k)))))
+  amntet=splatet(:,:,1,k)+dx*(splatet(:,:,2,k)+dx*(splatet(:,:,3,k)       &
+  +dx*(splatet(:,:,4,k)+dx*(splatet(:,:,5,k)+dx*splatet(:,:,6,k)))))
+  amnpsi_s=splapsi(:,:,2,k)+dx*(2.d0*splapsi(:,:,3,k)                     &
+  +dx*(3.d0*splapsi(:,:,4,k)+dx*(4.d0*splapsi(:,:,5,k)            &
+  +dx*5.d0*splapsi(:,:,6,k))))
+  amntet_s=splatet(:,:,2,k)+dx*(2.d0*splatet(:,:,3,k)                     &
+  +dx*(3.d0*splatet(:,:,4,k)+dx*(4.d0*splatet(:,:,5,k)            &
+  +dx*5.d0*splatet(:,:,6,k))))
+  amnpsi_ss=2.d0*splapsi(:,:,3,k)+dx*(6.d0*splapsi(:,:,4,k)               &
+  +dx*(12.d0*splapsi(:,:,5,k)+dx*20.d0*splapsi(:,:,6,k)))
+  amntet_ss=2.d0*splatet(:,:,3,k)+dx*(6.d0*splatet(:,:,4,k)               &
+  +dx*(12.d0*splatet(:,:,5,k)+dx*20.d0*splatet(:,:,6,k)))
 !   
 ! Formfactors:
 !
-k=min(nsqpsi_ff,max(1,ceiling((s0-sqpsimin_ff)/hsqpsi_ff)))
-dx=s0-sqpsimin_ff-hsqpsi_ff*(k-1)
+  k=min(nsqpsi_ff,max(1,ceiling((s0-sqpsimin_ff)/hsqpsi_ff)))
+  dx=s0-sqpsimin_ff-hsqpsi_ff*(k-1)
 !
-fmnpsi=splffp(:,1,k)+dx*(splffp(:,2,k)+dx*(splffp(:,3,k)        &
-+dx*(splffp(:,4,k)+dx*(splffp(:,5,k)+dx*splffp(:,6,k)))))
-fmntet=splfft(:,1,k)+dx*(splfft(:,2,k)+dx*(splfft(:,3,k)        &
-+dx*(splfft(:,4,k)+dx*(splfft(:,5,k)+dx*splfft(:,6,k)))))
-fmnpsi_s=splffp(:,2,k)+dx*(2.d0*splffp(:,3,k)                     &
-+dx*(3.d0*splffp(:,4,k)+dx*(4.d0*splffp(:,5,k)            &
-+dx*5.d0*splffp(:,6,k))))
-fmntet_s=splfft(:,2,k)+dx*(2.d0*splfft(:,3,k)                     &
-+dx*(3.d0*splfft(:,4,k)+dx*(4.d0*splfft(:,5,k)            &
-+dx*5.d0*splfft(:,6,k))))
-fmnpsi_ss=2.d0*splffp(:,3,k)+dx*(6.d0*splffp(:,4,k)               &
-+dx*(12.d0*splffp(:,5,k)+dx*20.d0*splffp(:,6,k)))
-fmntet_ss=2.d0*splfft(:,3,k)+dx*(6.d0*splfft(:,4,k)               &
-+dx*(12.d0*splfft(:,5,k)+dx*20.d0*splfft(:,6,k)))
+  fmnpsi=splffp(:,1,k)+dx*(splffp(:,2,k)+dx*(splffp(:,3,k)        &
+  +dx*(splffp(:,4,k)+dx*(splffp(:,5,k)+dx*splffp(:,6,k)))))
+  fmntet=splfft(:,1,k)+dx*(splfft(:,2,k)+dx*(splfft(:,3,k)        &
+  +dx*(splfft(:,4,k)+dx*(splfft(:,5,k)+dx*splfft(:,6,k)))))
+  fmnpsi_s=splffp(:,2,k)+dx*(2.d0*splffp(:,3,k)                     &
+  +dx*(3.d0*splffp(:,4,k)+dx*(4.d0*splffp(:,5,k)            &
+  +dx*5.d0*splffp(:,6,k))))
+  fmntet_s=splfft(:,2,k)+dx*(2.d0*splfft(:,3,k)                     &
+  +dx*(3.d0*splfft(:,4,k)+dx*(4.d0*splfft(:,5,k)            &
+  +dx*5.d0*splfft(:,6,k))))
+  fmnpsi_ss=2.d0*splffp(:,3,k)+dx*(6.d0*splffp(:,4,k)               &
+  +dx*(12.d0*splffp(:,5,k)+dx*20.d0*splffp(:,6,k)))
+  fmntet_ss=2.d0*splfft(:,3,k)+dx*(6.d0*splfft(:,4,k)               &
+  +dx*(12.d0*splfft(:,5,k)+dx*20.d0*splfft(:,6,k)))
 !
 ! convert forfactor derivatives to derivatives over new label:
 !
-fmnpsi_ss=fmnpsi_ss*ds0ds**2+fmnpsi_s*dds0ds
-fmnpsi_s=fmnpsi_s*ds0ds
-fmntet_ss=fmntet_ss*ds0ds**2+fmntet_s*dds0ds
-fmntet_s=fmntet_s*ds0ds
+  fmnpsi_ss=fmnpsi_ss*ds0ds**2+fmnpsi_s*dds0ds
+  fmnpsi_s=fmnpsi_s*ds0ds
+  fmntet_ss=fmntet_ss*ds0ds**2+fmntet_s*dds0ds
+  fmntet_s=fmntet_s*ds0ds
 !
 ! Product:
 !
-do m=-mpol_ff,mpol_ff
-do n=1,ntor_ff
-if(n*nper.gt.ntor_ff) cycle
-if(ipoi_ff(m,n*nper).gt.0) then
-k=ipoi_ff(m,n*nper)
-amnpsi_ss(m,n)=amnpsi_ss(m,n)*fmnpsi(k)         &
-+2.d0*amnpsi_s(m,n)*fmnpsi_s(k)   &
-+amnpsi(m,n)*fmnpsi_ss(k)
-amntet_ss(m,n)=amntet_ss(m,n)*fmntet(k)         &
-+2.d0*amntet_s(m,n)*fmntet_s(k)   &
-+amntet(m,n)*fmntet_ss(k)
-amnpsi_s(m,n) =amnpsi_s(m,n)*fmnpsi(k)          &
-+amnpsi(m,n)*fmnpsi_s(k)
-amntet_s(m,n) =amntet_s(m,n)*fmntet(k)          &
-+amntet(m,n)*fmntet_s(k)
-amnpsi(m,n)   =amnpsi(m,n)*fmnpsi(k)
-amntet(m,n)   =amntet(m,n)*fmntet(k)
-endif
-enddo
-enddo
+  do m=-mpol_ff,mpol_ff
+  do n=1,ntor_ff
+  if(n*nper.gt.ntor_ff) cycle
+  if(ipoi_ff(m,n*nper).gt.0) then
+  k=ipoi_ff(m,n*nper)
+  amnpsi_ss(m,n)=amnpsi_ss(m,n)*fmnpsi(k)         &
+  +2.d0*amnpsi_s(m,n)*fmnpsi_s(k)   &
+  +amnpsi(m,n)*fmnpsi_ss(k)
+  amntet_ss(m,n)=amntet_ss(m,n)*fmntet(k)         &
+  +2.d0*amntet_s(m,n)*fmntet_s(k)   &
+  +amntet(m,n)*fmntet_ss(k)
+  amnpsi_s(m,n) =amnpsi_s(m,n)*fmnpsi(k)          &
+  +amnpsi(m,n)*fmnpsi_s(k)
+  amntet_s(m,n) =amntet_s(m,n)*fmntet(k)          &
+  +amntet(m,n)*fmntet_s(k)
+  amnpsi(m,n)   =amnpsi(m,n)*fmnpsi(k)
+  amntet(m,n)   =amntet(m,n)*fmntet(k)
+  endif
+  enddo
+  enddo
 !
-expthe(0)=(1.d0,0.d0)
-expthe(1)=exp(dcmplx(0.d0,theta))
-expthe(-1)=conjg(expthe(1))
-do m=2,mpol
-expthe(m)=expthe(m-1)*expthe(1)
-expthe(-m)=conjg(expthe(m))
-enddo
+  expthe(0)=(1.d0,0.d0)
+  expthe(1)=exp(dcmplx(0.d0,theta))
+  expthe(-1)=conjg(expthe(1))
+  do m=2,mpol
+  expthe(m)=expthe(m-1)*expthe(1)
+  expthe(-m)=conjg(expthe(m))
+  enddo
 !  expphi(1)=exp(dcmplx(0.d0,phi))
-expphi(1)=exp(dcmplx(0.d0,pfac*phi))
-do n=2,ntor_amn
-expphi(n)=expphi(n-1)*expphi(1)
-enddo
+  expphi(1)=exp(dcmplx(0.d0,pfac*phi))
+  do n=2,ntor_amn
+  expphi(n)=expphi(n-1)*expphi(1)
+  enddo
 !
-apsi=0.d0
-apsi_s=0.d0
-apsi_t=0.d0
-apsi_p=0.d0
-athe=0.d0
-athe_s=0.d0
-athe_t=0.d0
-athe_p=0.d0
-do m=-mpol,mpol
-do n=1,ntor_amn
-if(n*nper.gt.ntor_ff) cycle
-if(ipoi_ff(m,n*nper).gt.0) then
-expon=expthe(m)*expphi(n)
-apsi=apsi+2.d0*dble(expon*amnpsi(m,n))
-apsi_s=apsi_s+2.d0*dble(expon*amnpsi_s(m,n))
-apsi_t=apsi_t+2.d0*dble((0.d0,1.d0)*m*expon*amnpsi(m,n))
-apsi_p=apsi_p+2.d0*dble((0.d0,1.d0)*n*expon*amnpsi(m,n))*pfac
-athe=athe+2.d0*dble(expon*amntet(m,n))
-athe_s=athe_s+2.d0*dble(expon*amntet_s(m,n))
-athe_t=athe_t+2.d0*dble((0.d0,1.d0)*m*expon*amntet(m,n))
-athe_p=athe_p+2.d0*dble((0.d0,1.d0)*n*expon*amntet(m,n))*pfac
-endif
-enddo
-enddo
+  apsi=0.d0
+  apsi_s=0.d0
+  apsi_t=0.d0
+  apsi_p=0.d0
+  athe=0.d0
+  athe_s=0.d0
+  athe_t=0.d0
+  athe_p=0.d0
+  do m=-mpol,mpol
+  do n=1,ntor_amn
+  if(n*nper.gt.ntor_ff) cycle
+  if(ipoi_ff(m,n*nper).gt.0) then
+  expon=expthe(m)*expphi(n)
+  apsi=apsi+2.d0*dble(expon*amnpsi(m,n))
+  apsi_s=apsi_s+2.d0*dble(expon*amnpsi_s(m,n))
+  apsi_t=apsi_t+2.d0*dble((0.d0,1.d0)*m*expon*amnpsi(m,n))
+  apsi_p=apsi_p+2.d0*dble((0.d0,1.d0)*n*expon*amnpsi(m,n))*pfac
+  athe=athe+2.d0*dble(expon*amntet(m,n))
+  athe_s=athe_s+2.d0*dble(expon*amntet_s(m,n))
+  athe_t=athe_t+2.d0*dble((0.d0,1.d0)*m*expon*amntet(m,n))
+  athe_p=athe_p+2.d0*dble((0.d0,1.d0)*n*expon*amntet(m,n))*pfac
+  endif
+  enddo
+  enddo
 !
-delar=(apsi-g12*athe)/g11*dpsidr+athe*theta_r
-delaz=(apsi-g12*athe)/g11*dpsidz+athe*theta_z
-delbr=((apsi_p-g12*athe_p)/g11*dpsidz+athe_p*theta_z)/r
-delbz=-((apsi_p-g12*athe_p)/g11*dpsidr+athe_p*theta_r)/r
-delbp=fcjac*( (apsi_t-g12*athe_t-g12_t*athe)/g11  &
--(apsi-g12*athe)*g11_t/g11**2 )              &
-+athe_s*(theta_r*s_z-theta_z*s_r)
+  delar=(apsi-g12*athe)/g11*dpsidr+athe*theta_r
+  delaz=(apsi-g12*athe)/g11*dpsidz+athe*theta_z
+  delbr=((apsi_p-g12*athe_p)/g11*dpsidz+athe_p*theta_z)/r
+  delbz=-((apsi_p-g12*athe_p)/g11*dpsidr+athe_p*theta_r)/r
+  delbp=fcjac*( (apsi_t-g12*athe_t-g12_t*athe)/g11  &
+  -(apsi-g12*athe)*g11_t/g11**2 )              &
+  +athe_s*(theta_r*s_z-theta_z*s_r)
 !
-if(incore.eq.1) then
-Br=Br+delbr
-Bz=Bz+delbz
-Bp=Bp+delbp
-else
-Br=Br+delbr*plaf
-Bz=Bz+delbz*plaf
-Bp=Bp+delbp*plaf+delar*dpladz-delaz*dpladr
-endif
+  if(incore.eq.1) then
+  Br=Br+delbr
+  Bz=Bz+delbz
+  Bp=Bp+delbp
+  else
+  Br=Br+delbr*plaf
+  Bz=Bz+delbz*plaf
+  Bp=Bp+delbp*plaf+delar*dpladz-delaz*dpladr
+  endif
 !
 end subroutine field_fourier
 !
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
 subroutine field_fourier_derivs(r,phi,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ    &
-         ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
+  ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
 ! Computes the field and its derivatives using central differences 
 ! for the field components computed by "field_fourier".
 !
-use field_divB0_mod, only: field_eq, stretch_coords, inthecore
 
 implicit none
 !
@@ -1716,5 +854,422 @@ call field_fourier(r,phi,z,Br,Bp,Bz,dBrdR0,dBrdp0,dBrdZ0          &
 !
 end subroutine field_fourier_derivs
 !
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine inthecore(R,Z)
 !
+  use inthecore_mod
+  use input_files,  only : iunit,fluxdatapath
+  use field_eq_mod, only : psif,dpsidr,dpsidz,d2psidr2,d2psidrdz,d2psidz2
+  use utils_bdivfree_mod, only: localizer
+!
+  implicit none
+!
+  integer :: i
+  double precision :: R,Z,rho2,thet,scalp,xx,yy
+  double precision :: weight,dweight,ddweight
+  double precision, dimension(4) :: x,y
+  double precision, dimension(:), allocatable :: ri,zi
+!
+  if(prop) then
+    prop=.false.
+    open(iunit,file=trim(fluxdatapath)//'/separ.dat')
+    read(iunit,*) x(1:2)
+    psi_sep=x(2)+(x(1)-x(2))*(1.d0-epssep)
+    psi_cut=x(2)+(x(1)-x(2))*cutoff
+    sigpsi=sign(1.d0,psi_sep-psi_cut)
+    npoi=0
+    do while(npoi.ge.0)
+      npoi=npoi+1
+      read(iunit,*,end=1) rc
+    enddo
+  1  allocate(ri(0:npoi),zi(0:npoi),rho2i(0:npoi),theti(0:npoi))
+    ri=0.d0
+    zi=0.d0
+    close(iunit)
+    open(iunit,file=trim(fluxdatapath)//'/separ.dat')
+    read(iunit,*)
+    do i=1,npoi-1
+      read(iunit,*) ri(i),zi(i)
+    enddo
+    close(iunit)
+    rc=sum(ri(1:npoi-1))/(npoi-1)
+    zc=sum(zi(1:npoi-1))/(npoi-1)
+    rho2i=(ri-rc)**2+(zi-zc)**2
+    theti=atan2(zi-zc,ri-rc)
+    sig=theti(2)-theti(1)
+    do i=2,npoi-2
+      if((theti(i+1)-theti(i))*sig.lt.0.d0) then
+        ijumpb=i
+        exit
+      endif
+    enddo
+    twopi=8.d0*atan2(1.d0,1.d0)
+    ri(1:npoi-1-ijumpb)=rho2i(ijumpb+1:npoi-1)
+    ri(npoi-ijumpb:npoi-1)=rho2i(1:ijumpb)
+    rho2i=ri
+    ri(1:npoi-1-ijumpb)=theti(ijumpb+1:npoi-1)
+    ri(npoi-ijumpb:npoi-1)=theti(1:ijumpb)
+    theti=ri
+    deallocate(ri,zi)
+    sig=theti(2)-theti(1)
+    rho2i(npoi)=rho2i(1)
+    theti(npoi)=theti(1)+sign(twopi,sig)
+    rho2i(0)=rho2i(npoi-1)
+    theti(0)=theti(npoi-1)-sign(twopi,sig)
+  endif
+!
+  rho2=(r-rc)**2+(z-zc)**2
+  thet=atan2(z-zc,r-rc)
+!
+  ibeg=0
+  iend=npoi
+  do while(ibeg+1.lt.iend)
+    i=(ibeg+iend)/2
+    if((thet-theti(i))*sig.gt.0.d0) then
+      ibeg=i
+    else
+      iend=i
+    endif
+  enddo
+  iend=min(iend,npoi-1)
+  ibeg=iend-1
+  x=theti(ibeg-1:iend+1)
+  y=rho2i(ibeg-1:iend+1)
+!
+  xx=thet
+  yy=y(1)*(xx-x(2))/(x(1)-x(2))*(xx-x(3))/(x(1)-x(3))*(xx-x(4))/(x(1)-x(4)) &
+    +y(2)*(xx-x(3))/(x(2)-x(3))*(xx-x(4))/(x(2)-x(4))*(xx-x(1))/(x(2)-x(1)) &
+    +y(3)*(xx-x(4))/(x(3)-x(4))*(xx-x(1))/(x(3)-x(1))*(xx-x(2))/(x(3)-x(2)) &
+    +y(4)*(xx-x(1))/(x(4)-x(1))*(xx-x(2))/(x(4)-x(2))*(xx-x(3))/(x(4)-x(3))
+!
+  if(rho2.gt.yy) then
+    incore=-1
+    return
+  elseif((psif-psi_cut)*sigpsi.lt.0.d0) then
+    incore=1
+    return
+  endif
+!
+  incore=0
+!
+  call localizer(psi_cut,psi_sep,psif,weight,dweight,ddweight)
+!
+  plaf=weight
+  dpladr=dweight*dpsidr
+  dpladz=dweight*dpsidz
+  d2pladr2=ddweight*dpsidr**2+dweight*d2psidr2
+  d2pladrdz=ddweight*dpsidr*dpsidz+dweight*d2psidrdz
+  d2pladz2=ddweight*dpsidz**2+dweight*d2psidz2
+!
+  vacf=1.d0-plaf
+  dvacdr=-dpladr
+  dvacdz=-dpladz
+  d2vacdr2=-d2pladr2
+  d2vacdrdz=-d2pladrdz
+  d2vacdz2=-d2pladz2
+!
+  return
+end subroutine inthecore
+
+subroutine stretch_coords(r,z,rm,zm)
+  use input_files, only : iunit,convexfile
+  implicit none
+  integer icall, i, j, nrz ! number of points "convex wall" in input file
+  integer, parameter :: nrzmx=100 ! possible max. of nrz
+  integer, parameter :: nrhotht=360
+  real(kind=8), parameter :: pi = 3.14159265358979d0
+  real(kind=8) R0,Rw, Zw, htht, Rl, Zl, a, b, r, z, rm, zm, rho, tht, rho_c, delta
+  real(kind=8), dimension(100):: rad_w, zet_w ! points "convex wall"
+  real(kind=8), dimension(:), allocatable :: rho_w, tht_w
+  real(kind=8), dimension(nrhotht) :: rho_wall, tht_wall ! polar coords of CW
+  data icall /0/, delta/1./
+  save
+!----------- 1st call --------------------------------------------------------
+  if(icall .eq. 0) then
+      icall = 1
+      nrz = 0
+      rad_w = 0.
+      zet_w = 0.
+      open(iunit,file=trim(convexfile))
+      do i=1,nrzmx
+        read(iunit,*,END=10)rad_w(i),zet_w(i)
+        nrz = nrz + 1
+      enddo
+10   continue
+      close(iunit)
+
+      nrz = nrz+1
+      rad_w(nrz) = rad_w(1)
+      zet_w(nrz) = zet_w(1)
+      allocate(rho_w(nrz), tht_w(nrz))
+      R0 = (maxval(rad_w(1:nrz)) +  minval(rad_w(1:nrz)))*0.5
+      do i=1,nrz
+        rho_w(i) = sqrt( (rad_w(i)-R0)**2 + zet_w(i)**2 )
+        tht_w(i) = atan2(zet_w(i),(rad_w(i)-R0))
+        if(tht_w(i) .lt. 0.) tht_w(i) = tht_w(i) + 2.*pi
+      enddo
+      htht = 2.*pi/(nrhotht-1)
+      do i=2,nrhotht
+        tht_wall(i) = htht*(i-1)
+        do j=1,nrz-1
+            if(tht_wall(i).ge.tht_w(j) .and. tht_wall(i).le.tht_w(j+1)) then
+              if( abs((rad_w(j+1) - rad_w(j))/rad_w(j)) .gt. 1.e-3) then
+                  a = (zet_w(j+1) - zet_w(j))/(rad_w(j+1) - rad_w(j))
+                  b = zet_w(j) - a*(rad_w(j) - R0)
+                  Rw = b/(tan(tht_wall(i)) - a) + R0
+                  Zw = a*(Rw - R0) + b
+              else
+                  a = (rad_w(j+1) - rad_w(j))/(zet_w(j+1) - zet_w(j))
+                  b = rad_w(j)-R0 - a*zet_w(j)
+                  Zw = b/(1./tan(tht_wall(i)) - a)
+                  Rw = a*Zw + b + R0
+              endif
+            endif
+        enddo
+        rho_wall(i) = sqrt((Rw-R0)**2 + Zw**2)
+      enddo
+      tht_wall(1) = 0.
+      rho_wall(1) = rho_wall(nrhotht)
+!!$  do i=1,nrhotht
+!!$     write(19,*)tht_wall(i), rho_wall(i)
+!!$  enddo
+  endif
+!----------- end of the 1st call --------------------------------------------
+  rm = r
+  zm = z
+  rho = sqrt((r-R0)**2 + z**2)
+  tht = atan2(z,(r-R0))
+  if(tht .lt. 0.) tht = tht + 2.*pi
+  i = modulo(int(tht/htht), nrhotht-1) + 1
+  rho_c = (rho_wall(i+1) - rho_wall(i))/(tht_wall(i+1) - tht_wall(i))   &
+        *(tht - tht_wall(i)) + rho_wall(i)
+!print *,rho,rho_c,i,tht
+  if(rho .ge. rho_c) then
+      rho = rho_c + delta*atan2((rho-rho_c), delta)
+      rm = rho*cos(tht) + R0
+      zm = rho*sin(tht)
+  endif
+
+  return
+end subroutine stretch_coords
+!
+subroutine smear_formfactors(nmodes_ff,nsqpsi_ff,sqpsimin_ff,sqpsimax_ff, &
+  formfactors)
+!
+  use inthecore_mod, only : psi_sep,psi_cut
+  use theta_rz_mod,  only : psiaxis
+  use utils_bdivfree_mod, only: localizer
+!
+  implicit none
+!
+  integer :: nmodes_ff,nsqpsi_ff,i
+  double precision :: sqpsimin_ff,sqpsimax_ff,hsqpsi_ff,apsif
+  double precision :: apsi_sep,apsi_cut,weight,dweight,ddweight
+  double precision :: R=1.d0,Z=0.d0
+  complex(kind=8), dimension(nmodes_ff,nsqpsi_ff) :: formfactors
+!
+  call inthecore(R,Z)
+!
+  hsqpsi_ff=(sqpsimax_ff-sqpsimin_ff)/dfloat(nsqpsi_ff-1)
+  apsi_sep=abs(psi_sep-psiaxis)
+  apsi_cut=abs(psi_cut-psiaxis)
+!
+  do i=1,nsqpsi_ff
+  apsif=(sqpsimin_ff+hsqpsi_ff*dfloat(i-1))**2
+  call localizer(apsi_cut,apsi_sep,apsif,weight,dweight,ddweight)
+  formfactors(:,i)=weight*formfactors(:,i)+1.d0-weight
+  enddo
+!
+end subroutine smear_formfactors
+!
+!
+subroutine field_eq(r,ppp,z,Brad,Bphi,Bzet,dBrdR,dBrdp,dBrdZ  &
+  ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
+!
+  use input_files
+  use field_eq_mod
+  use field_mod, only : iaxieq
+  use spline5_RZ_mod, only: spline, s2dcut
+  use utils_bdivfree_mod, only: read_eqfile_west, read_eqfile2, spline_fpol, splint_fpol, read_dimeq1, &
+                                window_filter, read_eqfile1, read_dimeq_west
+!
+  implicit none
+!
+  integer :: ierr,i,j
+!
+  double precision :: rrr,ppp,zzz,Brad,Bphi,Bzet,dBrdR,dBrdp,dBrdZ  &
+      ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ,r,z
+  double precision :: psihat,fpol,fpol_prime                                         !<=18.12.18
+!
+!-------first call: read data from disk-------------------------------
+  if(icall_eq .lt. 1) then
+!
+  select case(iaxieq)
+  case(0)
+  print *,'axisymmetric equilibrium: EFIT format'
+!
+  call read_dimeq1(nrad,nzet)
+!
+  allocate(rad(nrad),zet(nzet))
+  allocate(psi0(nrad,nzet),psi(nrad,nzet))
+  allocate(splfpol(0:5,nrad))
+!
+  case(1)
+  print *,'axisymmetric equilibrium: WEST format'
+  use_fpol=.false.
+!
+  call read_dimeq_west(nrad,nzet)
+!
+  allocate(rad(nrad),zet(nzet))
+  allocate(psi0(nrad,nzet),psi(nrad,nzet))
+!
+  call read_eqfile_west(nrad, nzet, psib, btf, rtf, rad, zet, psi)
+!
+  case default
+  print *,'axisymmetric equilibrium: unknown format'
+  stop
+  end select
+!
+  if(use_fpol) then                                                                !<=18.12.18
+  call read_eqfile2(nrad, nzet, psi_axis, psi_sep, btf, rtf,    &                !<=18.12.18
+        splfpol(0,:), rad, zet, psi)                                 !<=18.12.18
+  psib=-psi_axis                                                                 !<=18.12.18
+  psi_sep=(psi_sep-psi_axis)*1.d8                                                !<=18.12.18
+  splfpol(0,:)=splfpol(0,:)*1.d6                                                 !<=18.12.18
+  call spline_fpol                                                               !<=18.12.18
+  elseif(iaxieq.eq.0) then
+  call read_eqfile1(nrad, nzet, psib, btf, rtf, rad, zet, psi)
+  endif                                                                            !<=18.12.18
+!
+  ! Filtering:
+  !open(191,file='psi_orig.dat')
+  !do i=1,nrad
+  !write (191,*) psi(i,:)+psib
+  !enddo
+  !close(191)
+  !stop
+  do i=1,nzet
+  call window_filter(nrad,nwindow_r,psi(:,i),psi0(:,i))
+  enddo
+!
+  do i=1,nrad
+  call window_filter(nzet,nwindow_z,psi0(i,:),psi(i,:))
+  enddo
+  !open(191,file='psi_filt.dat')
+  !do i=1,nrad
+  !write (191,*) psi(i,:)
+  !enddo
+  !close(191)
+  !stop
+  ! End filtering
+  !     allocate(xi(nzet),f(nzet))
+  !     npoint = nzet
+  !     xi = zet
+  !     do i=1,nrad
+  !        f = psi(i,:)
+  !        call leastsq(npoint,xi,f)
+  !        psi0(i,:) = f
+  !     enddo
+  !     deallocate(xi,f)
+
+  !     allocate(xi(nrad),f(nrad))
+  !     npoint = nrad
+  !     xi = rad
+  !     do i=1,nzet
+  !        f = psi0(:,i)
+  !        call leastsq(npoint,xi,f)
+  !        psi(:,i) = f
+  !     enddo
+!
+  rad = rad*1.d2 ! cm
+  zet = zet*1.d2 ! cm
+  rtf = rtf*1.d2 ! cm
+  psi = psi*1.d8
+  psib= psib*1.d8
+  btf = btf*1.d4
+!
+  psi=psi+psib
+!
+  hrad = rad(2) - rad(1)
+  hzet = zet(2) - zet(1)
+!
+! rectangular domain:
+  allocate( imi(nzet),ima(nzet),jmi(nrad),jma(nrad) )
+  imi = 1
+  ima = nrad
+  jmi = 1
+  jma = nzet
+!
+!  Computation of the number of data in splpsi
+  icp = 0
+  do i=1,nzet
+  if ( imi(i) .gt. 0 .and. ima(i) .gt. 0 ) then
+  icp = icp + ima(i) - imi(i) + 1
+  endif
+  enddo
+  write(6,*) 'number of points in the table:  ',icp
+!
+  allocate( splpsi(6,6,icp), ipoint(nrad,nzet) )
+!
+  call s2dcut(nrad,nzet,hrad,hzet,psi,imi,ima,jmi,jma,icp,splpsi,ipoint)
+!
+  if(icall_eq.eq.-1) then
+! Quit after initialization with zero field
+  Brad=0.d0
+  Bphi=0.d0
+  Bzet=0.d0
+  dBrdR=0.d0
+  dBrdp=0.d0
+  dBrdZ=0.d0
+  dBpdR=0.d0
+  dBpdp=0.d0
+  dBpdZ=0.d0
+  dBzdR=0.d0
+  dBzdp=0.d0
+  dBzdZ=0.d0
+  icall_eq = 1
+  return
+  endif
+  icall_eq = 1
+  endif
+!
+! ------- end first call ----------------------------------------------
+  rrr=max(rad(1),min(rad(nrad),r))
+  zzz=max(zet(1),min(zet(nzet),z))
+!
+  call spline(nrad,nzet,rad,zet,hrad,hzet,icp,splpsi,ipoint,rrr,zzz, &
+  psif,dpsidr,dpsidz,d2psidr2,d2psidrdz,d2psidz2,ierr)
+!
+  Brad = -dpsidz/rrr
+  Bzet =  dpsidr/rrr
+!
+! axisymmetric case:
+  dBrdp = 0.
+  dBpdp = 0.
+  dBzdp = 0.
+!
+  dBrdR = -d2psidrdz/rrr+dpsidz/rrr**2
+  dBzdZ =  d2psidrdz/rrr
+  dBrdZ = -d2psidz2/rrr
+  dBzdR =  d2psidr2/rrr-dpsidr/rrr**2
+!
+  if(use_fpol) then                                                                  !<=18.12.18
+  psihat=psif/psi_sep                                                              !<=18.12.18
+  if(psihat.gt.1.d0) then                                                          !<=18.12.18
+  fpol=splfpol(0,nrad)                                                           !<=18.12.18
+  fpol_prime=0.d0                                                                !<=18.12.18
+  else                                                                             !<=18.12.18
+  call splint_fpol(psihat,fpol,fpol_prime)                                       !<=18.12.18
+  endif                                                                            !<=18.12.18
+  Bphi = fpol/rrr                                                                  !<=18.12.18
+  dBpdR = fpol_prime*dpsidr/(psi_sep*rrr)-fpol/rrr**2                              !<=18.12.18
+  dBpdZ = fpol_prime*dpsidz/(psi_sep*rrr)                                          !<=18.12.18
+  else                                                                               !<=18.12.18
+  Bphi = btf*rtf/rrr
+  dBpdR = -btf*rtf/rrr**2
+  dBpdZ = 0.
+  endif                                                                              !<=18.12.18
+!
+  return
+end subroutine field_eq
+
+end module utils_field_divB0_mod

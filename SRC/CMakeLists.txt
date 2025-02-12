@@ -6,11 +6,13 @@ add_library(GORILLA STATIC
 	gorilla_settings_mod.f90
 	various_functions_mod.f90 
 	gorilla_diag_mod.f90 
-	canonical_coordinates_mod.f90 
+	canonical_coordinates_mod.f90
+	splint_vmec_data.f90
 	nctools_module.f90 
 	contrib/rkf45.f90 
 	odeint_rkf45.f90 
-	runge_kutta_mod.f90 
+	runge_kutta_mod.f90
+	splint_can_coord.f90
 	magfie.f90 
 	chamb_m.f90 
 	vmecinm_m.f90 
@@ -27,8 +29,8 @@ add_library(GORILLA STATIC
 	points_2d.f90
 	circular_mesh.f90
 	circular_mesh_SOLEDGE3X_EIRENE.f90
-	tetra_grid_mod.f90 
-	make_grid_rect.f90 
+	tetra_grid_mod.f90
+	utils_bdivfree.f90
 	bdivfree.f90
     strong_electric_field_mod.f90 
 	tetra_physics_mod.f90

@@ -11,7 +11,7 @@
 !
       use tetra_physics_mod, only: coord_system
       use tetra_grid_settings_mod, only: grid_kind
-      use spline_vmec_data_mod, only: splint_vmec_data
+      use splint_vmec_data_mod, only: splint_vmec_data
       use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
 !
       implicit none
@@ -148,7 +148,7 @@
     function theta_vmec2theta_sym_flux(s,theta_vmec,varphi) result(theta_sym_flux) 
 !
         use constants, only: pi
-        use spline_vmec_data_mod, only: splint_vmec_data
+        use splint_vmec_data_mod, only: splint_vmec_data
 !
         implicit none
 !        
