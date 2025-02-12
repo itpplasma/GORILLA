@@ -32,7 +32,7 @@ module magfie_mod
 !  Called routines: vmec_field
 !
 !
-  !use spline_vmec_data_mod, only: vmec_field
+    use splint_vmec_data_mod, only: vmec_field
 !
   implicit none
 !
@@ -205,7 +205,7 @@ module magfie_mod
 !
 !  Called routines: canonical_field
 !
-  !use get_canonical_coordinates_mod, only: splint_can_coord
+  use splint_can_coord_mod, only: splint_can_coord
 !
   implicit none
 !
