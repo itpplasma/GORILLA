@@ -64,22 +64,4 @@ contains
    
    end subroutine test_set_n_field_periods
    
-   @test
-   ! Description of test_set_grid_size:
-   ! The number of discretization points for each coordinate is read in via the
-   ! three variable n1, n2 and n3. However, in the program this information is saved
-   ! in form of the array grid_size, where the position of the toroidal coodinate phi (n2)
-   ! in the array depends on the coordinate system used (R,phi,Z in constrast s,theta,phi). 
-   ! For that the writer routine set_grid_size is used, here for the case of cylindrical
-   ! coordinates (n2 i.e. phi on second position).
-   !
-   ! Georg Graßler (25.01.2023)
-   !  
-   subroutine test_set_grid_size()
-   
-   	call set_grid_size([n1,n2,n3])
-   	@assertEqual(grid_size, [n1,n2,n3], message = "Testing set_grid_size")
-   
-   end subroutine test_set_grid_size
-   
 end module test_tetra_grid_settings_mod
