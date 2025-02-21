@@ -88,3 +88,13 @@ EXAMPLES/PYTHON_RUN
 /RUN
 /SETUP_ENERGY
 /DEBUGGING
+954.zip
+954/954.head
+954/Doc/Makefile
+954/F90/Drivers/JenkinsTraubSolver.f90
+954/F90/Drivers/PolynomialRootsCompare.f90
+954/F90/Drivers/PolynomialRootsTimings.f90
+954/F90/Src/Polynomial234RootSolvers.f90
+954/F90/Src/SetWorkingPrecision.f90
+954/F90/Src/SetWorkingPrecision.f90.old
+SRC/contrib/Polynomial234RootSolvers.f90

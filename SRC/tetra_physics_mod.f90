@@ -452,6 +452,7 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
 !
           end select    
       end select
+      
 !
       !Consider periodic boundary conditions
       select case(grid_kind)
