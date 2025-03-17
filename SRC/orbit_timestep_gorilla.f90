@@ -193,6 +193,9 @@ module orbit_timestep_gorilla_mod
             else
                 boole_bmod_multiplier = .false.
             endif
+
+            print*, "boole_grid = ", boole_grid
+            boole_grid = .true.
 !
             if(boole_grid) then
 !  
