@@ -402,8 +402,9 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                     endif
 !
                     ntetr_searched = entry_counter(hexahedron_index) + & 
-                                    & numerical_corr_plus*entry_counter(hexahedron_index + numerical_corr_plus*na*nc) + &
-                                    & numerical_corr_minus*entry_counter(hexahedron_index - numerical_corr_minus*na*nc)
+                        & numerical_corr_plus *entry_counter(mod(hexahedron_index+numerical_corr_plus *na*nc-1,num_hexahedra)+1) + &
+                        & numerical_corr_minus* &
+                        & entry_counter(mod(hexahedron_index-numerical_corr_minus*na*nc-1+num_hexahedra,num_hexahedra)+1)
                     if (ntetr_searched.eq.0) then
 !print*, 'starting position is out of computation domain'
                         ind_tetr_out = -1
@@ -458,9 +459,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
                 ind_tetr_out = ind_search_tetra
                 iface = 0
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
+
                 do ind_normdist = 1,4 !calculate distances
                     if (ind_normdist .ne. 1) then
                     cur_dist_value(ind_normdist) = &
@@ -502,6 +501,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !print *, 'i_tetra_try',i_tetra_try
 !print *, 'ind_tetr',ind_tetr_out
 !print *, 'x',x
+                        if (ind_tetr_out.eq.-1) exit
 !
                         !Write 'tried' tetrahedron in 'memory'-vector
                         ind_tetr_tried(i_tetra_try) = ind_tetr_out
@@ -553,7 +553,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                                 iface_new = l
                                 call pusher_handover2neighbour(ind_tetr_save,ind_tetr_out,iface_new,x,iper_phi)
 !
-                                if( any(ind_tetr_out.eq.ind_tetr_tried)) then
+                                if(any(ind_tetr_out.eq.ind_tetr_tried).or.(ind_tetr_out.eq.-1)) then
 !print *, 'Denied ind_tetr',ind_tetr_out
 !print *, 'Denied iface_new', l
                                     x = x_save
@@ -571,10 +571,12 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                     deallocate(ind_tetr_tried)
 !
                 endif ! n_plane_conv.gt.0
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-                exit !this means the tetrahedron was found
+
+                if (ind_tetr_out.eq.-1) then
+                    iface = -1
+                else
+                    exit !this means the tetrahedron was found
+                endif
 !
             else !not inside
                 ind_tetr_out = -1
