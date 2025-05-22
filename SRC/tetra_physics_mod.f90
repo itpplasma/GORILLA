@@ -1,5 +1,7 @@
 !
   module tetra_physics_mod
+
+    use, intrinsic :: iso_fortran_env, only: dp => real64
 !
     implicit none
 !---------------------------------------------------------------------------------------------------------
@@ -115,12 +117,13 @@
 !---------------------------------------------------------------------------------------------------------
 !
     double precision,public :: cm_over_e,particle_charge,particle_mass,mag_axis_R0,mag_axis_Z0
+    real(dp), dimension(:), allocatable :: phi_elec
     integer, public, protected :: coord_system
     integer, public, protected :: sign_sqg
 !   
   contains
 !
-    subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in)
+    subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in, i_option)
 !
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
                                 & set_verts_sthetaphi,verts_xyz
@@ -139,6 +142,7 @@
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in
+      integer, intent(in), optional :: i_option
       integer :: iv,i,j,k,l,ind_tetr,ierr
       integer :: nr,nphi,nz,navec,inp_label
       integer,dimension(4) :: vertex_indices
@@ -150,8 +154,8 @@
       double precision, dimension(:,:),allocatable :: avec
       double precision, dimension(:),           allocatable :: A_x1,A_x2,A_x3
       double precision, dimension(:),           allocatable :: E_x1,E_x2,E_x3,v_E_x1,v_E_x2,v_E_x3,v2_E_mod
-      double precision, dimension(:),           allocatable :: h_x1,h_x2,h_x3,bmod,phi_elec,sqg,dR_ds,dZ_ds
-      double precision, dimension(:),         allocatable :: rnd_axi_noise
+      double precision, dimension(:),           allocatable :: h_x1,h_x2,h_x3,bmod,sqg,dR_ds,dZ_ds
+      double precision, dimension(:),           allocatable :: rnd_axi_noise
       double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                           ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
       double precision :: s,theta,phi,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,       &
@@ -170,21 +174,23 @@
       complex, dimension(:,:), allocatable :: A_x1_mat, A_x2_mat, A_x3_mat, b_x1_mat, b_x2_mat, b_x3_mat
 !
       !Allocation of quantities dependent on number of vertices
-      allocate(tetra_physics(ntetr))
+      if (.not.allocated(tetra_physics)) allocate(tetra_physics(ntetr))
       allocate(A_x1(nvert),A_x2(nvert),A_x3(nvert))
       allocate(bmod(nvert),h_x1(nvert),h_x2(nvert),h_x3(nvert))
-      allocate(phi_elec(nvert))
+      if (.not.allocated(phi_elec)) allocate(phi_elec(nvert))
 !
       !Hamiltonian time quantities
-      allocate(hamiltonian_time(ntetr))
+      if (.not.allocated(hamiltonian_time)) allocate(hamiltonian_time(ntetr))
 !
-      !Distinguish the Processing of particle handover to tetrahedron neighbour
-      select case(handover_processing_kind)
-          case(1) !Processing with special treatment of periodic boundaries and manipulation of periodic position values
-              allocate(tetra_skew_coord(1)) !Dummy value for parallelization
-          case(2) !Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included below
-              allocate(tetra_skew_coord(ntetr))
-      end select
+      if (.not.allocated(tetra_skew_coord)) then
+        !Distinguish the Processing of particle handover to tetrahedron neighbour
+        select case(handover_processing_kind)
+            case(1) !Processing with special treatment of periodic boundaries and manipulation of periodic position values
+                allocate(tetra_skew_coord(1)) !Dummy value for parallelization
+            case(2) !Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included below
+                allocate(tetra_skew_coord(ntetr))
+        end select
+      endif
 !
       !Distinguish, in between EFIT and VMEC
       if(grid_kind.eq.3) then !VMEC
@@ -403,7 +409,15 @@
                                 & v_E_x1(iv),v_E_x2(iv),v_E_x3(iv),v2_E_mod(iv))
         else
             !Electrostatic potential as a product of co-variant component of vector potential and a factor eps_Phi (gorilla.inp)
-            phi_elec(iv) = A_x2(iv)*eps_Phi
+            if (present(i_option)) then
+              if (i_option.eq.12) then
+                !Do nothing, phi_elec is written on from the outside
+              else
+                phi_elec(iv) = A_x2(iv)*eps_Phi
+              endif
+            else
+              phi_elec(iv) = A_x2(iv)*eps_Phi
+            endif
         endif
 !
         !Optionally add axisymmetric noise to electrostatic potential
@@ -989,7 +1003,7 @@ enddo
         deallocate(davec_dx1,davec_dx2,davec_dx3)
         deallocate(avec)
         deallocate(A_x1,A_x2,A_x3)
-        deallocate(h_x1,h_x2,h_x3,bmod,phi_elec)
+        deallocate(h_x1,h_x2,h_x3,bmod)
         if(boole_strong_electric_field) deallocate(E_x1,E_x2,E_x3)
         if(boole_strong_electric_field) deallocate(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
         if(coord_system.eq.2) deallocate(dR_ds,dZ_ds)
