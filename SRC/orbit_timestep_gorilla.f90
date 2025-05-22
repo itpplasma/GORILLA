@@ -63,6 +63,7 @@ module orbit_timestep_gorilla_mod
                 boole_initialized = .true.
             endif
 !           
+            !print*, 't_step, sign_t_step = ', t_step, sign_t_step
             !Exit the subroutine after initialization, if time step equals zero
             if(t_step.eq.0.d0) return
 !
@@ -203,13 +204,13 @@ module orbit_timestep_gorilla_mod
                 select case(ispecies)
                     case(1) !electron
                         !electric charge of particle
-                        particle_charge = echarge
+                        particle_charge = -echarge
 !                   
                         !mass of particle
                         particle_mass = ame
 !                    
                         !mass charge ratio
-                        cm_over_e = clight*ame/echarge
+                        cm_over_e = -clight*ame/echarge
 !      
                     case(2) !deuterium ion
                         !electric charge of particle
