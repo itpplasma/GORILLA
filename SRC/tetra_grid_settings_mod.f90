@@ -31,7 +31,7 @@
     !MHD equilibrium filename
     character*64,public,protected :: g_file_filename
     character*64,public,protected :: convex_wall_filename
-    character*64,public,protected :: netcdf_filename
+    character*100,public,protected :: netcdf_filename
 !
     !MESH_SOLEDGE3X_EIRENE filename
     character*64,public,protected :: knots_SOLEDGE3X_EIRENE_filename
@@ -102,7 +102,7 @@
             integer, dimension(3),intent(in)  :: grid_size_in
             double precision :: s_ratio
 !
-            if ((grid_kind.eq.2).or.(grid_kind.eq.3)) then
+            if (grid_kind.eq.2) then
                 !s_ratio = ratio of innermost s value (= sfc_s_min) and s value at second innermost ring
                 s_ratio = (sfc_s_min + (1.d0-sfc_s_min)/(dble(grid_size_in(1)))) / sfc_s_min
                 n_extra_rings = int(abs(log(s_ratio)/log(10d0)))
