@@ -64,7 +64,7 @@ print*, 'grid_for_find_tetra started'
         amin = minval(verts_abc(ind_a,:)) - 2*eps
         amax = maxval(verts_abc(ind_a,:)) + 2*eps
         bmin = 0
-        bmax = 2*pi
+        bmax = 2*pi/n_field_periods
         cmin = minval(verts_abc(ind_c,:)) - 2*eps
         cmax = maxval(verts_abc(ind_c,:)) + 2*eps
         if (boole_axi_symmetry) bmax = 2*pi/grid_size(2)
@@ -73,11 +73,11 @@ print*, 'grid_for_find_tetra started'
             cmax = 2*pi + 2*eps
         endif
 !
-        na = grid_size(ind_a)*a_factor
+        na = grid_size(1)*a_factor
         delta_a = (amax - amin)/na
 !
-        if (c_factor.eq.0) c_factor = maxval((/nint((cmax-cmin)/(grid_size(ind_c)*delta_a)),1/))
-        nc = grid_size(ind_c)*c_factor
+        if (c_factor.eq.0) c_factor = maxval((/nint((cmax-cmin)/(grid_size(3)*delta_a)),1/))
+        nc = grid_size(3)*c_factor
 !
         if (grid_kind.eq.4) then
             na = 200*a_factor
@@ -92,7 +92,7 @@ print*, 'grid_for_find_tetra started'
         if (b_factor.eq.0) b_factor = maxval((/nint(2*pi/(grid_size(2)*n_field_periods*sqrt((delta_a**2+delta_c**2)/2))),1/))
 !
         nb = grid_size(2)*b_factor
-        delta_b = 2*pi/nb
+        delta_b = (bmax - bmin)/nb
 print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta_b, delta_c
 !
         max_nb = nb
@@ -111,6 +111,7 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
         maxtetr = ntetr
         if (boole_axi_symmetry) maxtetr = ntetr/grid_size(2)
 !
+        !determine the number of tetrahedra per hexahedron box
         !$OMP PARALLEL DEFAULT(NONE) &
         !$OMP& SHARED(maxtetr,verts_abc,ind_a,ind_b,ind_c,amin,cmin,delta_a,delta_b,delta_c,tetra_grid,na,nb,nc,entry_counter, &
         !$OMP& grid_size,n_field_periods,coord_system) &
@@ -122,20 +123,20 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
             tetr_cmin = minval(verts_abc(ind_c,tetra_grid(i)%ind_knot([1,2,3,4]))) - eps
             tetr_cmax = maxval(verts_abc(ind_c,tetra_grid(i)%ind_knot([1,2,3,4]))) + eps
 !
-            if ((coord_system.eq.2).and.((tetr_cmax-tetr_cmin).gt.(2*pi/(grid_size(ind_c))+eps))) then !correct the case when theta is 0 but should be 2*pi
+            if ((coord_system.eq.2).and.((tetr_cmax-tetr_cmin).gt.(2*pi/(grid_size(3))+3*eps))) then !correct the case when theta is 0 but should be 2*pi
                 tetr_cmin = tetr_cmax
                 tetr_cmax = 2*pi
             endif
 !
             steps_a(1) = int((tetr_amin-amin)/delta_a) + 1
             steps_a(2) = int((tetr_amax-amin)/delta_a) + 1
-            steps_b(1) = nint(minval(verts_abc(ind_b,tetra_grid(i)%ind_knot([1,2,3,4])))/delta_b) + 1
-            steps_b(2) = nint(maxval(verts_abc(ind_b,tetra_grid(i)%ind_knot([1,2,3,4])))/delta_b)
+            steps_b(1) = int(minval(verts_abc(ind_b,tetra_grid(i)%ind_knot([1,2,3,4])))/delta_b) + 1
+            steps_b(2) = int(maxval(verts_abc(ind_b,tetra_grid(i)%ind_knot([1,2,3,4])))/delta_b) + 1
             steps_c(1) = int((tetr_cmin-cmin)/delta_c) + 1
             steps_c(2) = int((tetr_cmax-cmin)/delta_c) + 1
 !
             if (verts_abc(ind_b,tetra_grid(i)%ind_knot(1)).gt.verts_abc(ind_b,tetra_grid(i)%ind_knot(4))) then !correct the cases where max phi is actually 2*pi but is instead given as 0
-                steps_b(1) = steps_b(2) + 1
+                steps_b(1) = steps_b(2)
                 steps_b(2) = nb
             endif
 !
@@ -143,8 +144,8 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
                 do c = steps_c(1), steps_c(2)
                     do a = steps_a(1), steps_a(2)
                         box_index = (b-1)*na*nc + & !go to the correct slice
-                                & (c-1)*na + & !go to correct height/tetha value
-                                & a !go to correct box
+                                  & (c-1)*na + & !go to correct height/tetha value
+                                  & a !go to correct box
                             !$omp critical
                             entry_counter(box_index) = entry_counter(box_index)+1
                            !$omp end critical
@@ -171,21 +172,21 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
             tetr_cmin = minval(verts_abc(ind_c,tetra_grid(i)%ind_knot([1,2,3,4])))
             tetr_cmax = maxval(verts_abc(ind_c,tetra_grid(i)%ind_knot([1,2,3,4])))
 !
-            if ((coord_system.eq.2).and.((tetr_cmax-tetr_cmin).gt.(2*pi/(grid_size(ind_c))+eps))) then !correct the case when theta is 0 but should be 2*pi
+            if ((coord_system.eq.2).and.((tetr_cmax-tetr_cmin).gt.(2*pi/(grid_size(3))+3*eps))) then !correct the case when theta is 0 but should be 2*pi
                 tetr_cmin = tetr_cmax
                 tetr_cmax = 2*pi
             endif
 !
             steps_a(1) = int((tetr_amin-amin)/delta_a) + 1
             steps_a(2) = int((tetr_amax-amin)/delta_a) + 1
-            steps_b(1) = nint(minval(verts_abc(ind_b,tetra_grid(i)%ind_knot([1,2,3,4])))/delta_b) + 1
-            steps_b(2) = nint(maxval(verts_abc(ind_b,tetra_grid(i)%ind_knot([1,2,3,4])))/delta_b)
+            steps_b(1) = int(minval(verts_abc(ind_b,tetra_grid(i)%ind_knot([1,2,3,4])))/delta_b) + 1
+            steps_b(2) = int(maxval(verts_abc(ind_b,tetra_grid(i)%ind_knot([1,2,3,4])))/delta_b) + 1
             steps_c(1) = int((tetr_cmin-cmin)/delta_c) + 1
             steps_c(2) = int((tetr_cmax-cmin)/delta_c) + 1
 !
             if (verts_abc(ind_b,tetra_grid(i)%ind_knot(1)).gt.verts_abc(ind_b,tetra_grid(i)%ind_knot(4))) then !correct the cases where max phi is actually 2*pi but is instead given as 0
                 ! if ((i.gt.ntetr/grid_size(2)).and.(steps_b(1).eq.1)) then !correct the cases where max phi is actually 2*pi but is instead given as 0
-                steps_b(1) = steps_b(2) + 1
+                steps_b(1) = steps_b(2)
                 steps_b(2) = nb
             endif
 !
