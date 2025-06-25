@@ -573,8 +573,8 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
           endif
 !
         enddo
-        !Hard coded 4th plane
-        tetra_physics(ind_tetr)%dist_ref = tetra_physics(ind_tetr)%dist_ref_vec(4)
+        !Hard coded 1st plane
+        tetra_physics(ind_tetr)%dist_ref = tetra_physics(ind_tetr)%dist_ref_vec(1)
 !
     !module of B in the first vertex:
     tetra_physics(ind_tetr)%bmod1 = avec(1,7)
