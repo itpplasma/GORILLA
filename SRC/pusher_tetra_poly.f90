@@ -198,7 +198,7 @@ endif
             double precision, intent(out)                         :: t_pass
             logical, intent(out)                                  :: boole_t_finished
             integer,intent(out)                                   :: iper_phi
-            type(optional_quantities_type), intent(out),optional  :: optional_quantities
+            type(optional_quantities_type), intent(out), optional :: optional_quantities
 !
             logical, dimension(4)                                 :: boole_faces
             integer                                               :: i,j,k
@@ -211,7 +211,7 @@ endif
             double precision, allocatable                         :: t_hamiltonian
             double precision, dimension(:), allocatable           :: t_hamiltonian_list
             integer                                               :: i_step_root
-            double precision                                      :: t_remain_new
+            double precision                                      :: t_remain_new, normal_velocity_function
 !
             call initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
             !In case of first call of orbit integration -> initialize the intermediate_steps_array
@@ -321,10 +321,15 @@ if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: Analytic app
                 !If previous checks were fine, check for velocity and potentially prolong trajectory (only for 2nd order here)
                 if (boole_face_correct) then
                     !Validation for vnorm
-                    if(normal_velocity_func(z,iface_new).gt.0.d0) then
+                    if (i_precomp.eq.0) then
+                        normal_velocity_function = normal_v_func_from_trajectory(poly_order,iface_new,tau)
+                    else 
+                        normal_velocity_function = normal_velocity_func(z,iface_new)
+                    endif
+                    if(normal_velocity_function.gt.0.d0) then
 if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: normal velocity'
                         if(poly_order.gt.2) then
-                            boole_face_correct = .false.                       
+                            boole_face_correct = .false.
                         else
 !
                             call prolonged_trajectory(poly_order,i_scaling,z,tau,ind_tetr_inout,iface, iface_new, &
@@ -332,7 +337,7 @@ if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: normal veloc
                             if(.not.boole_analytical_approx) return
                         endif
                     endif !Normal velocity is positive at exit point   
-                endif             
+                endif
 !
             endif !boole face correct
 !
@@ -807,7 +812,7 @@ if(diag_pusher_tetry_poly)  print *, 'Error: Tau is out of safety boundary'
         !Only executed if poly_order > 2, checks if exit time is within upper limit
         call check_exit_time(tau,tau_max,boole_face_correct,poly_order)
         !Validation loop ('3-planes'-control) 
-        call check_three_planes(z,iface_new,boole_face_correct)        
+        call check_three_planes(z,iface_new,boole_face_correct)
         call check_velocity(z,iface_new,boole_face_correct,poly_order)
         call check_face_convergence(z,iface_new,boole_face_correct)
 
@@ -2698,7 +2703,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
     function normal_velocity_func(z,iface)
-!        
+!
         use tetra_physics_poly_precomp_mod, only: tetra_physics_poly4,tetra_physics_poly1
         use tetra_physics_mod, only: tetra_physics, cm_over_e
         use poly_without_precomp_mod, only: b
@@ -2728,6 +2733,42 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         endif
 !        
     end function normal_velocity_func
+
+    function normal_v_func_from_trajectory(poly_order,iface,tau)
+!
+            use poly_without_precomp_mod
+            use tetra_physics_mod, only: tetra_physics
+!
+            implicit none
+!
+            integer, intent(in)                          :: poly_order, iface
+            double precision, intent(in)                 :: tau
+            double precision                             :: tau2_half,tau3_sixth
+            double precision                             :: normal_v_func_from_trajectory
+!
+            if(poly_order.ge.1) then
+                normal_v_func_from_trajectory = sum(tetra_physics(ind_tetr)%anorm(:,iface) * (b(1:3)+amat_in_z(1:3)))
+            endif
+!
+            if(poly_order.ge.2) then
+                tau2_half = tau**2*0.5d0
+                normal_v_func_from_trajectory = normal_v_func_from_trajectory + sum(tetra_physics(ind_tetr)%anorm(:,iface) * &
+                                                tau*(amat_in_b(1:3) + amat2_in_z(1:3)))
+            endif
+!
+            if(poly_order.ge.3) then
+                tau2_half = tau**2*0.5d0
+                normal_v_func_from_trajectory = normal_v_func_from_trajectory + sum(tetra_physics(ind_tetr)%anorm(:,iface) * &
+                                                tau2_half*(amat2_in_b(1:3) + amat3_in_z(1:3)))
+            endif
+
+            if(poly_order.ge.4) then
+                tau3_sixth = tau**3/6.d0
+                normal_v_func_from_trajectory = normal_v_func_from_trajectory + sum(tetra_physics(ind_tetr)%anorm(:,iface) * &
+                                                tau3_sixth *(amat3_in_b(1:3) + amat4_in_z(1:3)))
+            endif
+!        
+    end function normal_v_func_from_trajectory
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
