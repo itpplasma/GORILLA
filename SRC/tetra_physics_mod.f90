@@ -1,4 +1,5 @@
 !
+
   module tetra_physics_mod
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
@@ -132,8 +133,9 @@
       use field_mod, only: ipert
       use various_functions_mod, only: dmatinv3
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
-            & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
-            & non_axi_noise_eps_A, boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
+            & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, boole_non_axi_noise_elec_pot, &
+            & axi_noise_eps_A, axi_noise_eps_Phi, non_axi_noise_eps_A, non_axi_noise_eps_Phi, &
+            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
       use differentiate_mod, only: differentiate
       use splint_vmec_data_mod, only: splint_vmec_data
@@ -146,7 +148,7 @@
       integer :: iv,i,j,k,l,ind_tetr,ierr
       integer :: nr,nphi,nz,navec,inp_label
       integer,dimension(4) :: vertex_indices
-      double precision :: rnd_non_axi_noise_x1,rnd_non_axi_noise_x2,rnd_non_axi_noise_x3, bmod_multiplier,met_det
+      double precision :: rnd_non_axi_noise_x1,rnd_non_axi_noise_x2,rnd_non_axi_noise_x3,rnd_non_axi_noise_phi_elec, bmod_multiplier,met_det
       double precision, dimension(4)   :: p_x1,p_x2,p_x3
       double precision, dimension(3) :: cur_comp1, cur_comp2, cur_comp3
       double precision, dimension(3) :: curCoordi
@@ -237,7 +239,7 @@
       !Manipulation of the axisymmetric electromagnetic field with noise
       ! - Check that noise is only added in the case of axisymmetric electromagnetic field
       ! - Precompute noise in the case of axisymmetric noise
-      if(boole_axi_noise_vector_pot.or.boole_axi_noise_elec_pot.or.boole_non_axi_noise_vector_pot) then
+      if(boole_axi_noise_vector_pot.or.boole_axi_noise_elec_pot.or.boole_non_axi_noise_vector_pot.or.boole_non_axi_noise_elec_pot) then
             select case(grid_kind)
                 case(1,2)
                     if(boole_axi_noise_vector_pot.or.boole_axi_noise_elec_pot) then
@@ -423,6 +425,12 @@
         !Optionally add axisymmetric noise to electrostatic potential
         if(boole_axi_noise_elec_pot) then
             phi_elec(iv) = phi_elec(iv)+phi_elec(iv)*axi_noise_eps_Phi*rnd_axi_noise(modulo(iv-1,(nvert/grid_size(2))) +1)
+        endif
+
+        !Optionally add non-axisymmetric noise to electrostatic potential
+        if(boole_non_axi_noise_elec_pot) then
+            call random_number(rnd_non_axi_noise_phi_elec)
+            phi_elec(iv) = phi_elec(iv)+phi_elec(iv)*non_axi_noise_eps_Phi*rnd_non_axi_noise_phi_elec
         endif
 !
       enddo !iv (index vertex)
