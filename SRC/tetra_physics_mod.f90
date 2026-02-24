@@ -1347,5 +1347,20 @@ enddo
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+      subroutine deallocate_tetra_physics
+!
+! Deallocates tetra_physics arrays to allow rebuilding with different grid
+!
+        implicit none
+!
+        if (allocated(tetra_physics)) deallocate(tetra_physics)
+        if (allocated(tetra_skew_coord)) deallocate(tetra_skew_coord)
+        if (allocated(hamiltonian_time)) deallocate(hamiltonian_time)
+        if (allocated(phi_elec)) deallocate(phi_elec)
+!
+      end subroutine deallocate_tetra_physics
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
   end module tetra_physics_mod
 

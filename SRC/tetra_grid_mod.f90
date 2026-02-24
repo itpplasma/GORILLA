@@ -711,5 +711,21 @@ b: do ind_tetr=1,ntetr
 !
     end subroutine check_neighbour
 !
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine deallocate_tetra_grid
+!
+! Deallocates tetra_grid arrays to allow rebuilding with different parameters
+!
+    implicit none
+!
+    if (allocated(tetra_grid)) deallocate(tetra_grid)
+    if (allocated(verts_rphiz)) deallocate(verts_rphiz)
+    if (allocated(verts_xyz)) deallocate(verts_xyz)
+    if (allocated(verts_sthetaphi)) deallocate(verts_sthetaphi)
+    if (allocated(verts_theta_vmec)) deallocate(verts_theta_vmec)
+!
+    end subroutine deallocate_tetra_grid
+!
 end module tetra_grid_mod
 

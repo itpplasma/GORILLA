@@ -65,7 +65,8 @@ module tetra_physics_poly_precomp_mod
     !$OMP THREADPRIVATE(tetra_physics_poly_perpinv,boole_precomp_poly_perpinv)
 !
     public :: make_precomp_poly,make_precomp_poly_perpinv, &
-            & initialize_boole_precomp_poly_perpinv,alloc_precomp_poly_perpinv
+            & initialize_boole_precomp_poly_perpinv,alloc_precomp_poly_perpinv, &
+            & deallocate_precomp_poly
 !    
     contains
 !
@@ -559,6 +560,21 @@ module tetra_physics_poly_precomp_mod
             boole_precomp_poly_perpinv(i) = .true.
 !
         end subroutine make_precomp_poly_perpinv
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine deallocate_precomp_poly
+!
+! Deallocates precomputed polynomial arrays to allow rebuilding with different grid
+!
+        implicit none
+!
+        if (allocated(tetra_physics_poly1)) deallocate(tetra_physics_poly1)
+        if (allocated(tetra_physics_poly4)) deallocate(tetra_physics_poly4)
+        if (allocated(tetra_physics_poly_perpinv)) deallocate(tetra_physics_poly_perpinv)
+        if (allocated(boole_precomp_poly_perpinv)) deallocate(boole_precomp_poly_perpinv)
+!
+        end subroutine deallocate_precomp_poly
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

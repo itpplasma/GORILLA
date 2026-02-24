@@ -123,6 +123,30 @@ module magdata_in_symfluxcoordinates_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+  subroutine deallocate_magdata_in_symfluxcoord
+!
+! Deallocates arrays to allow reloading with different grid parameters
+!
+  use magdata_in_symfluxcoor_mod
+!
+  implicit none
+!
+  if (allocated(rbeg)) deallocate(rbeg)
+  if (allocated(rsmall)) deallocate(rsmall)
+  if (allocated(qsaf)) deallocate(qsaf)
+  if (allocated(psisurf)) deallocate(psisurf)
+  if (allocated(phitor)) deallocate(phitor)
+  if (allocated(R_st)) deallocate(R_st)
+  if (allocated(Z_st)) deallocate(Z_st)
+  if (allocated(bmod_st)) deallocate(bmod_st)
+  if (allocated(sqgnorm_st)) deallocate(sqgnorm_st)
+!
+  load = .true.
+!
+  end subroutine deallocate_magdata_in_symfluxcoord
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
   subroutine magdata_in_symfluxcoord_ext(inp_label,s,psi,theta,q,dq_ds, &
                                          sqrtg,bmod,dbmod_dtheta,R,dR_ds,dR_dtheta,       &
                                          Z,dZ_ds,dZ_dtheta)
