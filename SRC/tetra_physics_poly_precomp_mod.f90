@@ -65,6 +65,7 @@ module tetra_physics_poly_precomp_mod
     !$OMP THREADPRIVATE(tetra_physics_poly_perpinv,boole_precomp_poly_perpinv)
 !
     public :: make_precomp_poly,make_precomp_poly_perpinv, &
+            & deallocate_precomp_poly, &
             & initialize_boole_precomp_poly_perpinv,alloc_precomp_poly_perpinv
 !    
     contains
@@ -499,6 +500,19 @@ module tetra_physics_poly_precomp_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+        subroutine deallocate_precomp_poly()
+!
+            implicit none
+!
+            if (allocated(tetra_physics_poly1)) deallocate(tetra_physics_poly1)
+            if (allocated(tetra_physics_poly4)) deallocate(tetra_physics_poly4)
+            if (allocated(tetra_physics_poly_perpinv)) deallocate(tetra_physics_poly_perpinv)
+            if (allocated(boole_precomp_poly_perpinv)) deallocate(boole_precomp_poly_perpinv)
+!
+        end subroutine deallocate_precomp_poly
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
         subroutine make_precomp_poly_perpinv(perpinv,perpinv2)
 !
             use tetra_grid_mod, only: ntetr
@@ -563,4 +577,3 @@ module tetra_physics_poly_precomp_mod
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
 end module tetra_physics_poly_precomp_mod
-

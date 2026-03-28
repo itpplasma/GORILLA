@@ -121,6 +121,8 @@
     integer, public, protected :: coord_system
     integer, public, protected :: sign_sqg
 !   
+  public :: make_tetra_physics, deallocate_tetra_physics
+!
   contains
 !
     subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in, i_option)
@@ -1014,6 +1016,19 @@ enddo
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+      subroutine deallocate_tetra_physics()
+!
+        implicit none
+!
+        if (allocated(tetra_physics)) deallocate(tetra_physics)
+        if (allocated(tetra_skew_coord)) deallocate(tetra_skew_coord)
+        if (allocated(hamiltonian_time)) deallocate(hamiltonian_time)
+        if (allocated(phi_elec)) deallocate(phi_elec)
+!
+      end subroutine deallocate_tetra_physics
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
       function isinside(ind_tetr,current_x) result(bool_isinside)
 !
         use constants, only: eps
@@ -1346,4 +1361,3 @@ enddo
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
   end module tetra_physics_mod
-

@@ -192,6 +192,23 @@
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+      subroutine deallocate_tetra_grid()
+!
+        implicit none
+!
+        if (allocated(tetra_grid)) deallocate(tetra_grid)
+        if (allocated(verts_rphiz)) deallocate(verts_rphiz)
+        if (allocated(verts_xyz)) deallocate(verts_xyz)
+        if (allocated(verts_sthetaphi)) deallocate(verts_sthetaphi)
+        if (allocated(verts_theta_vmec)) deallocate(verts_theta_vmec)
+!
+        ntetr = 0
+        nvert = 0
+!
+      end subroutine deallocate_tetra_grid
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
 subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
 !
     use constants, only: pi
@@ -712,4 +729,3 @@ b: do ind_tetr=1,ntetr
     end subroutine check_neighbour
 !
 end module tetra_grid_mod
-
