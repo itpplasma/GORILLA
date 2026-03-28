@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Dependencies
         run: |
@@ -36,13 +36,6 @@ jobs:
           make -j$(nproc)
           make tests
           make install
-          
-      - name: Additional Files
-        run: |
-          cd $GITHUB_WORKSPACE
-          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
-          unzip 954.zip
-          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
           
       - name: Build
         run: |
@@ -63,19 +56,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
-          
-      - name: Additional Files
-        run: |
-          cd $GITHUB_WORKSPACE
-          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
-          unzip 954.zip
-          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
           
       - name: Build
         run: |
@@ -129,7 +115,7 @@ jobs:
           path: MATLAB/data_plots
         
       - name: Set up Python 3.9
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9
 
