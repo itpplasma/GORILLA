@@ -133,7 +133,7 @@ For compability with WEST geometry of SOLEDGE3X-EIRENE, additional input files d
 * `knots_for_test.dat`: coordinates ($R$, $Z$) of the vertices making up the 2D grid (File name can be specified in `tetra_grid.inp`.)
 * `triangles_for_test.dat`: association of above mentioned vertices to triangles (triples of vertices) covering the 2D plane (File name can be specified in `tetra_grid.inp`.)
 
-To produce these files (including the g-file equilibrium) oneself from files provided by SOLEDGE3X-EIRENE, a set of prepocessing MATLAB scripts are at disposal in `REPROCESSING/SOLEDGE3X_EIRENE/MESH` and `REPROCESSING/SOLEDGE3X_EIRENE/MHD_EQUILIBRIUM` respectively.
+To produce these files (including the g-file equilibrium) oneself from files provided by SOLEDGE3X-EIRENE, a set of prepocessing MATLAB scripts are at disposal in `PREPROCESSING/SOLEDGE3X_EIRENE/MESH` and `PREPROCESSING/SOLEDGE3X_EIRENE/MHD_EQUILIBRIUM` respectively.
 
 ## Tutorial
 
@@ -154,7 +154,11 @@ However, GORILLA itself can be run without these packages. They are only used to
 
 ## Examples
 
-Seven examples for plotting Poincaré cuts, full guiding-center orbits (in plasma core or edge regions) and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_7`. There, the necessary soft links are already created and the input files are given, and runs are started with
+Seven examples for plotting Poincaré cuts, full guiding-center orbits (in plasma core or edge regions) and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_7`. To automatically build GORILLA, run the examples and plot the results from GORILLA root directory using make, use
+```
+make example EXAMPLE=<example number>
+```
+For manual execution, the necessary soft links are already created and the input files are given in `EXAMPLES/example_1` - `EXAMPLES/example_7` and runs are started with
 ```
 ./test_gorilla_main.x   #if the build was done with make
 ```
