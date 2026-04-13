@@ -109,52 +109,9 @@ This will produce `test_gorilla_main.x` in the folder BUILD/SRC/ required to run
 
 To get additional tests and code coverage, build GORILLA with `build_coverage.sh`. This requires the additional tools and a correct set PFUNIT_DIR. See the pFUnit github [project page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit) for additional information.
 
-
-## Usage
-
-GORILLA currently runs on a single node with OpenMP shared memory parallelization with one particle per thread and background fields residing in main memory.
-
-The main executable is `test_gorilla_main.x`.
-As an input it takes ....
-
-... the following input files which can be found in the folder `INPUT/`
-* `tetra_grid.inp`                       (Input file for settings of the tetrahedronal grid used in GORLLA)
-* `gorilla.inp`                             (Input file for settings of GORILLA)
-* `gorilla_plot.inp`                   (Input file for the program for the analysis of guiding-center orbits)
-* `field_divB0.inp`                     (Input file for loading g-file equilibria - Do not change this file.)
-* `preload_for_SYNCH.inp`         (Input file for splining magnetic field data of g-file equilibria - Do not change this file.)
-
-... and the MHD equilibrium files which can be found in the folder `MHD_EQUILIBRIA/`
-* `netcdf_file_for_test.nc`: VMEC NetCDF equlibrium (File name can be specified in `tetra_grid.inp`.)
-* `g_file_for_test` or `g_file_for_test_WEST`: g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
-
-For compability with WEST geometry of SOLEDGE3X-EIRENE, additional input files describing the original 2D mesh are needed. Those can be found in `MHD_EQUILIBRIA/MESH_SOLEDGE3X_EIRENE`
-
-* `knots_for_test.dat`: coordinates ($R$, $Z$) of the vertices making up the 2D grid (File name can be specified in `tetra_grid.inp`.)
-* `triangles_for_test.dat`: association of above mentioned vertices to triangles (triples of vertices) covering the 2D plane (File name can be specified in `tetra_grid.inp`.)
-
-To produce these files (including the g-file equilibrium) oneself from files provided by SOLEDGE3X-EIRENE, a set of prepocessing MATLAB scripts are at disposal in `PREPROCESSING/SOLEDGE3X_EIRENE/MESH` and `PREPROCESSING/SOLEDGE3X_EIRENE/MHD_EQUILIBRIUM` respectively.
-
-## Tutorial
-
-A tutorial for running GORILLA and plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion is realized redundantly in both MATLAB and Python.
-
-### Step-by-step plotting tutorial in MATLAB
-* MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal in `MATLAB` as a step-by-step tutorial for all plotting features of GORILLA.
-
-### Step-by-step plotting tutorial in Python
-* Jupyter Notebook with the name `plotting_tutorial.ipynb` is at disposal in `PYTHON` as a step-by-step tutorial for all plotting features of GORILLA. 
-
-For the Jupyter Notebook as well as the Python scripts used for the examples, some Python packages are needed, including the fortran namelist package [f90nml](https://github.com/marshallward/f90nml). To install the necessary packages use for example [pip](https://pip.pypa.io/en/stable/).
-```
-python -m pip install --upgrade pip
-pip install f90nml numpy matplotlib
-```
-However, GORILLA itself can be run without these packages. They are only used to incorporate GORILLA properly into Python scripts.
-
 ## Examples
 
-Seven examples for plotting Poincaré cuts, full guiding-center orbits (in plasma core or edge regions) and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_7`. To automatically build GORILLA, run the examples and plot the results from GORILLA root directory using make, use
+Seven examples for plotting Poincaré cuts, full guiding-center orbits (in plasma core or edge regions) and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_7`. Further details on usage of GORILLA and plotting results follow below. To automatically build GORILLA, run one of the examples and plot the results from GORILLA root directory using make, use
 ```
 make example EXAMPLE=<example number>
 ```
@@ -226,6 +183,48 @@ For the visualization of the output of these seven examples, appropriate plottin
 A detailed explanation of all examples (1-7) including the generation of the appropriate input files (including the example folders in `EXAMPLES/MATLAB_RUN` and `EXAMPLES/PYTHON_RUN`) and plotting of the results with MATLAB and Python can be found in the folders `MATLAB` and `PYTHON`, respectively.
 Here, the results of GORILLA with different polynominal orders K=2,3,4 and Runge-Kutta 4 are compared in case of examples 1-3. For examples 5-6 orbits for both trapped and passing particles are calculated. For example 7 an additional, in-depth comparison between adaptive and non-adaptive scheme is performed. The last example, example 8, is currently only available via the MATLAB script `example_8.m`. A redundant version in PYTHON, as well as a corresponding example-folder with an appropriate script for plotting will follow in the future.
 
+
+## Usage
+
+GORILLA currently runs on a single node with OpenMP shared memory parallelization with one particle per thread and background fields residing in main memory.
+
+The main executable is `test_gorilla_main.x`.
+As an input it takes ....
+
+... the following input files which can be found in the folder `INPUT/`
+* `tetra_grid.inp`                       (Input file for settings of the tetrahedronal grid used in GORLLA)
+* `gorilla.inp`                             (Input file for settings of GORILLA)
+* `gorilla_plot.inp`                   (Input file for the program for the analysis of guiding-center orbits)
+* `field_divB0.inp`                     (Input file for loading g-file equilibria - Do not change this file.)
+* `preload_for_SYNCH.inp`         (Input file for splining magnetic field data of g-file equilibria - Do not change this file.)
+
+... and the MHD equilibrium files which can be found in the folder `MHD_EQUILIBRIA/`
+* `netcdf_file_for_test.nc`: VMEC NetCDF equlibrium (File name can be specified in `tetra_grid.inp`.)
+* `g_file_for_test` or `g_file_for_test_WEST`: g-file equilibrium (File name can be specified in `tetra_grid.inp`.)
+
+For compability with WEST geometry of SOLEDGE3X-EIRENE, additional input files describing the original 2D mesh are needed. Those can be found in `MHD_EQUILIBRIA/MESH_SOLEDGE3X_EIRENE`
+
+* `knots_for_test.dat`: coordinates ($R$, $Z$) of the vertices making up the 2D grid (File name can be specified in `tetra_grid.inp`.)
+* `triangles_for_test.dat`: association of above mentioned vertices to triangles (triples of vertices) covering the 2D plane (File name can be specified in `tetra_grid.inp`.)
+
+To produce these files (including the g-file equilibrium) oneself from files provided by SOLEDGE3X-EIRENE, a set of prepocessing MATLAB scripts are at disposal in `PREPROCESSING/SOLEDGE3X_EIRENE/MESH` and `PREPROCESSING/SOLEDGE3X_EIRENE/MHD_EQUILIBRIUM` respectively.
+
+## Tutorial
+
+A tutorial for running GORILLA and plotting Poincaré cuts, full guiding-center orbits and the appropriate time evolution of invariants of motion is realized redundantly in both MATLAB and Python.
+
+### Step-by-step plotting tutorial in MATLAB
+* MATLAB Live Script with the name `plotting_tutorial.mlx` is at disposal in `MATLAB` as a step-by-step tutorial for all plotting features of GORILLA.
+
+### Step-by-step plotting tutorial in Python
+* Jupyter Notebook with the name `plotting_tutorial.ipynb` is at disposal in `PYTHON` as a step-by-step tutorial for all plotting features of GORILLA. 
+
+For the Jupyter Notebook as well as the Python scripts used for the examples, some Python packages are needed, including the fortran namelist package [f90nml](https://github.com/marshallward/f90nml). To install the necessary packages use for example [pip](https://pip.pypa.io/en/stable/).
+```
+python -m pip install --upgrade pip
+pip install f90nml numpy matplotlib
+```
+However, GORILLA itself can be run without these packages. They are only used to incorporate GORILLA properly into Python scripts.
 
 ## Tests and coverage
 
