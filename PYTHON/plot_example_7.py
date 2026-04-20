@@ -102,4 +102,8 @@ ax1.set_ylabel(r'$\delta$')
 ax1.set_title(r'Energy fluctuation between bounces (adaptive/order 2)')
 
 plt.tight_layout()
+# Save plot to file for deterministic output
+plt.savefig('example_7.png', dpi=150)
+print("Plot saved to example_7.png")
+
 plt.show()

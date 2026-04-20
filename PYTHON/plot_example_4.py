@@ -41,4 +41,8 @@ ax2.set_title('Poincaré phi = 0')
 
 plt.tight_layout()
 
+# Save plot to file for deterministic output
+plt.savefig('example_4.png', dpi=150)
+print("Plot saved to example_4.png")
+
 plt.show()
