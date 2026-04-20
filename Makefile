@@ -32,4 +32,4 @@ example: build
 		echo "Example: make example EXAMPLE=1"; \
 		exit 1; \
 	fi
-	bash run_example.sh $(EXAMPLE)
+	bash EXAMPLES/run_example.sh $(EXAMPLE)

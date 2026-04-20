@@ -53,4 +53,8 @@ ax3.set_title('Parallel adiabatic invariant')
 
 plt.tight_layout()
 
+# Save plot to file for deterministic output
+plt.savefig('example_1.png', dpi=150)
+print("Plot saved to example_1.png")
+
 plt.show()

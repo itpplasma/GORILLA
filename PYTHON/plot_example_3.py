@@ -53,4 +53,8 @@ ax3.set_title('Toroidal angular momentum')
 
 plt.tight_layout()
 
+# Save plot to file for deterministic output
+plt.savefig('example_3.png', dpi=150)
+print("Plot saved to example_3.png")
+
 plt.show()
