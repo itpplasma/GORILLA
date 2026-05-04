@@ -1,0 +1,36 @@
+! INPUT FILE FOR GORILLA PLOTTING
+!
+! Example 8: Analytic circular tokamak - Poincare at phi=0
+! Three orbits from file: two passing, one trapped deuterium particle.
+!
+&GORILLA_PLOT_NML
+ i_orbit_options                  = 3 ,
+ total_orbit_time                 = 1.0d0 ,
+ energy_eV_start                  = 3.d3 ,
+ boole_poincare_phi_0             = .true. ,
+ n_skip_phi_0                     = 1 ,
+ filename_poincare_phi_0_rphiz    = 'poincare_plot_phi_0_rphiz.dat' ,
+ filename_poincare_phi_0_sthetaphi = 'poincare_plot_phi_0_sthetaphi.dat' ,
+ boole_poincare_vpar_0            = .false. ,
+ n_skip_vpar_0                    = 1 ,
+ filename_poincare_vpar_0_rphiz   = 'poincare_plot_vpar_0_rphiz.dat' ,
+ filename_poincare_vpar_0_sthetaphi = 'poincare_plot_vpar_0_sthetaphi.dat' ,
+ boole_full_orbit                 = .false. ,
+ n_skip_full_orbit                = 100 ,
+ filename_full_orbit_rphiz        = 'full_orbit_plot_rphiz.dat' ,
+ filename_full_orbit_sthetaphi    = 'full_orbit_plot_sthetaphi.dat' ,
+ boole_e_tot                      = .false. ,
+ filename_e_tot                   = 'e_tot.dat' ,
+ boole_p_phi                      = .false. ,
+ filename_p_phi                   = 'p_phi.dat' ,
+ boole_J_par                      = .false. ,
+ filename_J_par                   = 'J_par.dat' ,
+ filename_orbit_start_pos_rphiz   = 'orbit_start_rphizlambda.dat' ,
+ filename_orbit_start_pos_sthetaphi = 'orbit_start_sthetaphilambda.dat' ,
+ start_pos_x1_beg                 = 0.5d0 ,
+ start_pos_x1_end                 = 0.9d0 ,
+ n_surfaces                       = 30 ,
+ start_pos_x2                     = 0.1d0 ,
+ start_pos_x3                     = 0.63d0 ,
+ start_pitch_parameter            = 0.9d0 ,
+/
