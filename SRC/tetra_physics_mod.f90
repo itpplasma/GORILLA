@@ -886,10 +886,13 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
 !                
                     !Minor radius at the position of the vertex Sqrt((R-R0)^2 + (Z-Z0)^2)
                     r_minor = sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2)
-!                
+!
+                    !Skip contribution at the magnetic axis (r_minor=0): radial direction undefined there
+                    if(r_minor .gt. 0.d0) then
                     tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_dR*dR_dr + dPhi_dZ*dZ_dr
                                     & (tetra_physics(ind_tetr)%gPhi(1) * (avec(j,9)-mag_axis_R0)/r_minor + &
                                     &  tetra_physics(ind_tetr)%gPhi(3) * (avec(j,10)-mag_axis_Z0)/r_minor)
+                    endif
                 enddo
             case(2) !s,theta,phi --> Symmetry flux coordinate system 
                 do j = 1,4

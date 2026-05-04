@@ -23,7 +23,7 @@ poincare_rphiz = np.genfromtxt("../EXAMPLES/example_8/poincare_plot_phi_0_rphiz.
 
 fig, ax = plt.subplots(figsize=(7, 7))
 fig.suptitle('Analytic circular tokamak: Poincare plot (phi = 0)\n'
-             'Two passing (lambda=0.7) and one trapped (lambda=0.3) deuterium particle')
+             'Two trapped (lambda=0.10) and one passing (lambda=0.70) deuterium particle')
 
 ax.plot(poincare_rphiz[:, 0], poincare_rphiz[:, 2], '.', markersize=2)
 

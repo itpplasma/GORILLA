@@ -328,7 +328,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
         !Calculation of search domain depending on grid_kind
         select case(grid_kind)
-            case(1) !rectangular grid
+            case(1,5) !rectangular grid
 !
                 nr = grid_size(1)
                 nphi = grid_size(2)

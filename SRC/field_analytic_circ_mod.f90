@@ -25,12 +25,16 @@ module field_analytic_circ_mod
 contains
 
   subroutine set_field_analytic_circ(R0, a, B0, q0, q1)
+    use field_eq_mod, only: rtf, btf
     double precision, intent(in) :: R0, a, B0, q0, q1
     R0_ac = R0
     a_ac  = a
     B0_ac = B0
     q0_ac = q0
     q1_ac = q1
+    ! Set rtf*btf = B0*R0 so that A_z = -rtf*btf*log(R) gives B_phi = B0*R0/R
+    rtf = R0_ac
+    btf = B0_ac
   end subroutine set_field_analytic_circ
 
 
@@ -38,6 +42,7 @@ contains
       Br, Bp, Bz,                                                   &
       dBrdR, dBrdp, dBrdZ, dBpdR, dBpdp, dBpdZ, dBzdR, dBzdp, dBzdZ)
 
+    use field_eq_mod, only: psif
     double precision, intent(in)  :: r, p, z
     double precision, intent(out) :: Br, Bp, Bz
     double precision, intent(out) :: dBrdR, dBrdp, dBrdZ
@@ -52,6 +57,14 @@ contains
     q    = q0_ac + q1_ac*(rho/a_ac)**2
     dqdR = 2.d0*q1_ac*Rshift / a_ac**2   ! dq/dR
     dqdZ = 2.d0*q1_ac*z      / a_ac**2   ! dq/dZ
+
+    ! Poloidal flux: psif = integral_0^rho B0*r'/q(r') dr'
+    ! = B0*(a^2/(2*q1))*ln(q(rho)/q0), or B0*rho^2/(2*q0) when q1=0
+    if (q1_ac .gt. 0.d0) then
+      psif = B0_ac * (a_ac**2 / (2.d0*q1_ac)) * log(q/q0_ac)
+    else
+      psif = B0_ac * rho**2 / (2.d0*q0_ac)
+    end if
 
     ! --- field components ---
     Bp = B0_ac*R0_ac / r                  ! toroidal

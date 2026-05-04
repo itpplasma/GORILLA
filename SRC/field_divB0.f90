@@ -66,16 +66,16 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
      iaxieq = iaxieq_in
   endif
 
-  call stretch_coords(r,z,rm,zm)
-
   if(ianalytic_circ.eq.1) then
-    call field_analytic_circ(rm, p, zm, &
+    call field_analytic_circ(r, p, z, &
                              Br, Bp, Bz, &
                              dBrdR, dBrdp, dBrdZ, &
                              dBpdR, dBpdp, dBpdZ, &
                              dBzdR, dBzdp, dBzdZ)
     return
   endif
+
+  call stretch_coords(r,z,rm,zm)
 
   call field_eq(rm,p,zm,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
                ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
