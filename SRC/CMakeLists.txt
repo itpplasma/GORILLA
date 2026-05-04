@@ -20,7 +20,8 @@ add_library(GORILLA STATIC
 	spline_vmec_data.f90 
 	new_vmec_allocation_stuff.f90 
 	binsrc.f90 
-	field_divB0.f90 
+	field_analytic_circ_mod.f90
+	field_divB0.f90
 	scaling_r_theta.f90
 	field_line_integration_for_SYNCH.f90 
 	preload_for_SYNCH.f90

@@ -128,7 +128,7 @@
 !
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
                                 & set_verts_sthetaphi,verts_xyz
-      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,n_extra_rings
+      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,n_extra_rings,R0_analytic_circ
       use constants, only: pi
       use field_mod, only: ipert
       use various_functions_mod, only: dmatinv3
@@ -221,8 +221,9 @@
       ipert = ipert_in
 !
       !Set coord_system in module according to coord_system_in
-      if( ( (grid_kind.eq.1).or.(grid_kind.eq.4) ) .and.(coord_system_in.ne.1)) then
-        print *, 'Error: Wrong coordinate system - Only RPhiZ-coordinates are allowed for rectangular or SOLEDGE3X_EIRENE grid.'
+      if( ( (grid_kind.eq.1).or.(grid_kind.eq.4).or.(grid_kind.eq.5) ) .and.(coord_system_in.ne.1)) then
+        print *, 'Error: Wrong coordinate system - Only RPhiZ-coordinates allowed for &
+                 &rectangular, SOLEDGE3X_EIRENE, or analytic circular tokamak grid.'
         stop
       elseif((grid_kind.eq.3).and.(coord_system_in.ne.2)) then
         print *, 'Error: Wrong coordinate system - Only (s,theta,phi)-coordinates are allowed for field aligned VMEC grid.'
@@ -255,7 +256,7 @@
 !
       !Pre-processing for EFIT
 !
-      if( (grid_kind.eq.1).or.(grid_kind.eq.2).or.(grid_kind.eq.4) ) then
+      if( (grid_kind.eq.1).or.(grid_kind.eq.2).or.(grid_kind.eq.4).or.(grid_kind.eq.5) ) then
         !subroutine field must be called in order to realize perturbation according to ipert_in
         rrr=1.d0
         ppp=0.d0
@@ -282,6 +283,9 @@
                     mag_axis_Z0 = 8.9514398817462517d0
                 case(4)
                     mag_axis_R0 = 240.0d0
+                    mag_axis_Z0 = 0.0d0
+                case(5)
+                    mag_axis_R0 = R0_analytic_circ
                     mag_axis_Z0 = 0.0d0
             end select
 !
