@@ -17,7 +17,8 @@ contains
 
 subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scaling_func,theta_scaling_func,repeat_center_point)
 !
-    use tetra_grid_settings_mod, only: s_min => sfc_s_min,theta_geom_flux, n_extra_rings
+    use tetra_grid_settings_mod, only: s_min => sfc_s_min, s_max => sfc_s_max, &
+                                       theta_geom_flux, n_extra_rings
     use magdata_in_symfluxcoor_mod, only: psipol_max
     use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
 !
@@ -62,7 +63,7 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
     n = n_extra_rings
 
     if (n.gt.0) then
-        s_second_ring = s_min + (1.d0-s_min)/(dble(nlabel-n+1))
+        s_second_ring = s_min + (s_max-s_min)/(dble(nlabel-n+1))
         do i = 1,n
             r_frac(i) = exp(log(s_min) + dble(i)*(log(s_second_ring)-log(s_min))/dble(n+1))
         enddo
@@ -70,7 +71,7 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
 ! end: make first few entries of r_frac non-equidistant in order to avoid very thin triangles close to the magnetic axis
 !      when using this version, be sure to comment out the line sstarting with "r_frac =" instead of "r_frac(n:nlabel) ="
 !
-    r_frac(n+1:nlabel) = s_min + [(dble(i)*(1.d0-s_min), i=1, nlabel-n, 1)] / (dble(nlabel-n))
+    r_frac(n+1:nlabel) = s_min + [(dble(i)*(s_max-s_min), i=1, nlabel-n, 1)] / (dble(nlabel-n))
 
     ! r_frac = s_min + [(dble(i)*(1.d0-s_min), i=1, nlabel, 1)] / (dble(nlabel))
 !
@@ -161,7 +162,7 @@ end subroutine create_points_2d
 !
   subroutine create_points_2d_vmec(n_theta, points_sthetaphi, r_scaling_func, theta_scaling_func, repeat_center_point)
 !
-    use tetra_grid_settings_mod, only: s_min => sfc_s_min
+    use tetra_grid_settings_mod, only: s_min => sfc_s_min, s_max => sfc_s_max
 !
     integer, dimension(:), intent(in) :: n_theta
     !double precision, dimension(:,:), intent(out) :: points_rphiz
@@ -187,7 +188,7 @@ end subroutine create_points_2d
     nlabel = size(n_theta)
     allocate(theta_frac(maxval(n_theta)))
 !
-    r_frac = s_min + [(dble(i)*(1.d0-s_min), i=1, size(r_frac), 1)] / (dble(nlabel))
+    r_frac = s_min + [(dble(i)*(s_max-s_min), i=1, size(r_frac), 1)] / (dble(nlabel))
     if (present(r_scaling_func)) r_frac = r_scaling_func(r_frac)
 !
     if(.not. allocated(r_frac_mod)) then

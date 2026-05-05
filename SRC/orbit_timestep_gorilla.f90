@@ -282,7 +282,7 @@ module orbit_timestep_gorilla_mod
 !
             use gorilla_settings_mod, only: boole_periodic_relocation
             use tetra_physics_mod, only: coord_system
-            use tetra_grid_settings_mod, only: sfc_s_min,n_field_periods
+            use tetra_grid_settings_mod, only: sfc_s_min,sfc_s_max,n_field_periods
             use constants, only: pi
 !
             implicit none
@@ -317,8 +317,8 @@ module orbit_timestep_gorilla_mod
                         stop
                     endif
 !
-                    if( x(1).gt.1.d0 ) then
-                        print *, 'Error: Particle flux coordinate s is larger than GRID maximum s_max = 1.d0'
+                    if( x(1).gt.sfc_s_max ) then
+                        print *, 'Error: Particle flux coordinate s is larger than GRID maximum s_max = ',sfc_s_max
                         stop
                     endif
 !
