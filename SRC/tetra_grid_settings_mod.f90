@@ -45,6 +45,9 @@
     !Symmetry Flux Coordinates Annulus
     double precision,public,protected :: sfc_s_min
 !
+    !Outer s-bound of the radial mesh (default 1.0d0 = full plasma).  Set
+    !sfc_s_min < sfc_s_max <= 1.0d0 to build only an annular shell in s.
+    double precision,public,protected :: sfc_s_max = 1.0d0
     !Radial grid spacing option
     !1 ... equidistant in s (normalized toroidal flux) - default
     !2 ... equidistant in sqrt(s) (approximately equidistant in minor radius)
@@ -72,7 +75,8 @@
     character(50),public,protected :: filename_mesh_rphiz,filename_mesh_sthetaphi
 !
     !Namelist for Tetrahedronal Grid input
-    NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual,sfc_s_min, &
+    NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual, &
+                            & sfc_s_min,sfc_s_max, &
                             & i_radial_spacing, &
                             & boole_axisymmetric_only, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
@@ -91,6 +95,12 @@
             open(newunit=iunit, file='tetra_grid.inp', status='unknown')
             read(iunit,nml=tetra_grid_nml)
             close(iunit)
+!
+            if (sfc_s_max .le. sfc_s_min .or. sfc_s_max .gt. 1.0d0) then
+                print *, 'Error: sfc_s_max must satisfy sfc_s_min < sfc_s_max <= 1.0d0'
+                print *, '  sfc_s_min =', sfc_s_min, '  sfc_s_max =', sfc_s_max
+                error stop
+            endif
 !
             !Set axisymmetric equilibrium type
             select case(grid_kind)
@@ -129,7 +139,7 @@
 !
             if (grid_kind.eq.2) then
                 !s_ratio = ratio of innermost s value (= sfc_s_min) and s value at second innermost ring
-                s_ratio = (sfc_s_min + (1.d0-sfc_s_min)/(dble(grid_size_in(1)))) / sfc_s_min
+                s_ratio = (sfc_s_min + (sfc_s_max-sfc_s_min)/(dble(grid_size_in(1)))) / sfc_s_min
                 n_extra_rings = int(abs(log(s_ratio)/log(10d0)))
             else
                 n_extra_rings = 0
