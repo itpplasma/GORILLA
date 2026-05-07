@@ -37,7 +37,14 @@ jobs:
           make install
           install_root="$PWD/installed"
           echo "PFUNIT_DIR=$(find "$install_root" -maxdepth 1 -type d -name 'PFUNIT-*' | head -n 1)" >> "$GITHUB_ENV"
-          
+
+      - name: Additional Files
+        run: |
+          cd $GITHUB_WORKSPACE
+          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+          unzip 954.zip
+          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
+
       - name: Build
         run: |
           ./build_coverage.sh
@@ -62,7 +69,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
-          
+
+      - name: Additional Files
+        run: |
+          cd $GITHUB_WORKSPACE
+          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+          unzip 954.zip
+          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
+
       - name: Build
         run: |
           make
