@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
 
   workflow_dispatch:
 
@@ -38,11 +37,9 @@ jobs:
           install_root="$PWD/installed"
           echo "PFUNIT_DIR=$(find "$install_root" -maxdepth 1 -type d -name 'PFUNIT-*' | head -n 1)" >> "$GITHUB_ENV"
 
-      - name: Additional Files
+      - name: Fetch ACM Algorithm 954 (Polynomial234RootSolvers)
         run: |
-          cd $GITHUB_WORKSPACE
-          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
-          unzip 954.zip
+          ./fetch_polynomial234roots.sh
           cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
 
       - name: Build
@@ -70,11 +67,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
 
-      - name: Additional Files
+      - name: Fetch ACM Algorithm 954 (Polynomial234RootSolvers)
         run: |
-          cd $GITHUB_WORKSPACE
-          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
-          unzip 954.zip
+          ./fetch_polynomial234roots.sh
           cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
 
       - name: Build

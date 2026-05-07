@@ -27,8 +27,7 @@ subroutine cubicRoots (c2, c1, c0, nReal, root, printInfo)
   real    (kind = wp), intent (in)  :: c2, c1, c0
   real    (kind = wp), intent (out) :: root (1:3,1:2)
 !
-  print *, 'ERROR: Please, include external library Polynomial234RootSolvers. See README.md'
-  stop
+  error stop 'ERROR: Polynomial234RootSolvers placeholder called. Install ACM Algorithm 954 external library; see README.md.'
 !
 end subroutine cubicRoots
 !
@@ -42,8 +41,7 @@ subroutine quadraticRoots (q1, q0, nReal, root)
   real    (kind = wp), intent (in)  :: q1, q0
   real    (kind = wp), intent (out) :: root (1:2,1:2)
 !
-  print *, 'ERROR: Please, include external library Polynomial234RootSolvers. See README.md'
-  stop
+  error stop 'ERROR: Polynomial234RootSolvers placeholder called. Install ACM Algorithm 954 external library; see README.md.'
 !
 end subroutine quadraticRoots
 !
@@ -58,8 +56,7 @@ subroutine quarticRoots (q3, q2, q1, q0, nReal, root, printInfo)
   real    (kind = wp), intent (in)  :: q3, q2, q1, q0
   real    (kind = wp), intent (out) :: root (1:4,1:2)
 !
-  print *, 'ERROR: Please, include external library Polynomial234RootSolvers. See README.md'
-  stop
+  error stop 'ERROR: Polynomial234RootSolvers placeholder called. Install ACM Algorithm 954 external library; see README.md.'
 !
 end subroutine quarticRoots
 !
