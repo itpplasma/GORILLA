@@ -1,7 +1,7 @@
 ! INPUT FILE FOR GORILLA PLOTTING
 !
 ! Example 8: Analytic circular tokamak - Poincare at phi=0
-! Three orbits from file: two trapped (lambda=0.10), one passing (lambda=0.70) deuterium particle.
+! Four orbits from file: three trapped (small lambda) and one passing (large lambda) deuterium particle
 !
 &GORILLA_PLOT_NML
  i_orbit_options                  = 3 ,
