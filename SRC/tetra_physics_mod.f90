@@ -1069,6 +1069,17 @@ enddo
         double precision :: r,phi,z,A_r,A_phi,A_z,B_phi,bmod
         double precision :: B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                             ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
+        ! Locals for the A_z = -int_{rtf}^{r} F(psi(R',z))/R' dR' midpoint sum.
+        ! field() already returns B_phi_phys = fpol(psi(R,Z))/R when use_fpol=.true.
+        ! (EFIT default), so summing -B_p_k*dR integrates F/R analytically.
+        ! Replaces the legacy A_z = -rtf*btf*log(r) which used the vacuum constant F=rtf*btf.
+        integer, parameter :: n_int = 64
+        integer :: k_int
+        double precision :: R_ref, dR_int, R_k
+        double precision :: B_rk, B_pk, B_zk
+        double precision :: dBrkdR, dBrkdp, dBrkdZ
+        double precision :: dBpkdR, dBpkdp, dBpkdZ
+        double precision :: dBzkdR, dBzkdp, dBzkdZ
 !
         call field(r,phi,z,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ  &
                   ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
@@ -1077,7 +1088,18 @@ enddo
 !
         A_r=0.d0
         A_phi=psif
-        A_z=-rtf*btf*log(r)
+!
+        R_ref = rtf
+        dR_int = (r - R_ref) / dble(n_int)
+        A_z = 0.d0
+        do k_int = 1, n_int
+          R_k = R_ref + (dble(k_int) - 0.5d0) * dR_int
+          call field(R_k, phi, z, B_rk, B_pk, B_zk, &
+                     dBrkdR, dBrkdp, dBrkdZ,        &
+                     dBpkdR, dBpkdp, dBpkdZ,        &
+                     dBzkdR, dBzkdp, dBzkdZ)
+          A_z = A_z - B_pk * dR_int
+        end do
 !
         B_phi=B_p*R
 !
