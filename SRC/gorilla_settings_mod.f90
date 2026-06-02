@@ -83,6 +83,15 @@
     character*64,public,protected :: filename_electric_field
     character*64,public,protected :: filename_electric_drift
 !
+    !For loading an experimentally-derived radial electric field profile and
+    !integrating it to an electrostatic potential Phi_0(psi_pol).  Triggers
+    !strong_electric_field_mod's case(1) path when er_profile_file is non-empty.
+    !Assumes Er(r_eff) is constant on each flux surface; r_eff is mapped to
+    !psi_pol via the equil_mapping file (same flux_functions.dat as the
+    !RMP applet's equil_mapping_file).
+    character(len=256), public, protected :: er_profile_file        = ''
+    character(len=256), public, protected :: er_equil_mapping_file  = ''
+!
     !Boolean for precalculation of rectangular grid to improve find_tetra (sensible for n_particles >> 1)
     logical, public, protected :: boole_grid_for_find_tetra
     integer, public :: a_factor, b_factor, c_factor
@@ -102,6 +111,7 @@
                         & a_factor, b_factor, c_factor, &
                         & i_time_tracing_option, &
                         & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift, &
+                        & er_profile_file, er_equil_mapping_file, &
                         & boole_pert_from_mephit
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type
