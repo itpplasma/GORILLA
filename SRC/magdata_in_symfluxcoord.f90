@@ -33,6 +33,9 @@ module magdata_in_symfluxcoordinates_mod
   integer :: i,nthetap1
   double precision, dimension(:,:), allocatable :: splcoe
 !
+  !Free any pre-existing magdata arrays so a fresh load can proceed without external bookkeeping.
+  call deallocate_magdata_in_symfluxcoord
+!
   twopi = atan(1.d0)*8.d0
 !
 !-----------------------------------------------------------------------

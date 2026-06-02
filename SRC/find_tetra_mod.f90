@@ -43,7 +43,10 @@ module find_tetra_mod
         real(dp), dimension(:,:), allocatable  :: verts_abc
 !
 print*, 'grid_for_find_tetra started'
-        boole_reduce_entries = .true.
+        !Free any pre-existing find-tetra arrays so a fresh build can proceed without external bookkeeping.
+        call deallocate_find_tetra_arrays
+!
+        boole_reduce_entries = .false.
         boole_axi_symmetry = .false.
 !
         if (coord_system.eq.1) allocate(verts_abc(size(verts_rphiz(:,1)),size(verts_rphiz(1,:))))

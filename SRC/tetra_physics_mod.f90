@@ -175,24 +175,36 @@
       integer          :: triangle, n_fourier_modes
       complex, dimension(:,:), allocatable :: A_x1_mat, A_x2_mat, A_x3_mat, b_x1_mat, b_x2_mat, b_x3_mat
 !
+      !Deallocate any pre-existing module arrays so a fresh grid can be built without external bookkeeping.
+      !phi_elec is preserved when the caller asks for it (self-consistent electric field workflow),
+      !in which case the caller is responsible for it being correctly sized for the current nvert.
+      if (allocated(tetra_physics))    deallocate(tetra_physics)
+      if (allocated(tetra_skew_coord)) deallocate(tetra_skew_coord)
+      if (allocated(hamiltonian_time)) deallocate(hamiltonian_time)
+      if (present(boole_keep_phi_elec)) then
+        if (.not.boole_keep_phi_elec) then
+          if (allocated(phi_elec)) deallocate(phi_elec)
+        endif
+      else
+        if (allocated(phi_elec)) deallocate(phi_elec)
+      endif
+!
       !Allocation of quantities dependent on number of vertices
-      if (.not.allocated(tetra_physics)) allocate(tetra_physics(ntetr))
+      allocate(tetra_physics(ntetr))
       allocate(A_x1(nvert),A_x2(nvert),A_x3(nvert))
       allocate(bmod(nvert),h_x1(nvert),h_x2(nvert),h_x3(nvert))
       if (.not.allocated(phi_elec)) allocate(phi_elec(nvert))
 !
       !Hamiltonian time quantities
-      if (.not.allocated(hamiltonian_time)) allocate(hamiltonian_time(ntetr))
+      allocate(hamiltonian_time(ntetr))
 !
-      if (.not.allocated(tetra_skew_coord)) then
-        !Distinguish the Processing of particle handover to tetrahedron neighbour
-        select case(handover_processing_kind)
-            case(1) !Processing with special treatment of periodic boundaries and manipulation of periodic position values
-                allocate(tetra_skew_coord(1)) !Dummy value for parallelization
-            case(2) !Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included below
-                allocate(tetra_skew_coord(ntetr))
-        end select
-      endif
+      !Distinguish the Processing of particle handover to tetrahedron neighbour
+      select case(handover_processing_kind)
+          case(1) !Processing with special treatment of periodic boundaries and manipulation of periodic position values
+              allocate(tetra_skew_coord(1)) !Dummy value for parallelization
+          case(2) !Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included below
+              allocate(tetra_skew_coord(ntetr))
+      end select
 !
       !Distinguish, in between EFIT and VMEC
       if(grid_kind.eq.3) then !VMEC
