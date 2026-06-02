@@ -40,6 +40,11 @@
     !Symmetry Flux Coordinates Annulus
     double precision,public,protected :: sfc_s_min
 !
+    !Radial grid spacing option
+    !1 ... equidistant in s (normalized toroidal flux) - default
+    !2 ... equidistant in sqrt(s) (approximately equidistant in minor radius)
+    integer, public, protected :: i_radial_spacing
+!
     !Scaling of $\theta$-variable
     integer, public, protected :: theta_geom_flux
 !
@@ -55,6 +60,7 @@
 !
     !Namelist for Tetrahedronal Grid input
     NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual,sfc_s_min, &
+                            & i_radial_spacing, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
                             & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename

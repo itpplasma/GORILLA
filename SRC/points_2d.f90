@@ -17,7 +17,7 @@ contains
 
 subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scaling_func,theta_scaling_func,repeat_center_point)
 !
-    use tetra_grid_settings_mod, only: s_min => sfc_s_min,theta_geom_flux, n_extra_rings
+    use tetra_grid_settings_mod, only: s_min => sfc_s_min,theta_geom_flux, n_extra_rings, i_radial_spacing
     use magdata_in_symfluxcoor_mod, only: psipol_max
     use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
 !
@@ -37,7 +37,7 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
     integer :: n_center_point
 
     integer :: n
-    double precision :: s_second_ring
+    double precision :: s_second_ring, sqrt_s_min, sqrt_s
 !
     n_center_point = 1
     if (present(repeat_center_point)) then
@@ -58,21 +58,30 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
 !    ! this is done so we can then call magdata_in_symfluxcoord_ext on this interpolated fine grid.
 !    call load_magdata_in_symfluxcoord()
 
-! start: make first few entries of r_frac non-equidistant in order to avoid very thin triangles close to the magnetic axis
+! First compute the main radial grid (rings n+1 to nlabel)
     n = n_extra_rings
-
+!
+    select case(i_radial_spacing)
+        case(1)
+            !Equidistant in s (normalized toroidal flux) - default behavior
+            r_frac(n+1:nlabel) = s_min + [(dble(i)*(1.d0-s_min), i=1, nlabel-n, 1)] / (dble(nlabel-n))
+        case(2)
+            !Equidistant in sqrt(s) (approximately equidistant in minor radius)
+            sqrt_s_min = sqrt(s_min)
+            do i = 1, nlabel-n
+                sqrt_s = sqrt_s_min + dble(i) * (1.d0 - sqrt_s_min) / dble(nlabel-n)
+                r_frac(n+i) = sqrt_s**2
+            enddo
+    end select
+!
+! Now add extra rings between s_min and the first regular ring (r_frac(n+1))
+! These are spaced logarithmically to avoid very thin triangles close to the magnetic axis
     if (n.gt.0) then
-        s_second_ring = s_min + (1.d0-s_min)/(dble(nlabel-n+1))
+        s_second_ring = r_frac(n+1)
         do i = 1,n
             r_frac(i) = exp(log(s_min) + dble(i)*(log(s_second_ring)-log(s_min))/dble(n+1))
         enddo
     endif
-! end: make first few entries of r_frac non-equidistant in order to avoid very thin triangles close to the magnetic axis
-!      when using this version, be sure to comment out the line sstarting with "r_frac =" instead of "r_frac(n:nlabel) ="
-!
-    r_frac(n+1:nlabel) = s_min + [(dble(i)*(1.d0-s_min), i=1, nlabel-n, 1)] / (dble(nlabel-n))
-
-    ! r_frac = s_min + [(dble(i)*(1.d0-s_min), i=1, nlabel, 1)] / (dble(nlabel))
 !
     !r_frac = [(i, i = 1, nlabel,1)] / dfloat(nlabel)
     if (present(r_scaling_func)) r_frac = r_scaling_func(r_frac)
@@ -161,7 +170,7 @@ end subroutine create_points_2d
 !
   subroutine create_points_2d_vmec(n_theta, points_sthetaphi, r_scaling_func, theta_scaling_func, repeat_center_point)
 !
-    use tetra_grid_settings_mod, only: s_min => sfc_s_min
+    use tetra_grid_settings_mod, only: s_min => sfc_s_min, i_radial_spacing
 !
     integer, dimension(:), intent(in) :: n_theta
     !double precision, dimension(:,:), intent(out) :: points_rphiz
@@ -171,11 +180,12 @@ end subroutine create_points_2d
     double precision, dimension(size(n_theta)) :: r_frac
     integer :: nlabel, i, j, isurf, point_idx,n_theta_current
     integer :: n_center_point
-    
+
     double precision, dimension(:), allocatable :: theta_frac
 
     double precision :: s,theta,vartheta,varphi,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,       &
                         R,Z,alam,dR_ds,dR_dt,dR_dp,dZ_ds,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp
+    double precision :: sqrt_s_min, sqrt_s
 !
     n_center_point = 1
     if (present(repeat_center_point)) then
@@ -187,7 +197,18 @@ end subroutine create_points_2d
     nlabel = size(n_theta)
     allocate(theta_frac(maxval(n_theta)))
 !
-    r_frac = s_min + [(dble(i)*(1.d0-s_min), i=1, size(r_frac), 1)] / (dble(nlabel))
+    select case(i_radial_spacing)
+        case(1)
+            !Equidistant in s (normalized toroidal flux) - default behavior
+            r_frac = s_min + [(dble(i)*(1.d0-s_min), i=1, size(r_frac), 1)] / (dble(nlabel))
+        case(2)
+            !Equidistant in sqrt(s) (approximately equidistant in minor radius)
+            sqrt_s_min = sqrt(s_min)
+            do i = 1, nlabel
+                sqrt_s = sqrt_s_min + dble(i) * (1.d0 - sqrt_s_min) / dble(nlabel)
+                r_frac(i) = sqrt_s**2
+            enddo
+    end select
     if (present(r_scaling_func)) r_frac = r_scaling_func(r_frac)
 !
     if(.not. allocated(r_frac_mod)) then
