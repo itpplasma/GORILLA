@@ -41,6 +41,9 @@
         double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                             ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
 !
+        !Free any pre-existing grid arrays so a fresh grid can be built without external bookkeeping.
+        call deallocate_tetra_grid()
+!
         call set_grid_size([n1,n2,n3])      !Rectangular grid:                  [n1,n2,n3] = [nR,nphi,nZ]
                                             !Field-aligned grid:                [n1,n2,n3] = [ns,nphi,ntheta]
 !        
@@ -710,6 +713,22 @@ b: do ind_tetr=1,ntetr
     enddo
 !
     end subroutine check_neighbour
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine deallocate_tetra_grid
+!
+! Deallocates tetra_grid arrays to allow rebuilding with different parameters
+!
+    implicit none
+!
+    if (allocated(tetra_grid)) deallocate(tetra_grid)
+    if (allocated(verts_rphiz)) deallocate(verts_rphiz)
+    if (allocated(verts_xyz)) deallocate(verts_xyz)
+    if (allocated(verts_sthetaphi)) deallocate(verts_sthetaphi)
+    if (allocated(verts_theta_vmec)) deallocate(verts_theta_vmec)
+!
+    end subroutine deallocate_tetra_grid
 !
 end module tetra_grid_mod
 

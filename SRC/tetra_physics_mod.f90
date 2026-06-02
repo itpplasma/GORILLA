@@ -1,4 +1,5 @@
 !
+
   module tetra_physics_mod
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
@@ -123,17 +124,18 @@
 !   
   contains
 !
-    subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in, i_option)
+    subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in, boole_keep_phi_elec)
 !
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
                                 & set_verts_sthetaphi,verts_xyz
-      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods
+      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,n_extra_rings
       use constants, only: pi
       use field_mod, only: ipert
       use various_functions_mod, only: dmatinv3
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
-            & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
-            & non_axi_noise_eps_A, boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
+            & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, &
+            & axi_noise_eps_A, axi_noise_eps_Phi, non_axi_noise_eps_A, &
+            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
       use differentiate_mod, only: differentiate
       use splint_vmec_data_mod, only: splint_vmec_data
@@ -142,11 +144,11 @@
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in
-      integer, intent(in), optional :: i_option
+      logical, intent(in), optional :: boole_keep_phi_elec
       integer :: iv,i,j,k,l,ind_tetr,ierr
       integer :: nr,nphi,nz,navec,inp_label
       integer,dimension(4) :: vertex_indices
-      double precision :: rnd_non_axi_noise_x1,rnd_non_axi_noise_x2,rnd_non_axi_noise_x3, bmod_multiplier,met_det
+      double precision :: rnd_non_axi_noise_x1,rnd_non_axi_noise_x2,rnd_non_axi_noise_x3,bmod_multiplier,met_det
       double precision, dimension(4)   :: p_x1,p_x2,p_x3
       double precision, dimension(3) :: cur_comp1, cur_comp2, cur_comp3
       double precision, dimension(3) :: curCoordi
@@ -173,24 +175,36 @@
       integer          :: triangle, n_fourier_modes
       complex, dimension(:,:), allocatable :: A_x1_mat, A_x2_mat, A_x3_mat, b_x1_mat, b_x2_mat, b_x3_mat
 !
+      !Deallocate any pre-existing module arrays so a fresh grid can be built without external bookkeeping.
+      !phi_elec is preserved when the caller asks for it (self-consistent electric field workflow),
+      !in which case the caller is responsible for it being correctly sized for the current nvert.
+      if (allocated(tetra_physics))    deallocate(tetra_physics)
+      if (allocated(tetra_skew_coord)) deallocate(tetra_skew_coord)
+      if (allocated(hamiltonian_time)) deallocate(hamiltonian_time)
+      if (present(boole_keep_phi_elec)) then
+        if (.not.boole_keep_phi_elec) then
+          if (allocated(phi_elec)) deallocate(phi_elec)
+        endif
+      else
+        if (allocated(phi_elec)) deallocate(phi_elec)
+      endif
+!
       !Allocation of quantities dependent on number of vertices
-      if (.not.allocated(tetra_physics)) allocate(tetra_physics(ntetr))
+      allocate(tetra_physics(ntetr))
       allocate(A_x1(nvert),A_x2(nvert),A_x3(nvert))
       allocate(bmod(nvert),h_x1(nvert),h_x2(nvert),h_x3(nvert))
       if (.not.allocated(phi_elec)) allocate(phi_elec(nvert))
 !
       !Hamiltonian time quantities
-      if (.not.allocated(hamiltonian_time)) allocate(hamiltonian_time(ntetr))
+      allocate(hamiltonian_time(ntetr))
 !
-      if (.not.allocated(tetra_skew_coord)) then
-        !Distinguish the Processing of particle handover to tetrahedron neighbour
-        select case(handover_processing_kind)
-            case(1) !Processing with special treatment of periodic boundaries and manipulation of periodic position values
-                allocate(tetra_skew_coord(1)) !Dummy value for parallelization
-            case(2) !Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included below
-                allocate(tetra_skew_coord(ntetr))
-        end select
-      endif
+      !Distinguish the Processing of particle handover to tetrahedron neighbour
+      select case(handover_processing_kind)
+          case(1) !Processing with special treatment of periodic boundaries and manipulation of periodic position values
+              allocate(tetra_skew_coord(1)) !Dummy value for parallelization
+          case(2) !Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included below
+              allocate(tetra_skew_coord(ntetr))
+      end select
 !
       !Distinguish, in between EFIT and VMEC
       if(grid_kind.eq.3) then !VMEC
@@ -409,9 +423,9 @@
                                 & v_E_x1(iv),v_E_x2(iv),v_E_x3(iv),v2_E_mod(iv))
         else
             !Electrostatic potential as a product of co-variant component of vector potential and a factor eps_Phi (gorilla.inp)
-            if (present(i_option)) then
-              if (i_option.eq.12) then
-                !Do nothing, phi_elec is written on from the outside
+            if (present(boole_keep_phi_elec)) then
+              if (boole_keep_phi_elec) then
+                !Do nothing, phi_elec is set from outside and should not be overwritten
               else
                 phi_elec(iv) = A_x2(iv)*eps_Phi
               endif
@@ -1342,6 +1356,21 @@ enddo
         tetra_physics(:)%dt_dtau_const = dt_dtau_const_new
 !
       end subroutine set_all_dt_dtau_const
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+      subroutine deallocate_tetra_physics
+!
+! Deallocates tetra_physics arrays to allow rebuilding with different grid
+!
+        implicit none
+!
+        if (allocated(tetra_physics)) deallocate(tetra_physics)
+        if (allocated(tetra_skew_coord)) deallocate(tetra_skew_coord)
+        if (allocated(hamiltonian_time)) deallocate(hamiltonian_time)
+        if (allocated(phi_elec)) deallocate(phi_elec)
+!
+      end subroutine deallocate_tetra_physics
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

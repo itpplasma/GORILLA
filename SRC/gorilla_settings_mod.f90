@@ -94,8 +94,9 @@
     NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
                         & boole_pusher_ode45, boole_dt_dtau, boole_newton_precalc, poly_order, i_precomp, boole_guess, &
                         & rel_err_ode45,boole_periodic_relocation,handover_processing_kind, boole_axi_noise_vector_pot, &
-                        & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, axi_noise_eps_A, axi_noise_eps_Phi, &
-                        & non_axi_noise_eps_A, boole_helical_pert, helical_pert_eps_Aphi, helical_pert_m_fourier, &
+                        & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, &
+                        & axi_noise_eps_A, axi_noise_eps_Phi, non_axi_noise_eps_A, &
+                        & boole_helical_pert, helical_pert_eps_Aphi, helical_pert_m_fourier, &
                         & helical_pert_n_fourier, boole_time_Hamiltonian, boole_gyrophase, boole_vpar_int, boole_vpar2_int, &
                         & boole_adaptive_time_steps, desired_delta_energy, max_n_intermediate_steps, boole_grid_for_find_tetra, &
                         & a_factor, b_factor, c_factor, &
