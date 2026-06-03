@@ -54,6 +54,7 @@ end module inthecore_mod
 
 module field_mod
   integer          :: icall=0
+  integer          :: ianalytic_circ=0
   integer          :: ipert,iequil,iaxieq=0
   double precision :: ampl
 end module field_mod

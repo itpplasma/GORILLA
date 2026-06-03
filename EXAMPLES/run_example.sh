@@ -80,6 +80,11 @@ if [ $? -eq 0 ]; then
                 "e_tot_adaptive.dat"
             )
             ;;
+        8)
+            EXPECTED_FILES=(
+                "poincare_plot_phi_0_rphiz.dat"
+            )
+            ;;
         *)
             echo "Warning: Unknown example number, skipping output validation"
             EXPECTED_FILES=()

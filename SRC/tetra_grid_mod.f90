@@ -29,10 +29,13 @@
         use field_eq_mod, only : nrad,nzet,rad,zet
         use tetra_grid_settings_mod, only: boole_n_field_periods,n_field_periods_manual,grid_size,n1,n2,n3,grid_kind, &
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
-                                         & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi
+                                         & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
+                                         & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ
         use new_vmec_stuff_mod, only: nper
         use spline_vmec_data_mod, only: spline_vmec_data
         use field_divB0_mod, only: field
+        use field_mod, only: ianalytic_circ
+        use field_analytic_circ_mod, only: set_field_analytic_circ
         !use make_grid_rect_mod, only: make_grid_rect
 !
         implicit none
@@ -54,7 +57,7 @@
         if(boole_n_field_periods) then !Automatically
             !Select number of field periods depending on input equilibrium
             select case(grid_kind)
-                case(1,2,4) !2D EFIT & WEST equilibria
+                case(1,2,4,5) !2D EFIT & WEST equilibria
                     call set_n_field_periods(1)
                 case(3) !3D VMEC equilibria
                     call set_n_field_periods(0) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
@@ -131,6 +134,20 @@
                           & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
             call make_grid_SOLEDGE3X_EIRENE(grid_size)
+
+          case(5) !analytic circular tokamak
+            ianalytic_circ = 1
+            call set_field_analytic_circ(R0_analytic_circ, a_analytic_circ, &
+                                         B0_analytic_circ, q0_analytic_circ, q1_analytic_circ)
+              Rmin = R0_analytic_circ - a_analytic_circ
+              Rmax = R0_analytic_circ + a_analytic_circ
+              Zmin = -a_analytic_circ
+              Zmax = a_analytic_circ
+              ntetr = grid_size(1)*grid_size(2)*grid_size(3)*6
+              nvert = (grid_size(1)+1)*(grid_size(2)+1)*(grid_size(3)+1)
+              allocate(tetra_grid(ntetr))
+              allocate(verts_rphiz(3, nvert))
+              call make_grid_rect(tetra_grid, verts_rphiz, grid_size, Rmin, Rmax, Zmin, Zmax)
 !
         end select
 !

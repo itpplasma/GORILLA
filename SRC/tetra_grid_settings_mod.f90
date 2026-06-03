@@ -25,7 +25,7 @@
 
 !
     !Grid kind - Selection of grid kind
-    !(1 ... rectangular grid, 2 ... field-aligned grid EFIT, 3 ... field-aligned grid VMEC, 4 ... SOLEDGE3X-EIRENE grid)
+    !(1 ... rectangular grid, 2 ... field-aligned grid EFIT, 3 ... field-aligned grid VMEC, 4 ... SOLEDGE3X-EIRENE grid, 5 ... analytic circular tokamak)
     integer,public,protected :: grid_kind
 !
     !MHD equilibrium filename
@@ -54,6 +54,14 @@
     !Axisymmetric equilibrium type (reader variable)
     integer, public, protected :: iaxieq_in
 !
+    !Analytic field circular axisymetric geometry (reader variable)
+    integer, public, protected :: ianalytic_circ = 0
+    double precision, public, protected :: R0_analytic_circ = 0.d0
+    double precision, public, protected :: a_analytic_circ  = 0.d0
+    double precision, public, protected :: B0_analytic_circ = 0.d0
+    double precision, public, protected :: q0_analytic_circ = 1.d0
+    double precision, public, protected :: q1_analytic_circ = 0.d0
+!
     !Object file with mesh data
     logical,public,protected :: boole_write_mesh_obj
     character(50),public,protected :: filename_mesh_rphiz,filename_mesh_sthetaphi
@@ -63,7 +71,8 @@
                             & i_radial_spacing, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
-                            & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename
+                            & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename, &
+                            & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ
 !
     public :: load_tetra_grid_inp,set_grid_size,set_n_field_periods,set_n2,set_n3
 !
@@ -79,6 +88,8 @@
             select case(grid_kind)
                 case(4) !Axisymmetric equilibrium of WEST
                     iaxieq_in = 1
+                case(5) !Analytic field circular axisymmetric geometry tokamak
+                    ianalytic_circ = 1
                 case default
                     iaxieq_in = 0
             end select

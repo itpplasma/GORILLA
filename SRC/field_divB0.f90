@@ -27,6 +27,7 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
   use field_eq_mod, only : nwindow_r,nwindow_z
   use tetra_grid_settings_mod, only: g_file_filename, convex_wall_filename, iaxieq_in !=> Michael Eder, 05 May 2022
   use utils_field_divB0_mod, only: field_fourier, field_fourier_derivs, inthecore, stretch_coords, field_eq
+  use field_analytic_circ_mod
 !
   implicit none
 !
@@ -63,6 +64,15 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
      gfile = g_file_filename
      convexfile = convex_wall_filename
      iaxieq = iaxieq_in
+  endif
+
+  if(ianalytic_circ.eq.1) then
+    call field_analytic_circ(r, p, z, &
+                             Br, Bp, Bz, &
+                             dBrdR, dBrdp, dBrdZ, &
+                             dBpdR, dBpdp, dBpdZ, &
+                             dBzdR, dBzdp, dBzdZ)
+    return
   endif
 
   call stretch_coords(r,z,rm,zm)

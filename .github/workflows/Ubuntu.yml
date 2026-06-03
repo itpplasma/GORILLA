@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Dependencies
         run: |
@@ -40,7 +40,7 @@ jobs:
       - name: Additional Files
         run: |
           cd $GITHUB_WORKSPACE
-          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+          wget --user-agent="Mozilla/5.0" -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
           unzip 954.zip
           cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
           
@@ -49,13 +49,13 @@ jobs:
           ./build_coverage.sh
         
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: code-coverage-report
           path: BUILD/COVERAGE/
           
   Ubuntu:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     
     env:
       FC: gfortran
@@ -63,7 +63,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Dependencies
         run: |
@@ -73,7 +73,7 @@ jobs:
       - name: Additional Files
         run: |
           cd $GITHUB_WORKSPACE
-          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
+          wget --user-agent="Mozilla/5.0" -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
           unzip 954.zip
           cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
           
@@ -123,13 +123,13 @@ jobs:
             plotting_tutorial
 
       - name: Archive MATLAB results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MATLAB-RESULTS
           path: MATLAB/data_plots
         
       - name: Set up Python 3.9
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9
 
@@ -168,7 +168,7 @@ jobs:
           python3.9 plotting_tutorial.py
 
       - name: Archive PYTHON results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: PYTHON-RESULTS
           path: PYTHON/data_plots
