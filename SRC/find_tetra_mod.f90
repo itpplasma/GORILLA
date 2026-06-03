@@ -9,7 +9,7 @@ module find_tetra_mod
 !
     private
 !
-    public :: grid_for_find_tetra, find_tetra
+    public :: grid_for_find_tetra, find_tetra, deallocate_find_tetra_arrays
 !
     integer, dimension(:,:), allocatable           :: equidistant_grid
     integer, dimension(:), allocatable             :: entry_counter
@@ -43,7 +43,10 @@ module find_tetra_mod
         real(dp), dimension(:,:), allocatable  :: verts_abc
 !
 print*, 'grid_for_find_tetra started'
-        boole_reduce_entries = .true.
+        !Free any pre-existing find-tetra arrays so a fresh build can proceed without external bookkeeping.
+        call deallocate_find_tetra_arrays
+!
+        boole_reduce_entries = .false.
         boole_axi_symmetry = .false.
 !
         if (coord_system.eq.1) allocate(verts_abc(size(verts_rphiz(:,1)),size(verts_rphiz(1,:))))
@@ -595,4 +598,20 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
         endif
 !
     end subroutine find_tetra
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine deallocate_find_tetra_arrays
+!
+! Deallocates arrays used by find_tetra to allow rebuilding with different grid
+!
+    implicit none
+!
+    if (allocated(equidistant_grid)) deallocate(equidistant_grid)
+    if (allocated(entry_counter)) deallocate(entry_counter)
+    if (allocated(box_centres)) deallocate(box_centres)
+    if (allocated(save_box_centres)) deallocate(save_box_centres)
+!
+    end subroutine deallocate_find_tetra_arrays
+!
 end module find_tetra_mod

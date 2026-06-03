@@ -33,6 +33,9 @@ module magdata_in_symfluxcoordinates_mod
   integer :: i,nthetap1
   double precision, dimension(:,:), allocatable :: splcoe
 !
+  !Free any pre-existing magdata arrays so a fresh load can proceed without external bookkeeping.
+  call deallocate_magdata_in_symfluxcoord
+!
   twopi = atan(1.d0)*8.d0
 !
 !-----------------------------------------------------------------------
@@ -120,6 +123,30 @@ module magdata_in_symfluxcoordinates_mod
   load=.false.
 !
   end subroutine load_magdata_in_symfluxcoord
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+  subroutine deallocate_magdata_in_symfluxcoord
+!
+! Deallocates arrays to allow reloading with different grid parameters
+!
+  use magdata_in_symfluxcoor_mod
+!
+  implicit none
+!
+  if (allocated(rbeg)) deallocate(rbeg)
+  if (allocated(rsmall)) deallocate(rsmall)
+  if (allocated(qsaf)) deallocate(qsaf)
+  if (allocated(psisurf)) deallocate(psisurf)
+  if (allocated(phitor)) deallocate(phitor)
+  if (allocated(R_st)) deallocate(R_st)
+  if (allocated(Z_st)) deallocate(Z_st)
+  if (allocated(bmod_st)) deallocate(bmod_st)
+  if (allocated(sqgnorm_st)) deallocate(sqgnorm_st)
+!
+  load = .true.
+!
+  end subroutine deallocate_magdata_in_symfluxcoord
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

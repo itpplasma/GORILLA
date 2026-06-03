@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to run a GORILLA example
-# Usage: ./run_example.sh <example_number>
+# Usage from parent directory: .EXAMPLES/run_example.sh <example_number>
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <example_number>"
