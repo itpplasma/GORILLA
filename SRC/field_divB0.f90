@@ -24,7 +24,7 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
   use field_c_mod,   only : ntor,icftype,icall_c
   use field_mod
   use inthecore_mod, only : incore,cutoff
-  use field_eq_mod, only : nwindow_r,nwindow_z
+  use field_eq_mod, only : nwindow_r,nwindow_z,rtf,btf,psif
   use tetra_grid_settings_mod, only: g_file_filename, convex_wall_filename, iaxieq_in !=> Michael Eder, 05 May 2022
   use utils_field_divB0_mod, only: field_fourier, field_fourier_derivs, inthecore, stretch_coords, field_eq
   use field_analytic_circ_mod
@@ -66,16 +66,31 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
      iaxieq = iaxieq_in
   endif
 
-  call stretch_coords(r,z,rm,zm)
-
+  ! Analytic circular tokamak: self-contained field defined everywhere, so
+  ! evaluate directly on the raw (r,z) and skip the EFIT-only convex-wall
+  ! coordinate stretch (stretch_coords needs convexfile, which has no meaning
+  ! here). Must precede stretch_coords to avoid that file dependency.
   if(ianalytic_circ.eq.1) then
-    call field_analytic_circ(rm, p, zm, &
+    call field_analytic_circ(r, p, z, &
                              Br, Bp, Bz, &
                              dBrdR, dBrdp, dBrdZ, &
                              dBpdR, dBpdp, dBpdZ, &
                              dBzdR, dBzdp, dBzdZ)
+    ! Populate the EFIT-style flux-function module variables that the
+    ! vector-potential routines consume (field_eq normally sets these, but it
+    ! is bypassed for the analytic field). Without this they stay uninitialised
+    ! and the A_z line-integral runs off uninitialised rtf -> SIGILL.
+    !   rtf*btf = F = R0*B0  (poloidal current function; B_phi = F/R)
+    !   psif    = poloidal flux psi_pol(r) = B0 * int_0^r r'/q dr'
+    !           = B0 * a^2/(2 q1) * ln(q(r)/q0),  q = q0 + q1 (r/a)^2
+    rtf  = R0_ac
+    btf  = B0_ac
+    psif = B0_ac * a_ac**2 / (2.d0*q1_ac) &
+           * log( (q0_ac + q1_ac*((r-R0_ac)**2 + z**2)/a_ac**2) / q0_ac )
     return
   endif
+
+  call stretch_coords(r,z,rm,zm)
 
   call field_eq(rm,p,zm,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
                ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
