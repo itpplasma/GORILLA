@@ -281,7 +281,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
         use gorilla_settings_mod, only: boole_grid_for_find_tetra, b_factor
         use tetra_grid_mod, only : Rmin,Rmax,Zmin,Zmax,ntetr,tetra_grid, verts_rphiz
-        use tetra_grid_settings_mod, only: grid_kind, grid_size, n_field_periods
+        use tetra_grid_settings_mod, only: grid_kind, grid_size, n_field_periods, R0_analytic_circ
         use tetra_physics_mod, only: tetra_physics,cm_over_e,isinside, coord_system
         use pusher_tetra_func_mod, only: pusher_handover2neighbour
         use constants, only: pi,clight,eps
@@ -307,6 +307,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
         integer :: hexahedron_index, shifted_hexahedron_index, ntetr_searched
         real(dp) :: perpinv
         real(dp) ::hr,hphi,hz,vnorm,vperp2
+        real(dp) :: rho_ac_local, theta_ac_local   ! for grid_kind=5 flux-aligned mesh
         real(dp), dimension(4):: cur_dist_value, z
         real(dp), dimension(3) :: x_save
         real(dp), dimension(4)   :: dzdtau
@@ -328,26 +329,48 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
         !Calculation of search domain depending on grid_kind
         select case(grid_kind)
-            case(1,5) !rectangular grid (1) or analytic circular tokamak (5) - both built by make_grid_rect
+            case(1) !rectangular grid - built by make_grid_rect in (R,phi,Z)
 !
                 nr = grid_size(1)
                 nphi = grid_size(2)
                 nz = grid_size(3)
 !
-                hr=(Rmax-Rmin)/nr !calculating the discretization step sizes in these directions
+                hr=(Rmax-Rmin)/nr
                 hphi=(2.d0 * pi)/nphi
                 hz=(Zmax-Zmin)/nz
 !
-                ir=int((x(1)-Rmin)/hr) +1 !get the reference coordinate in the (indexwise: 1-based) grid, so for instance the particle is in box (ir,iphi,iz)=(4,2,7)
+                ir=int((x(1)-Rmin)/hr) +1
                 iphi=int(x(2)/hphi) +1
                 iz=int((x(3)-Zmin)/hz) +1
 !
-                !Diagnostic to check, if out of domain
+            case(5) !analytic circular tokamak - flux-aligned (rho,phi,theta) mesh
+              ! The mesh is built in (rho,phi,theta) space (make_grid_rect with "R"=rho, "Z"=theta).
+              ! Rmin=rho_inner, Rmax=rho_outer, Zmin=0, Zmax=2*pi.
+              ! To find the grid index, convert particle (R,phi,Z) to (rho,theta).
+!
+                nr = grid_size(1)
+                nphi = grid_size(2)
+                nz = grid_size(3)
+!
+                hr=(Rmax-Rmin)/nr      ! hr = (rho_outer - rho_inner) / nr
+                hphi=(2.d0 * pi)/nphi
+                hz=(Zmax-Zmin)/nz      ! hz = 2*pi / nz  (theta step)
+!
+                ! Convert (R,Z) -> (rho,theta) and use those for grid lookup
+                rho_ac_local = sqrt((x(1)-R0_analytic_circ)**2 + x(3)**2)
+                theta_ac_local = modulo(atan2(x(3), x(1)-R0_analytic_circ), 2.d0*pi)
+!
+                ir=int((rho_ac_local - Rmin)/hr) +1
+                iphi=int(x(2)/hphi) +1
+                iz=int((theta_ac_local - Zmin)/hz) +1
+!
+                ! Soft out-of-domain check for the flux-aligned mesh: positions
+                ! outside [rho_inner,rho_outer] are simply not in the mesh.  Return
+                ! ind_tetr=-1 so callers can handle rejection gracefully.
                 if(ir.lt.1.or.ir.gt.nr.or.iphi.lt.1.or.iphi.gt.nphi.or.iz.lt.1.or.iz.gt.nz) then
                     ind_tetr_out=-1
                     iface=-1
-                    print *, 'Error in start_tetra_rect: Particle is outside of the domain!'
-                    stop
+                    return
                 endif
 !
                 indtetr_start = int((dble(iz)-1.d0)*6.d0 + 6.d0*dble(nz)*(dble(ir)-1.d0) & 

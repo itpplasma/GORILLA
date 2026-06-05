@@ -30,7 +30,8 @@
         use tetra_grid_settings_mod, only: boole_n_field_periods,n_field_periods_manual,grid_size,n1,n2,n3,grid_kind, &
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
-                                         & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ
+                                         & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
+                                         & sfc_s_min, sfc_s_max
         use new_vmec_stuff_mod, only: nper
         use spline_vmec_data_mod, only: spline_vmec_data
         use field_divB0_mod, only: field
@@ -44,6 +45,10 @@
         double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                             ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
         double precision :: rho_ac,s_edge_ac,twopi_ac
+        ! Variables for the flux-aligned analytic-circ mesh (grid_kind=5)
+        double precision :: rho_inner_ac, rho_outer_ac, rho_v, theta_v
+        integer :: iv_loc, ind_tetr1_ac, ind_tetr2_ac, iface1_ac, iface2_ac
+        integer :: ir_ac, iphi_ac, iz_ac, ii_ac, nr_ac, nphi_ac, nz_ac
 !
         call set_grid_size([n1,n2,n3])      !Rectangular grid:                  [n1,n2,n3] = [nR,nphi,nZ]
                                             !Field-aligned grid:                [n1,n2,n3] = [ns,nphi,ntheta]
@@ -133,30 +138,97 @@
 !
             call make_grid_SOLEDGE3X_EIRENE(grid_size)
 
-          case(5) !analytic circular tokamak
+          case(5) !analytic circular tokamak — flux-surface-aligned mesh in (rho,theta,phi)
             ianalytic_circ = 1
             call set_field_analytic_circ(R0_analytic_circ, a_analytic_circ, &
                                          B0_analytic_circ, q0_analytic_circ, q1_analytic_circ)
-              Rmin = R0_analytic_circ - a_analytic_circ
-              Rmax = R0_analytic_circ + a_analytic_circ
-              Zmin = -a_analytic_circ
-              Zmax = a_analytic_circ
+              twopi_ac  = 8.d0*atan(1.d0)
+              s_edge_ac = R0_analytic_circ - sqrt(R0_analytic_circ**2 - a_analytic_circ**2)
+              !
+              ! Build the mesh in flux-surface-aligned (rho, theta, phi) coordinates.
+              ! Replacing the previous rectangular (R,Z,phi) mesh: in that layout only
+              ! ~1.6% of cells fell within the sfc_s annulus, diluting the delta-f signal
+              ! by the same factor.  Here we map:
+              !   n1 cells in rho  from rho(sfc_s_min) to rho(sfc_s_max)
+              !   n2 cells in phi  from 0 to 2*pi  (toroidal, unchanged)
+              !   n3 cells in theta from 0 to 2*pi  (poloidal, passed as Zmin/Zmax=0/2pi)
+              ! make_grid_rect generates the topology; vertices are post-processed to
+              ! physical (R=R0+rho*cos(theta), phi, Z=rho*sin(theta)).
+              ! The theta direction is made periodic by identifying the iz=n3 vertex
+              ! layer with iz=0 (analogous to phi-periodicity in make_grid_rect).
+              !
+              rho_inner_ac = sqrt(R0_analytic_circ**2 - &
+                                  (R0_analytic_circ - sfc_s_min*s_edge_ac)**2)
+              rho_outer_ac = sqrt(R0_analytic_circ**2 - &
+                                  (R0_analytic_circ - sfc_s_max*s_edge_ac)**2)
+              Rmin = rho_inner_ac   ! "R" direction = rho
+              Rmax = rho_outer_ac
+              Zmin = 0.d0           ! "Z" direction = theta (0 to 2*pi)
+              Zmax = twopi_ac
               ntetr = grid_size(1)*grid_size(2)*grid_size(3)*6
               nvert = (grid_size(1)+1)*(grid_size(2)+1)*(grid_size(3)+1)
               allocate(tetra_grid(ntetr))
               allocate(verts_rphiz(3, nvert))
               call make_grid_rect(tetra_grid, verts_rphiz, grid_size, Rmin, Rmax, Zmin, Zmax)
-!
-              ! make_grid_rect fills only verts_rphiz for grid_kind=5. Populate the
-              ! SFL coordinates (s, theta, phi) analytically so applets that consume
-              ! them work. For concentric circular flux surfaces of the analytic field:
-              !   s     = normalised geometric toroidal flux
-              !         = (R0 - sqrt(R0^2 - r^2)) / (R0 - sqrt(R0^2 - a^2))
-              !   theta = geometric poloidal angle atan2(Z, R-R0), wrapped to [0,2pi)
-              !   phi   = cylindrical phi (pass-through)
+              !
+              ! Post-process: verts_rphiz now holds (rho, phi, theta).
+              ! Convert to actual cylindrical (R, phi, Z).
+              do i = 1, nvert
+                rho_v   = verts_rphiz(1, i)   ! rho  (= "R" from make_grid_rect)
+                theta_v = verts_rphiz(3, i)   ! theta (= "Z" from make_grid_rect)
+                verts_rphiz(1, i) = R0_analytic_circ + rho_v * cos(theta_v)  ! R
+                verts_rphiz(3, i) = rho_v * sin(theta_v)                       ! Z
+                ! verts_rphiz(2,i) = phi  (unchanged)
+              end do
+              !
+              ! Theta-periodicity: the iz=n3 vertex layer (theta=2*pi) is physically
+              ! identical to iz=0 (theta=0).  Replace iz=n3 vertex indices with iz=0.
+              ! In make_grid_rect with nz=grid_size(3), a vertex iv is at iz=n3 when
+              ! modulo(iv-1, nz+1) == nz; the corresponding iz=0 vertex is iv - nz.
+              nz_ac = grid_size(3)
+              do i = 1, ntetr
+                do ii_ac = 1, 4
+                  iv_loc = tetra_grid(i)%ind_knot(ii_ac)
+                  if (modulo(iv_loc-1, nz_ac+1) .eq. nz_ac) then
+                    tetra_grid(i)%ind_knot(ii_ac) = iv_loc - nz_ac
+                  end if
+                end do
+              end do
+              !
+              ! Add neighbour connectivity across the theta=0/2*pi seam.
+              ! After the index replacement above, tetrahedra at iz=n3 share vertices
+              ! with iz=0; check_neighbour will find the matching faces.
+              nr_ac   = grid_size(1)
+              nphi_ac = grid_size(2)
+              do iphi_ac = 1, nphi_ac
+              do ir_ac   = 1, nr_ac
+                ! Cell at iz=1  starts at tetra index 6*((iphi_ac-1)*nr_ac*nz_ac + (ir_ac-1)*nz_ac + 0) + 1
+                ! Cell at iz=nz starts at tetra index 6*((iphi_ac-1)*nr_ac*nz_ac + (ir_ac-1)*nz_ac + nz_ac-1) + 1
+                do ii_ac = 1, 6
+                  ind_tetr1_ac = 6*((iphi_ac-1)*nr_ac*nz_ac + (ir_ac-1)*nz_ac + 0)       + ii_ac
+                  ind_tetr2_ac = 6*((iphi_ac-1)*nr_ac*nz_ac + (ir_ac-1)*nz_ac + nz_ac-1) + ii_ac
+                  call check_neighbour(tetra_grid(ind_tetr1_ac)%ind_knot(:), &
+                                       tetra_grid(ind_tetr2_ac)%ind_knot(:), &
+                                       iface1_ac, iface2_ac)
+                  if (iface1_ac .ne. -1) then
+                    if (tetra_grid(ind_tetr1_ac)%neighbour_tetr(iface1_ac) .eq. -1) then
+                      tetra_grid(ind_tetr1_ac)%neighbour_tetr(iface1_ac) = ind_tetr2_ac
+                      tetra_grid(ind_tetr1_ac)%neighbour_face(iface1_ac) = iface2_ac
+                    end if
+                    if (tetra_grid(ind_tetr2_ac)%neighbour_tetr(iface2_ac) .eq. -1) then
+                      tetra_grid(ind_tetr2_ac)%neighbour_tetr(iface2_ac) = ind_tetr1_ac
+                      tetra_grid(ind_tetr2_ac)%neighbour_face(iface2_ac) = iface1_ac
+                    end if
+                  end if
+                end do
+              end do
+              end do
+              !
+              ! Set verts_sthetaphi: for the flux-aligned mesh, the coordinates are exact.
+              !   s     = (R0 - sqrt(R0^2 - rho^2)) / s_edge_ac
+              !   theta = geometric poloidal angle (= SFL angle for circular geometry)
+              !   phi   = toroidal angle (pass-through)
               allocate(verts_sthetaphi(3, nvert))
-              twopi_ac  = 8.d0*atan(1.d0)
-              s_edge_ac = R0_analytic_circ - sqrt(R0_analytic_circ**2 - a_analytic_circ**2)
               do i = 1, nvert
                 rho_ac = sqrt((verts_rphiz(1,i) - R0_analytic_circ)**2 + verts_rphiz(3,i)**2)
                 verts_sthetaphi(1,i) = (R0_analytic_circ - sqrt(R0_analytic_circ**2 - rho_ac**2)) / s_edge_ac
