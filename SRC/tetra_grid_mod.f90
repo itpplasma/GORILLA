@@ -43,6 +43,7 @@
         integer :: efit_vmec,i
         double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                             ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
+        double precision :: rho_ac,s_edge_ac,twopi_ac
 !
         call set_grid_size([n1,n2,n3])      !Rectangular grid:                  [n1,n2,n3] = [nR,nphi,nZ]
                                             !Field-aligned grid:                [n1,n2,n3] = [ns,nphi,ntheta]
@@ -145,6 +146,23 @@
               allocate(tetra_grid(ntetr))
               allocate(verts_rphiz(3, nvert))
               call make_grid_rect(tetra_grid, verts_rphiz, grid_size, Rmin, Rmax, Zmin, Zmax)
+!
+              ! make_grid_rect fills only verts_rphiz for grid_kind=5. Populate the
+              ! SFL coordinates (s, theta, phi) analytically so applets that consume
+              ! them work. For concentric circular flux surfaces of the analytic field:
+              !   s     = normalised geometric toroidal flux
+              !         = (R0 - sqrt(R0^2 - r^2)) / (R0 - sqrt(R0^2 - a^2))
+              !   theta = geometric poloidal angle atan2(Z, R-R0), wrapped to [0,2pi)
+              !   phi   = cylindrical phi (pass-through)
+              allocate(verts_sthetaphi(3, nvert))
+              twopi_ac  = 8.d0*atan(1.d0)
+              s_edge_ac = R0_analytic_circ - sqrt(R0_analytic_circ**2 - a_analytic_circ**2)
+              do i = 1, nvert
+                rho_ac = sqrt((verts_rphiz(1,i) - R0_analytic_circ)**2 + verts_rphiz(3,i)**2)
+                verts_sthetaphi(1,i) = (R0_analytic_circ - sqrt(R0_analytic_circ**2 - rho_ac**2)) / s_edge_ac
+                verts_sthetaphi(2,i) = modulo(atan2(verts_rphiz(3,i), verts_rphiz(1,i) - R0_analytic_circ), twopi_ac)
+                verts_sthetaphi(3,i) = verts_rphiz(2,i)
+              end do
 !
         end select
 !
