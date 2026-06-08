@@ -69,20 +69,9 @@ jobs:
           
       - name: Run examples
         run: |
-          cd EXAMPLES/example_1
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_2
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_3
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_4
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_5
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_6
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_7
-          ../BUILD/test_gorilla_main.x
+          for i in 1 2 3 4 5 6 7; do
+            (cd EXAMPLES/example_$i && ./test_gorilla_main.x)
+          done
           
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v1
