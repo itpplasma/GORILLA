@@ -1,6 +1,7 @@
 add_library(GORILLA STATIC
 	SetWorkingPrecision.f90
-	contrib/Polynomial234RootSolvers.f90 
+	contrib/cmplx_roots_sg.f90
+	contrib/Polynomial234RootSolvers.f90
 	constants_mod.f90 
 	tetra_grid_settings_mod.f90
 	gorilla_settings_mod.f90

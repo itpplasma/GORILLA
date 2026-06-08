@@ -43,7 +43,7 @@
     !Radial grid spacing option
     !1 ... equidistant in s (normalized toroidal flux) - default
     !2 ... equidistant in sqrt(s) (approximately equidistant in minor radius)
-    integer, public, protected :: i_radial_spacing
+    integer, public, protected :: i_radial_spacing = 1
 !
     !Scaling of $\theta$-variable
     integer, public, protected :: theta_geom_flux
