@@ -344,9 +344,33 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                 iz=int((x(3)-Zmin)/hz) +1
 !
             case(5) !analytic circular tokamak - flux-aligned (rho,phi,theta) mesh
-              ! The mesh is built in (rho,phi,theta) space (make_grid_rect with "R"=rho, "Z"=theta).
+              ! coord_system==1: x is physical (R,phi,Z); convert to (rho,phi,theta) for lookup.
+              ! coord_system==2: x is SFL (s,theta,phi); use the field-aligned plane search.
+              if (coord_system .eq. 2) then
+                  ! SFL path: phi is x(3); use same plane-based search as case(2,3,4).
+                  ind_b = 3
+                  nphi_tetr = grid_size(2)
+                  nphi = nphi_tetr
+                  ntetr_in_plane = ntetr/nphi_tetr
+                  if (boole_grid_for_find_tetra) then
+                      use_grid = .true.
+                  else
+                      use_grid = .false.
+                      ind_plane_tetra_start = int(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods))
+                      ! Guard: wrap index to [0, nphi_tetr-1] in case phi drifted
+                      ! outside [0, 2*pi/n_field_periods) due to floating point or
+                      ! a missed periodic_relocation step.
+                      ind_plane_tetra_start = modulo(ind_plane_tetra_start, nphi_tetr)
+                      if (abs(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods) - &
+                                & dble(ind_plane_tetra_start)).gt.(1.0d0-eps)) numerical_corr_plus  = 1
+                      if (abs(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods) - &
+                                & dble(ind_plane_tetra_start)).lt.eps)          numerical_corr_minus = 1
+                      indtetr_start  = ind_plane_tetra_start*ntetr_in_plane + 1
+                      ntetr_searched = ntetr_in_plane*(1+numerical_corr_plus+numerical_corr_minus)
+                  endif
+              else
+              ! coord_system==1 path: mesh stored in (rho,"phi",theta) space.
               ! Rmin=rho_inner, Rmax=rho_outer, Zmin=0, Zmax=2*pi.
-              ! To find the grid index, convert particle (R,phi,Z) to (rho,theta).
 !
                 nr = grid_size(1)
                 nphi = grid_size(2)
@@ -373,7 +397,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                     return
                 endif
 !
-                indtetr_start = int((dble(iz)-1.d0)*6.d0 + 6.d0*dble(nz)*(dble(ir)-1.d0) & 
+                indtetr_start = int((dble(iz)-1.d0)*6.d0 + 6.d0*dble(nz)*(dble(ir)-1.d0) &
                 & + 6.d0*(dble(iphi)-1.d0)*dble(nr)*dble(nz) +1.d0)
                     !This calculates the starting tetrahedron index as a function of (ir,iphi,iz)
                     !+1, since formula is 0-based (like istarttetr in make_grid_rect)
@@ -383,6 +407,8 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                 ! if () numerical_corr_plus = 1
                 ntetr_searched = 6
                 use_grid = .false.
+!
+              endif  ! coord_system==1 vs coord_system==2 for grid_kind=5
 !
             case(2,3,4) !EFIT field-aligned grid or VMEC field_aligned grid or SOLEDGE3X_EIRENE
 !
