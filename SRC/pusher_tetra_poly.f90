@@ -222,7 +222,8 @@ endif
             ! allocate(tau_steps_list(max_entries),intermediate_z0_list(4,max_entries))
             number_of_integration_steps = 0
 !
-            if (any(boole_array_optional_quantities)) call initialise_optional_quantities(optional_quantities)
+            if (present(optional_quantities) .and. any(boole_array_optional_quantities)) &
+                & call initialise_optional_quantities(optional_quantities)
 !
             !Initial computation values
             z = z_init
@@ -655,7 +656,7 @@ endif
 !                
             endif
 !
-            if(any(boole_array_optional_quantities)) then
+            if(present(optional_quantities) .and. any(boole_array_optional_quantities)) then
                 !loop over number_of_integration_steps
                 do i = 1,number_of_integration_steps
                     call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
