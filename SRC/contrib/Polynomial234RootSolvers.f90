@@ -33,11 +33,10 @@ module Polynomial234RootSolvers
 
 contains
 
-  subroutine quadraticRoots(q1, q0, nReal, root, printInfo)
-    real(kind = wp),   intent(in)  :: q1, q0
-    integer,           intent(out) :: nReal
-    real(kind = wp),   intent(out) :: root(1:2, 1:2)
-    logical, optional, intent(in)  :: printInfo
+  subroutine quadraticRoots(q1, q0, nReal, root)
+    real(kind = wp), intent(in)  :: q1, q0
+    integer,         intent(out) :: nReal
+    real(kind = wp), intent(out) :: root(1:2, 1:2)
 
     complex(kind = wp) :: poly(3), croots(2)
 
@@ -49,11 +48,10 @@ contains
     call pack_roots(croots, 2, nReal, root)
   end subroutine quadraticRoots
 
-  subroutine cubicRoots(c2, c1, c0, nReal, root, printInfo)
-    real(kind = wp),   intent(in)  :: c2, c1, c0
-    integer,           intent(out) :: nReal
-    real(kind = wp),   intent(out) :: root(1:3, 1:2)
-    logical, optional, intent(in)  :: printInfo
+  subroutine cubicRoots(c2, c1, c0, nReal, root)
+    real(kind = wp), intent(in)  :: c2, c1, c0
+    integer,         intent(out) :: nReal
+    real(kind = wp), intent(out) :: root(1:3, 1:2)
 
     complex(kind = wp) :: poly(4), croots(3)
 
@@ -66,11 +64,10 @@ contains
     call pack_roots(croots, 3, nReal, root)
   end subroutine cubicRoots
 
-  subroutine quarticRoots(q3, q2, q1, q0, nReal, root, printInfo)
-    real(kind = wp),   intent(in)  :: q3, q2, q1, q0
-    integer,           intent(out) :: nReal
-    real(kind = wp),   intent(out) :: root(1:4, 1:2)
-    logical, optional, intent(in)  :: printInfo
+  subroutine quarticRoots(q3, q2, q1, q0, nReal, root)
+    real(kind = wp), intent(in)  :: q3, q2, q1, q0
+    integer,         intent(out) :: nReal
+    real(kind = wp), intent(out) :: root(1:4, 1:2)
 
     complex(kind = wp) :: poly(5), croots(4)
 
