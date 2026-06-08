@@ -23,9 +23,9 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
+          sudo apt-get install gfortran liblapack-dev libnetcdff-dev
           sudo apt install lcov
-          
+
       - name: Install pFUnit
         run: |
           git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit
@@ -36,14 +36,7 @@ jobs:
           make -j$(nproc)
           make tests
           make install
-          
-      - name: Additional Files
-        run: |
-          cd $GITHUB_WORKSPACE
-          wget --user-agent="Mozilla/5.0" -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
-          unzip 954.zip
-          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
-          
+
       - name: Build
         run: |
           ./build_coverage.sh
@@ -68,15 +61,8 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
-          
-      - name: Additional Files
-        run: |
-          cd $GITHUB_WORKSPACE
-          wget --user-agent="Mozilla/5.0" -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
-          unzip 954.zip
-          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
-          
+          sudo apt-get install gfortran liblapack-dev libnetcdff-dev
+
       - name: Build
         run: |
           make
