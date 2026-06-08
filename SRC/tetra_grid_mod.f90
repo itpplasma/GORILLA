@@ -44,11 +44,11 @@
         integer :: efit_vmec,i
         double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                             ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
-        double precision :: rho_ac,s_edge_ac,twopi_ac
+        double precision :: rho_ac,s_edge_ac,twopi_ac,eps_ac,th_geom_ac
         ! Variables for the flux-aligned analytic-circ mesh (grid_kind=5)
         double precision :: rho_inner_ac, rho_outer_ac, rho_v, theta_v
         integer :: iv_loc, ind_tetr1_ac, ind_tetr2_ac, iface1_ac, iface2_ac
-        integer :: ir_ac, iphi_ac, iz_ac, ii_ac, nr_ac, nphi_ac, nz_ac
+        integer :: ir_ac, iphi_ac, iz_ac, ii_ac, jj_ac, nr_ac, nphi_ac, nz_ac
 !
         call set_grid_size([n1,n2,n3])      !Rectangular grid:                  [n1,n2,n3] = [nR,nphi,nZ]
                                             !Field-aligned grid:                [n1,n2,n3] = [ns,nphi,ntheta]
@@ -204,9 +204,14 @@
               do ir_ac   = 1, nr_ac
                 ! Cell at iz=1  starts at tetra index 6*((iphi_ac-1)*nr_ac*nz_ac + (ir_ac-1)*nz_ac + 0) + 1
                 ! Cell at iz=nz starts at tetra index 6*((iphi_ac-1)*nr_ac*nz_ac + (ir_ac-1)*nz_ac + nz_ac-1) + 1
+                ! Check ALL 6x6 sub-tetra pairs between the iz=0 and iz=nz cells:
+                ! the face shared across the theta=0/2pi seam is generally NOT at the
+                ! same sub-tetra index in both cells, so a diagonal-only (ii,ii) check
+                ! leaves most seam faces with neighbour=-1 and markers fall out there.
                 do ii_ac = 1, 6
+                do jj_ac = 1, 6
                   ind_tetr1_ac = 6*((iphi_ac-1)*nr_ac*nz_ac + (ir_ac-1)*nz_ac + 0)       + ii_ac
-                  ind_tetr2_ac = 6*((iphi_ac-1)*nr_ac*nz_ac + (ir_ac-1)*nz_ac + nz_ac-1) + ii_ac
+                  ind_tetr2_ac = 6*((iphi_ac-1)*nr_ac*nz_ac + (ir_ac-1)*nz_ac + nz_ac-1) + jj_ac
                   call check_neighbour(tetra_grid(ind_tetr1_ac)%ind_knot(:), &
                                        tetra_grid(ind_tetr2_ac)%ind_knot(:), &
                                        iface1_ac, iface2_ac)
@@ -221,18 +226,37 @@
                     end if
                   end if
                 end do
+                end do
               end do
               end do
               !
               ! Set verts_sthetaphi: for the flux-aligned mesh, the coordinates are exact.
               !   s     = (R0 - sqrt(R0^2 - rho^2)) / s_edge_ac
-              !   theta = geometric poloidal angle (= SFL angle for circular geometry)
+              !   theta = STRAIGHT-FIELD-LINE poloidal angle theta*  (NOT geometric)
               !   phi   = toroidal angle (pass-through)
+              !
+              ! The previous code stored the geometric angle atan2(Z,R-R0) under the
+              ! false premise "= SFL angle for circular geometry".  That is only true
+              ! as eps=rho/R0 -> 0.  Here eps reaches ~0.37, so geometric and SFL
+              ! angles differ by up to ~19 deg at the q=3 surface, which de-coheres the
+              ! delta-f helical phase factor exp(i(m*theta + n*phi)) along resonant
+              ! field lines (m=-6 amplifies a theta error 6x) and corrupts both the
+              ! amplitude and the phase of the screening current.
+              !
+              ! For the analytic field B_phi = B0*R0/R the field-line winding is
+              !   dphi/dtheta_geom = q / (1 + eps*cos(theta_geom)),
+              ! whose integral gives the exact SFL relation
+              !   theta* = 2*atan( sqrt((1-eps)/(1+eps)) * tan(theta_geom/2) ).
+              ! We use the atan2 form below so it is single-valued and robust for all
+              ! theta_geom in [0, 2*pi).
               allocate(verts_sthetaphi(3, nvert))
               do i = 1, nvert
                 rho_ac = sqrt((verts_rphiz(1,i) - R0_analytic_circ)**2 + verts_rphiz(3,i)**2)
                 verts_sthetaphi(1,i) = (R0_analytic_circ - sqrt(R0_analytic_circ**2 - rho_ac**2)) / s_edge_ac
-                verts_sthetaphi(2,i) = modulo(atan2(verts_rphiz(3,i), verts_rphiz(1,i) - R0_analytic_circ), twopi_ac)
+                eps_ac     = rho_ac / R0_analytic_circ
+                th_geom_ac = atan2(verts_rphiz(3,i), verts_rphiz(1,i) - R0_analytic_circ)
+                verts_sthetaphi(2,i) = modulo( 2.d0*atan2( sqrt(1.d0-eps_ac)*sin(0.5d0*th_geom_ac), &
+                                                           sqrt(1.d0+eps_ac)*cos(0.5d0*th_geom_ac) ), twopi_ac)
                 verts_sthetaphi(3,i) = verts_rphiz(2,i)
               end do
 !
