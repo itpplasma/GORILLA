@@ -178,7 +178,15 @@
                 theta_v = verts_rphiz(3, i)   ! theta (= "Z" from make_grid_rect)
                 verts_rphiz(1, i) = R0_analytic_circ + rho_v * cos(theta_v)  ! R
                 verts_rphiz(3, i) = rho_v * sin(theta_v)                       ! Z
-                ! verts_rphiz(2,i) = phi  (unchanged)
+                ! Compress phi from the full torus [0,2*pi] built by make_grid_rect
+                ! to a single toroidal field period [0, 2*pi/n_field_periods] for the
+                ! straight-cylinder / large-aspect-ratio limit (n_field_periods = N).
+                ! make_grid_rect's phi-periodic stitch is topological (index-based,
+                ! see "Neighbours through the periodic boundary"), so it stays valid
+                ! after this coordinate rescale; and the pusher already wraps phi by
+                ! 2*pi/n_field_periods on a periodic crossing (pusher_tetra_func_mod).
+                ! n_field_periods = 1 -> rescale by 1.0 -> exact no-op (full torus).
+                verts_rphiz(2, i) = verts_rphiz(2, i) / dble(n_field_periods)  ! phi -> one field period
               end do
               !
               ! Theta-periodicity: the iz=n3 vertex layer (theta=2*pi) is physically

@@ -377,7 +377,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                 nz = grid_size(3)
 !
                 hr=(Rmax-Rmin)/nr      ! hr = (rho_outer - rho_inner) / nr
-                hphi=(2.d0 * pi)/nphi
+                hphi=(2.d0 * pi/n_field_periods)/nphi  ! phi spans one field period [0,2*pi/N]
                 hz=(Zmax-Zmin)/nz      ! hz = 2*pi / nz  (theta step)
 !
                 ! Convert (R,Z) -> (rho,theta) and use those for grid lookup
