@@ -94,12 +94,14 @@ This will produce `test_gorilla_main.x` required to run the code. To specify the
 NetCDF includes and libraries, one has to set the `NCINC` and `NCLIB` variable during `make`.
 
 ### Building with cmake
-To build GORILLA with `cmake`, use `build.sh`.
+To build GORILLA with `cmake`, run:
 ```bash
 cd /path/to/GORILLA
-./build.sh
+mkdir -p BUILD && cd BUILD
+cmake ..
+make
 ```
-This will produce `test_gorilla_main.x` in the folder BUILD/SRC/ required to run the code.
+This will produce `test_gorilla_main.x` in the folder `BUILD/` required to run the code.
 
 To get additional tests and code coverage, build GORILLA with `build_coverage.sh`. This requires the additional tools and a correct set PFUNIT_DIR. See the pFUnit github [project page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit) for additional information.
 
@@ -111,11 +113,7 @@ make example EXAMPLE=<example number>
 ```
 For manual execution, the necessary soft links are already created and the input files are given in `EXAMPLES/example_1` - `EXAMPLES/example_7` and runs are started with
 ```
-./test_gorilla_main.x   #if the build was done with make
-```
-or
-```
-./test_gorilla_main_cmake.x   #if the build was done with cmake
+./test_gorilla_main.x
 ```
 To avoid hyperthreading issues, it is beneficial to limit the number of threads to
 the number of actual CPU cores via the environment variable `$OMP_NUM_THREADS`.
