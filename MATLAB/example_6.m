@@ -210,6 +210,8 @@ if isfile('../../../test_gorilla_main.x')
     ! ln -s ../../../test_gorilla_main.x .
 elseif isfile('../../../BUILD/SRC/test_gorilla_main.x')
     ! ln -s ../../../BUILD/SRC/test_gorilla_main.x .
+elseif isfile('../../../BUILD/test_gorilla_main.x')
+    ! ln -s ../../../BUILD/test_gorilla_main.x .
 else
     disp('GORILLA not built, exiting the MatLab script')
     return
