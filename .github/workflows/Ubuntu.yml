@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Dependencies
         run: |
@@ -42,7 +42,7 @@ jobs:
           ./build_coverage.sh
         
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: code-coverage-report
           path: BUILD/COVERAGE/
@@ -56,7 +56,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Dependencies
         run: |
@@ -74,10 +74,10 @@ jobs:
           done
           
       - name: Set up MATLAB
-        uses: matlab-actions/setup-matlab@v1
+        uses: matlab-actions/setup-matlab@v2
         
       - name: Run MATLAB scripts
-        uses: matlab-actions/run-command@v1
+        uses: matlab-actions/run-command@v2
         with:
           command: |
             cd MATLAB
@@ -91,22 +91,22 @@ jobs:
             example_8
 
       - name: Run MATLAB livescript
-        uses: matlab-actions/run-command@v1
+        uses: matlab-actions/run-command@v2
         with:
           command: |
             cd MATLAB
             plotting_tutorial
 
       - name: Archive MATLAB results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: MATLAB-RESULTS
           path: MATLAB/data_plots
         
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          python-version: 3.9
+          python-version: '3.12'
 
       - name: Install PYTHON dependencies
         run: |
@@ -117,33 +117,33 @@ jobs:
       - name: Run PYTHON scripts
         run: |
           cd PYTHON
-          python3.9 example_1.py
-          python3.9 example_2.py
-          python3.9 example_3.py
-          python3.9 example_4.py
-          python3.9 example_5.py
-          python3.9 example_6.py
-          python3.9 example_7.py
+          python3 example_1.py
+          python3 example_2.py
+          python3 example_3.py
+          python3 example_4.py
+          python3 example_5.py
+          python3 example_6.py
+          python3 example_7.py
 
       - name: Run PYTHON plottingscripts
         run: |
           cd PYTHON
-          python3.9 plot_example_1.py
-          python3.9 plot_example_2.py
-          python3.9 plot_example_3.py
-          python3.9 plot_example_4.py
-          python3.9 plot_example_5.py
-          python3.9 plot_example_6.py
-          python3.9 plot_example_7.py
+          python3 plot_example_1.py
+          python3 plot_example_2.py
+          python3 plot_example_3.py
+          python3 plot_example_4.py
+          python3 plot_example_5.py
+          python3 plot_example_6.py
+          python3 plot_example_7.py
 
       - name: Run JUPYTER notebook
         run: |
           cd PYTHON
           jupyter nbconvert --to script plotting_tutorial.ipynb
-          python3.9 plotting_tutorial.py
+          python3 plotting_tutorial.py
 
       - name: Archive PYTHON results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: PYTHON-RESULTS
           path: PYTHON/data_plots
