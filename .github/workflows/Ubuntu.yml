@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Dependencies
         run: |
@@ -42,7 +42,7 @@ jobs:
           ./build_coverage.sh
         
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: code-coverage-report
           path: BUILD/COVERAGE/
@@ -56,7 +56,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Dependencies
         run: |
@@ -74,10 +74,10 @@ jobs:
           done
           
       - name: Set up MATLAB
-        uses: matlab-actions/setup-matlab@v2
+        uses: matlab-actions/setup-matlab@v3
         
       - name: Run MATLAB scripts
-        uses: matlab-actions/run-command@v2
+        uses: matlab-actions/run-command@v3
         with:
           command: |
             cd MATLAB
@@ -91,14 +91,14 @@ jobs:
             example_8
 
       - name: Run MATLAB livescript
-        uses: matlab-actions/run-command@v2
+        uses: matlab-actions/run-command@v3
         with:
           command: |
             cd MATLAB
             plotting_tutorial
 
       - name: Archive MATLAB results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: MATLAB-RESULTS
           path: MATLAB/data_plots
@@ -143,7 +143,7 @@ jobs:
           python3 plotting_tutorial.py
 
       - name: Archive PYTHON results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: PYTHON-RESULTS
           path: PYTHON/data_plots
