@@ -204,10 +204,12 @@ gorilla_plot.write(path_RUN + '/gorilla_plot.inp', force = True)
 if os.path.exists(path_main + '/test_gorilla_main.x'):
   os.system('ln -s ../../../test_gorilla_main.x .')
 elif os.path.exists(path_main + '/BUILD/SRC/test_gorilla_main.x'):
-  os.system('ln -s ../../../BUILD/SRC/test_gorilla_main.x  .') 
+  os.system('ln -s ../../../BUILD/SRC/test_gorilla_main.x  .')
+elif os.path.exists(path_main + '/BUILD/test_gorilla_main.x'):
+  os.system('ln -s ../../../BUILD/test_gorilla_main.x .')
 else:
   print('GORILLA not built, exiting the PYTHON script')
-  raise SystemExit(0)
+  raise SystemExit(1)
 
 os.system('ln -s ../../../MHD_EQUILIBRIA .')
 os.system('ln -s ../../../INPUT/field_divB0.inp .')
