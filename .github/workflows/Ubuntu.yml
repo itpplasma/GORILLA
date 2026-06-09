@@ -28,7 +28,7 @@ jobs:
 
       - name: Install pFUnit
         run: |
-          git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit
+          git clone --branch v4.7.0 https://github.com/Goddard-Fortran-Ecosystem/pFUnit
           cd pFUnit
           mkdir -p build
           cd build

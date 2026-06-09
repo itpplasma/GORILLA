@@ -236,8 +236,7 @@ elseif isfile('../../../BUILD/SRC/test_gorilla_main.x')
 elseif isfile('../../../BUILD/test_gorilla_main.x')
     ! ln -s ../../../BUILD/test_gorilla_main.x .
 else
-    disp('GORILLA not built, exiting the MatLab script')
-    return
+    error('GORILLA not built: no test_gorilla_main.x found at any expected location')
 end
 ! ln -s ../../../MHD_EQUILIBRIA .
 ! ln -s ../../../INPUT/field_divB0.inp .
