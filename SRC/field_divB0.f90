@@ -82,11 +82,16 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
     ! and the A_z line-integral runs off uninitialised rtf -> SIGILL.
     !   rtf*btf = F = R0*B0  (poloidal current function; B_phi = F/R)
     !   psif    = poloidal flux psi_pol(r) = B0 * int_0^r r'/q dr'
-    !           = B0 * a^2/(2 q1) * ln(q(r)/q0),  q = q0 + q1 (r/a)^2
+    !     p=2:  = B0 * a^2/(2 q1) * ln(q(r)/q0)               [parabola]
+    !     p=4:  = B0 * a^2/(2 sqrt(q0 q1)) * atan((r/a)^2 sqrt(q1/q0))  [quartic]
+    !   with q = q0 + q1 (r/a)^p.  Quartic admits q0>0 with high shear (no q=0
+    !   surface), so the arctan flux is regular everywhere.
     rtf  = R0_ac
     btf  = B0_ac
-    psif = B0_ac * a_ac**2 / (2.d0*q1_ac) &
-           * log( (q0_ac + q1_ac*((r-R0_ac)**2 + z**2)/a_ac**2) / q0_ac )
+    ! psi_pol = poloidal flux; single source of truth in field_analytic_circ_mod
+    ! (shared with the internal flux_functions writer so the equil-mapping stays
+    ! consistent with tetra_physics%Aphi1, which is set to this psif).
+    psif = psi_pol_analytic_circ( sqrt((r-R0_ac)**2 + z**2) )
     return
   endif
 
