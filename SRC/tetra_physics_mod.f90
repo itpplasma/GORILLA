@@ -1143,24 +1143,14 @@ enddo
         bmod=sqrt(B_r**2+B_p**2+B_z**2)*bmod_multiplier
 !
         A_r=0.d0
-        if (grid_kind .eq. 5) then
-            ! For the analytic circular tokamak psif is not set by field_eq_mod.
-            ! Compute psi_pol analytically: psi_pol(r) = B0*a^2/(2*q1)*ln(q(r)/q0)
-            ! where r = sqrt((R-R0)^2+Z^2), q(r) = q0+q1*(r/a)^2.
-            ! Verified via d(psi_pol)/dZ = B0*Z/q = B_R*(−R) and
-            !             d(psi_pol)/dR = B0*(R-R0)/q, consistent with B=curl(A_phi/R).
-            rho_ac = sqrt((r - R0_analytic_circ)**2 + z**2)
-            q_loc  = q0_analytic_circ + q1_analytic_circ * (rho_ac / a_analytic_circ)**2
-            if (q1_analytic_circ .ne. 0.d0 .and. abs(q0_analytic_circ) .gt. 1.d-10 &
-                    .and. q_loc / q0_analytic_circ .gt. 0.d0) then
-                A_phi = B0_analytic_circ * a_analytic_circ**2 &
-                        / (2.d0 * q1_analytic_circ) * log(q_loc / q0_analytic_circ)
-            else
-                A_phi = 0.d0
-            end if
-        else
-            A_phi = psif
-        end if
+        ! A_phi = psi_pol for ALL grid kinds.  field() (field_divB0) sets psif =
+        ! poloidal flux for the analytic-circ too -- analytic (parabola/quartic) OR
+        ! TABULATED q (psi_tabulated).  The old grid_kind==5 branch recomputed A_phi
+        ! from the hardcoded quadratic q0/q1 parabola, IGNORING q_profile_file; that
+        ! made Aphi1 inconsistent with the field & flux-mapping whenever a tabulated
+        ! q was used -> eval_s_local returned a wrong s_loc (the Re-sign flip /
+        ! amplitude artifact).  Using psif keeps Aphi1 consistent in every case.
+        A_phi = psif
 !
         R_ref = rtf
         dR_int = (r - R_ref) / dble(n_int)

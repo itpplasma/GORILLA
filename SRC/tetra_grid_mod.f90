@@ -31,12 +31,12 @@
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
                                          & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
-                                         & sfc_s_min, sfc_s_max
+                                         & q_exp_analytic_circ, q_profile_file_analytic_circ, sfc_s_min, sfc_s_max
         use new_vmec_stuff_mod, only: nper
         use spline_vmec_data_mod, only: spline_vmec_data
         use field_divB0_mod, only: field
         use field_mod, only: ianalytic_circ
-        use field_analytic_circ_mod, only: set_field_analytic_circ
+        use field_analytic_circ_mod, only: set_field_analytic_circ, write_flux_functions_analytic_circ
         !use make_grid_rect_mod, only: make_grid_rect
 !
         implicit none
@@ -141,7 +141,11 @@
           case(5) !analytic circular tokamak — flux-surface-aligned mesh in (rho,theta,phi)
             ianalytic_circ = 1
             call set_field_analytic_circ(R0_analytic_circ, a_analytic_circ, &
-                                         B0_analytic_circ, q0_analytic_circ, q1_analytic_circ)
+                                         B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
+                                         q_exp_analytic_circ, q_profile_file_analytic_circ)
+            ! grid_kind=5 is analytic: generate its own self-consistent equil-mapping
+            ! (psi_pol == tetra_physics%Aphi1) so no external flux_functions.dat is needed.
+            call write_flux_functions_analytic_circ()
               twopi_ac  = 8.d0*atan(1.d0)
               s_edge_ac = R0_analytic_circ - sqrt(R0_analytic_circ**2 - a_analytic_circ**2)
               !
