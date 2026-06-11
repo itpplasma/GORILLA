@@ -224,7 +224,7 @@ end
 
 %Load Data-files and copy them into data_plots folder
 data=struct();
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
 
 %Repeat orbit calculation for different pitch parameter (passing particles)
 gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_rphiz = 'full_orbit_plot_rphiz_trapped.dat';
@@ -245,7 +245,7 @@ fclose(fileID);
 gorilla.write([path_RUN,'/gorilla.inp']);
 gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 ! ./test_gorilla_main.x
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
 
 
 %Create plots of generated data

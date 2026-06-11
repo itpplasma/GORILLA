@@ -212,7 +212,7 @@ end
 
 %Load Data-files and copy them into data_plots folder
 data=struct();
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
 
 %Repeat orbit calculation for different polynominal orders and Runge-Kutta 4
 %polynominal order = 3
@@ -223,7 +223,7 @@ gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi = 'poincare_plot
 gorilla.write([path_RUN,'/gorilla.inp']);
 gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 ! ./test_gorilla_main.x
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
 
 %polynominal order = 4
 gorilla.GORILLANML.poly_order = 4;
@@ -233,7 +233,7 @@ gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi = 'poincare_plot
 gorilla.write([path_RUN,'/gorilla.inp']);
 gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 ! ./test_gorilla_main.x
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
 
 %numerical RK4
 gorilla.GORILLANML.ipusher = 1;
@@ -244,7 +244,7 @@ gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi = 'poincare_plot
 gorilla.write([path_RUN,'/gorilla.inp']);
 gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 ! ./test_gorilla_main.x
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
 
 %Create plots of generated data
 %-----------------------------------------------------------------------------------------------------------------------
