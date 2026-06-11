@@ -40,7 +40,7 @@
 !
         implicit none
 !
-        integer :: efit_vmec,i
+        integer :: efit_vmec,i,iunit
         double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                             ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
 !
@@ -163,47 +163,47 @@
         if(boole_write_mesh_obj) then
 !
             ![R,phi,Z]: Write Mesh to File
-            open(123, file=filename_mesh_rphiz)
+            open(newunit=iunit, file=filename_mesh_rphiz)
             101 format(1000(e21.14,x))
             do i=1, (nvert / grid_size(2)) * 2
-                write(123, '(A2)', advance="no") "v "
-                write(123,101) verts_rphiz(1, i)*cos(verts_rphiz(2, i)), &
+                write(iunit, '(A2)', advance="no") "v "
+                write(iunit,101) verts_rphiz(1, i)*cos(verts_rphiz(2, i)), &
                   &verts_rphiz(1, i)*sin(verts_rphiz(2, i)), &
                   &verts_rphiz(3, i)
             end do
             do i=1, ntetr / grid_size(2)
-                write(123, '(A2)', advance="no") "f "
-                write(123, *) tetra_grid(i)%ind_knot([2, 3, 4])
-                write(123, '(A2)', advance="no") "f "
-                write(123, *) tetra_grid(i)%ind_knot([1, 4, 3])
-                write(123, '(A2)', advance="no") "f "
-                write(123, *) tetra_grid(i)%ind_knot([1, 2, 4])
-                write(123, '(A2)', advance="no") "f "
-                write(123, *) tetra_grid(i)%ind_knot([1, 3, 2])
+                write(iunit, '(A2)', advance="no") "f "
+                write(iunit, *) tetra_grid(i)%ind_knot([2, 3, 4])
+                write(iunit, '(A2)', advance="no") "f "
+                write(iunit, *) tetra_grid(i)%ind_knot([1, 4, 3])
+                write(iunit, '(A2)', advance="no") "f "
+                write(iunit, *) tetra_grid(i)%ind_knot([1, 2, 4])
+                write(iunit, '(A2)', advance="no") "f "
+                write(iunit, *) tetra_grid(i)%ind_knot([1, 3, 2])
             end do
-            close(123)
+            close(iunit)
     !
             ![s,theta,phi]: Write Mesh to File
             if ((grid_kind .eq. 2).or.(grid_kind .eq. 3)) then
     !
-                open(123, file=filename_mesh_sthetaphi)
+                open(newunit=iunit, file=filename_mesh_sthetaphi)
                 do i=1, (nvert / grid_size(2)) * 2
-                    write(123, '(A2)', advance="no") "v "
-                    write(123,101) verts_sthetaphi(1, i), &
+                    write(iunit, '(A2)', advance="no") "v "
+                    write(iunit,101) verts_sthetaphi(1, i), &
                                 verts_sthetaphi(2, i), &
                                 verts_sthetaphi(3, i)
                 end do
                 do i=1, ntetr / grid_size(2)
-                    write(123, '(A2)', advance="no") "f "
-                    write(123, *) tetra_grid(i)%ind_knot([2, 3, 4])
-                    write(123, '(A2)', advance="no") "f "
-                    write(123, *) tetra_grid(i)%ind_knot([1, 4, 3])
-                    write(123, '(A2)', advance="no") "f "
-                    write(123, *) tetra_grid(i)%ind_knot([1, 2, 4])
-                    write(123, '(A2)', advance="no") "f "
-                    write(123, *) tetra_grid(i)%ind_knot([1, 3, 2])
+                    write(iunit, '(A2)', advance="no") "f "
+                    write(iunit, *) tetra_grid(i)%ind_knot([2, 3, 4])
+                    write(iunit, '(A2)', advance="no") "f "
+                    write(iunit, *) tetra_grid(i)%ind_knot([1, 4, 3])
+                    write(iunit, '(A2)', advance="no") "f "
+                    write(iunit, *) tetra_grid(i)%ind_knot([1, 2, 4])
+                    write(iunit, '(A2)', advance="no") "f "
+                    write(iunit, *) tetra_grid(i)%ind_knot([1, 3, 2])
                 end do
-                close(123)
+                close(iunit)
             endif
 !
         endif !boole_write_mesh_obj

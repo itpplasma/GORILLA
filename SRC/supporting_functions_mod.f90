@@ -18,7 +18,7 @@
 !
       character(len=*), intent(in) :: sym_flux_filename,cyl_filename
       integer, intent(in) :: n_additional_col
-      integer :: n_rows,io_error,i
+      integer :: n_rows,io_error,i,iunit_in,iunit_out
       logical :: file_exist
       double precision :: x1,x2,x3,add1,add2,add3
 !
@@ -44,39 +44,39 @@
 !
       !Compute number of rows of sym_flux file
       n_rows = 0
-      open(unit = 29, file=sym_flux_filename, status='old',action = 'read')
+      open(newunit=iunit_in, file=sym_flux_filename, status='old',action = 'read')
       do
-        read(29,*,iostat = io_error)
+        read(iunit_in,*,iostat = io_error)
         if(io_error.gt.0) exit
         n_rows = n_rows + 1
       enddo
-      close(unit=29)
+      close(iunit_in)
 !
       !Open and read symmetry flux coordinates
-      open(unit = 30, file=sym_flux_filename, status='old',action = 'read')
+      open(newunit=iunit_in, file=sym_flux_filename, status='old',action = 'read')
 !
       !Read symmetry flux coordinates and write cylindrical coordinates
       inquire(file=cyl_filename,exist = file_exist)
       if(file_exist) then
-        open(unit=31,file=cyl_filename,status='old',iostat=io_error)
-        if(io_error.eq.0) close(unit=21,status='delete')
+        open(newunit=iunit_out,file=cyl_filename,status='old',iostat=io_error)
+        if(io_error.eq.0) close(iunit_out,status='delete')
       else
         !print *,'Error: Could not open and delete existing file'
         print *,'No existing file. Created new one to store data.'
       endif
-      open(unit=31,file=cyl_filename,status='new',action='write', &
+      open(newunit=iunit_out,file=cyl_filename,status='new',action='write', &
            & iostat=io_error)
 !
       do i = 1,n_rows-2
         select case(n_additional_col)
           case(0)
-            read(30,*) x1,x2,x3
+            read(iunit_in,*) x1,x2,x3
           case(1)
-            read(30,*) x1,x2,x3,add1
+            read(iunit_in,*) x1,x2,x3,add1
           case(2)
-            read(30,*) x1,x2,x3,add1,add2
+            read(iunit_in,*) x1,x2,x3,add1,add2
           case(3)
-            read(30,*) x1,x2,x3,add1,add2,add3
+            read(iunit_in,*) x1,x2,x3,add1,add2,add3
         end select
 !
         select case(grid_kind)
@@ -97,19 +97,19 @@
 !        
         select case(n_additional_col)
           case(0)
-            write(31,*) R,x3,Z
+            write(iunit_out,*) R,x3,Z
           case(1)
-            write(31,*) R,x3,Z,add1
+            write(iunit_out,*) R,x3,Z,add1
           case(2)
-            write(31,*) R,x3,Z,add1,add2
+            write(iunit_out,*) R,x3,Z,add1,add2
           case(3)
-            write(31,*) R,x3,Z,add1,add2,add3
+            write(iunit_out,*) R,x3,Z,add1,add2,add3
         end select
 !
       enddo
 !
-      close(unit=30)
-      close(unit=31)
+      close(iunit_in)
+      close(iunit_out)
 !
     end subroutine
 !
@@ -231,17 +231,17 @@
         implicit none
 !
         character(len=*), intent(in) :: filename_runov,filename_symflux
-        integer :: n_rows,io_error,i, i_tmp
+        integer :: n_rows,io_error,i, i_tmp, iunit
         logical :: file_exist
         double precision, dimension(:,:), allocatable :: sthetaphilambda
         double precision :: dummy, x_tmp, phi_tmp, z_tmp, alpha_pitch,u_vmec
 !
         !Compute number of rows of Runov's file
         n_rows = 0
-        open(unit = 29, file=filename_runov, status='old',action = 'read')
+        open(newunit=iunit, file=filename_runov, status='old',action = 'read')
 !
         do
-            read(29, '(A)', iostat=io_error)
+            read(iunit, '(A)', iostat=io_error)
             if (io_error /= 0) exit
             n_rows = n_rows + 1
         end do
@@ -251,10 +251,10 @@
 !
         allocate(sthetaphilambda(4,n_rows))
 !
-        rewind(29)
+        rewind(iunit)
 !
         do i = 1, n_rows
-            read(29,*) dummy, i_tmp, x_tmp, phi_tmp, z_tmp, alpha_pitch
+            read(iunit,*) dummy, i_tmp, x_tmp, phi_tmp, z_tmp, alpha_pitch
 !
             sthetaphilambda(1,i) = 5.0d-1
             sthetaphilambda(3,i) = modulo(phi_tmp,2.d0*pi/dble(n_field_periods))
@@ -264,13 +264,13 @@
             sthetaphilambda(4,i) = alpha_pitch
         end do
 !
-        close(29)
+        close(iunit)
 !
-        open(unit = 30, file=filename_symflux, status='unknown',action = 'write')
+        open(newunit=iunit, file=filename_symflux, status='unknown',action = 'write')
         do i = 1, n_rows
-            write(30,*) sthetaphilambda(:,i)
+            write(iunit,*) sthetaphilambda(:,i)
         end do
-        close(30)
+        close(iunit)
 !
     end subroutine
 !

@@ -127,13 +127,13 @@ contains
 !
         double precision, dimension(:), intent(in)      :: vec_E_x1,vec_E_x2,vec_E_x3
 !
-        integer                                         :: iv
+        integer                                         :: iv, iunit
 !
-        open(123, file=filename_electric_field)
+        open(newunit=iunit, file=filename_electric_field)
         do iv = 1, nvert
-            write(123,*) verts_rphiz(:,iv),vec_E_x1(iv),vec_E_x2(iv),vec_E_x3(iv)
+            write(iunit,*) verts_rphiz(:,iv),vec_E_x1(iv),vec_E_x2(iv),vec_E_x3(iv)
         end do
-        close(123)
+        close(iunit)
 !
         !Stop program after successfully saving the E-field
         !STOP
@@ -175,13 +175,13 @@ contains
 !
         double precision, dimension(:), intent(in)      :: vec_v_E_x1,vec_v_E_x2,vec_v_E_x3,vec_v2_E_mod
 !
-        integer                                         :: iv
+        integer                                         :: iv, iunit
 !
-        open(123, file=filename_electric_drift)
+        open(newunit=iunit, file=filename_electric_drift)
         do iv = 1, nvert
-            write(123,*) verts_rphiz(:,iv),vec_v_E_x1(iv),vec_v_E_x2(iv),vec_v_E_x3(iv),vec_v2_E_mod(iv)
+            write(iunit,*) verts_rphiz(:,iv),vec_v_E_x1(iv),vec_v_E_x2(iv),vec_v_E_x3(iv),vec_v2_E_mod(iv)
         end do
-        close(123)
+        close(iunit)
 !
     end subroutine save_v_E
 !

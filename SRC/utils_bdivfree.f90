@@ -1,6 +1,6 @@
 module input_files
   character*1024 :: eqfile, cfile, gfile,pfile,convexfile,fluxdatapath
-  integer :: iunit=1738
+  integer :: iunit
 !
   data eqfile  /'d3d.equ'/
   data cfile   /'DATA/ccoil.dat'/
@@ -403,7 +403,7 @@ subroutine load_theta
   real(kind=8), dimension(:),   allocatable :: flabel
   real(kind=8), dimension(:,:), allocatable :: theta_of_theta_qt
 !
-  open(iunit,form='unformatted',                                 &
+  open(newunit=iunit,form='unformatted',                                 &
        file=trim(fluxdatapath)//'/theta_of_theta_qt_flabel.dat')
   read (iunit) nsqpsi,nlabel,ntheta,sqpsimin,sqpsimax,flabel_min,flabel_max &
               ,raxis,zaxis,psiaxis,sigma_qt
@@ -723,7 +723,7 @@ subroutine read_eqfile_west(nrad, nzet, psib, btf, rtf, rad, zet, psi)
   !
     psib=0.d0
   !
-    open(unit=iunit,file=trim(gfile),status='old',action='read')
+    open(newunit=iunit,file=trim(gfile),status='old',action='read')
     read(iunit,*) nrad,nzet
     read(iunit,*) btf
     read(iunit,*) rad
@@ -753,9 +753,7 @@ subroutine read_eqfile2(nwEQD,nhEQD,psiAxis,psiSep,bt0,rzero,fpol,rad,zet,psiRZ)
   integer :: n_bndyxy,nlimEQD
   real (kind=8), dimension(:), allocatable :: LCFS, limEQD
 
-      gunit=iunit
-
-      open(unit=gunit,file=trim(gfile),status='old',action='read')
+      open(newunit=gunit,file=trim(gfile),status='old',action='read')
 
 ! Equilibrium Parameters
       read(gunit,2000)(case(i),i=1,6),idum,nwEQD,nhEQD
@@ -848,7 +846,7 @@ subroutine read_dimeq1(nwEQD,nhEQD)
   integer :: idum
   character*10 case(6)
 !
-     open(unit=iunit,file=trim(gfile),status='old',action='read')
+     open(newunit=iunit,file=trim(gfile),status='old',action='read')
      read(iunit,2000)(case(i),i=1,6),idum,nwEQD,nhEQD
      close(iunit)
   return
@@ -889,9 +887,7 @@ subroutine read_eqfile1(nwEQD,nhEQD,psiSep, bt0, rzero, rad, zet, psiRZ)
   integer :: n_bndyxy,nlimEQD
   real (kind=8), dimension(:), allocatable :: LCFS, limEQD
 
-      gunit=iunit
-
-      open(unit=gunit,file=trim(gfile),status='old',action='read')
+      open(newunit=gunit,file=trim(gfile),status='old',action='read')
 
 ! Equilibrium Parameters
       read(gunit,2000)(case(i),i=1,6),idum,nwEQD,nhEQD
@@ -971,7 +967,7 @@ subroutine read_dimeq_west(nrad,nzet)
 !
   integer :: nrad,nzet
 !
-  open(unit=iunit,file=trim(gfile),status='old',action='read')
+  open(newunit=iunit,file=trim(gfile),status='old',action='read')
   read(iunit,*) nrad,nzet
   close(iunit)
 !
@@ -1060,7 +1056,7 @@ subroutine invert_mono_per(nx,arry_in,xmin,xmax,ny,arrx,ymin,ymax)
   !
     if(load_extract_fluxcoord.eq.1) then
       load_extract_fluxcoord=0
-      open(iunit,file=trim(fluxdatapath)//'/phinorm_arr.dat')
+      open(newunit=iunit,file=trim(fluxdatapath)//'/phinorm_arr.dat')
       read (iunit,*) nphinorm,psifmin,hpsif
       allocate(phinorm_arr(nphinorm))
       do k=1,nphinorm

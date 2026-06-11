@@ -10,20 +10,20 @@ module preload_for_SYNCH_mod
 !
   implicit none
 !
-  integer :: nstep,nsurfmax,nlabel,ntheta,i
+  integer :: nstep,nsurfmax,nlabel,ntheta,i,iunit
 !
   double precision :: rmn,rmx,zmn,zmx,raxis,zaxis
   double precision, dimension(:),   allocatable :: rbeg,rsmall,qsaf,psisurf,phitor
   double precision, dimension(:,:), allocatable :: R_st,Z_st,bmod_st,sqgnorm_st
 !
-  open(1,file='preload_for_SYNCH.inp')
-  read (1,*) nstep    !number of integration steps
-  read (1,*) nlabel   !grid size over radial variabl
-  read (1,*) ntheta   !grid size over poloidal angle
-  read (1,*) nsurfmax !number of starting points between the
-                      !magnetic axis and right box boundary
-                      !when searching for the separatrix
-  close(1)
+  open(newunit=iunit,file='preload_for_SYNCH.inp')
+  read (iunit,*) nstep    !number of integration steps
+  read (iunit,*) nlabel   !grid size over radial variabl
+  read (iunit,*) ntheta   !grid size over poloidal angle
+  read (iunit,*) nsurfmax !number of starting points between the
+                          !magnetic axis and right box boundary
+                          !when searching for the separatrix
+  close(iunit)
 !
   allocate(rbeg(nlabel),rsmall(nlabel),qsaf(nlabel),psisurf(nlabel),phitor(nlabel))
   allocate(R_st(nlabel,ntheta),Z_st(nlabel,ntheta),bmod_st(nlabel,ntheta),sqgnorm_st(nlabel,ntheta))
@@ -33,39 +33,39 @@ module preload_for_SYNCH_mod
                                         rbeg,rsmall,qsaf,psisurf,phitor, &
                                         R_st,Z_st,bmod_st,sqgnorm_st)
 !
-  open(1,form='formatted',file='box_size_axis.dat')
-  write (1,*) rmn,rmx, '<= rmn, rmx (cm)'
-  write (1,*) zmn,zmx, '<= zmn, zmx (cm)'
-  write (1,*) raxis,zaxis, '<= raxis, zaxis (cm)'
-  close(1)
+  open(newunit=iunit,form='formatted',file='box_size_axis.dat')
+  write (iunit,*) rmn,rmx, '<= rmn, rmx (cm)'
+  write (iunit,*) zmn,zmx, '<= zmn, zmx (cm)'
+  write (iunit,*) raxis,zaxis, '<= raxis, zaxis (cm)'
+  close(iunit)
 !
-  open(1,form='formatted',file='flux_functions.dat')
-  write (1,*) '# R_beg, r,  q, psi_pol, psi_tor'
-! 2020-02-20: Lukas Bauer: rbeg is uninitialized and never used for computation. Still 'random' values are written in file.  
+  open(newunit=iunit,form='formatted',file='flux_functions.dat')
+  write (iunit,*) '# R_beg, r,  q, psi_pol, psi_tor'
+! 2020-02-20: Lukas Bauer: rbeg is uninitialized and never used for computation. Still 'random' values are written in file.
   do i=1,nlabel
-    write (1,*) rbeg(i),rsmall(i),qsaf(i),psisurf(i),phitor(i)
+    write (iunit,*) rbeg(i),rsmall(i),qsaf(i),psisurf(i),phitor(i)
   enddo
-  close(1)
+  close(iunit)
 !
-  open(1,form='formatted',file='twodim_functions.dat')
-  write (1,*) nlabel, ntheta, '<= nlabel, ntheta'
-  write (1,*) 'R(label,theta)'
+  open(newunit=iunit,form='formatted',file='twodim_functions.dat')
+  write (iunit,*) nlabel, ntheta, '<= nlabel, ntheta'
+  write (iunit,*) 'R(label,theta)'
   do i=1,nlabel
-    write (1,*) R_st(i,:)
+    write (iunit,*) R_st(i,:)
   enddo
-  write (1,*) 'Z(label,theta)'
+  write (iunit,*) 'Z(label,theta)'
   do i=1,nlabel
-    write (1,*) Z_st(i,:)
+    write (iunit,*) Z_st(i,:)
   enddo
-  write (1,*) 'B(label,theta)'
+  write (iunit,*) 'B(label,theta)'
   do i=1,nlabel
-    write (1,*) bmod_st(i,:)
+    write (iunit,*) bmod_st(i,:)
   enddo
-  write (1,*) 'sqrtg_norm(label,theta)'
+  write (iunit,*) 'sqrtg_norm(label,theta)'
   do i=1,nlabel
-    write (1,*) sqgnorm_st(i,:)
+    write (iunit,*) sqgnorm_st(i,:)
   enddo
-  close(1)
+  close(iunit)
 !
   deallocate(rbeg,rsmall,qsaf,psisurf,phitor)
   deallocate(R_st,Z_st,bmod_st,sqgnorm_st)
