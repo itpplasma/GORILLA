@@ -1,6 +1,6 @@
 module input_files
   character*1024 :: eqfile, cfile, gfile,pfile,convexfile,fluxdatapath
-  integer :: iunit=1738
+  integer :: iunit
 !
   data eqfile  /'d3d.equ'/
   data cfile   /'DATA/ccoil.dat'/
@@ -403,7 +403,7 @@ subroutine load_theta
   real(kind=8), dimension(:),   allocatable :: flabel
   real(kind=8), dimension(:,:), allocatable :: theta_of_theta_qt
 !
-  open(iunit,form='unformatted',                                 &
+  open(newunit=iunit,form='unformatted',                                 &
        file=trim(fluxdatapath)//'/theta_of_theta_qt_flabel.dat')
   read (iunit) nsqpsi,nlabel,ntheta,sqpsimin,sqpsimax,flabel_min,flabel_max &
               ,raxis,zaxis,psiaxis,sigma_qt
@@ -723,7 +723,7 @@ subroutine read_eqfile_west(nrad, nzet, psib, btf, rtf, rad, zet, psi)
   !
     psib=0.d0
   !
-    open(unit=iunit,file=trim(gfile),status='old',action='read')
+    open(newunit=iunit,file=trim(gfile),status='old',action='read')
     read(iunit,*) nrad,nzet
     read(iunit,*) btf
     read(iunit,*) rad
@@ -741,7 +741,7 @@ subroutine read_eqfile2(nwEQD,nhEQD,psiAxis,psiSep,bt0,rzero,fpol,rad,zet,psiRZ)
   use input_files
   implicit none
   integer :: nwEQD, nhEQD
-  integer :: gunit, idum
+  integer :: idum
   character*10 case(6)
   integer :: i,j
   real (kind=8) :: xdim,zdim,r1,zmid,rmaxis,zmaxis,xdum
@@ -753,36 +753,34 @@ subroutine read_eqfile2(nwEQD,nhEQD,psiAxis,psiSep,bt0,rzero,fpol,rad,zet,psiRZ)
   integer :: n_bndyxy,nlimEQD
   real (kind=8), dimension(:), allocatable :: LCFS, limEQD
 
-      gunit=iunit
-
-      open(unit=gunit,file=trim(gfile),status='old',action='read')
+      open(newunit=iunit,file=trim(gfile),status='old',action='read')
 
 ! Equilibrium Parameters
-      read(gunit,2000)(case(i),i=1,6),idum,nwEQD,nhEQD
+      read(iunit,2000)(case(i),i=1,6),idum,nwEQD,nhEQD
       write(*,*) 'READ_EQFILE1: ',trim(gfile),nwEQD,nhEQD
-      read(gunit,2010,end=55,err=250)xdim,zdim,rzero,r1,zmid
+      read(iunit,2010,end=55,err=250)xdim,zdim,rzero,r1,zmid
       write(*,*) xdim, zdim, rzero, r1, zmid
-      read(gunit,2010,end=55,err=250)rmaxis,zmaxis,psiAxis,psiSep,bt0
+      read(iunit,2010,end=55,err=250)rmaxis,zmaxis,psiAxis,psiSep,bt0
       write(*,*) rmaxis,zmaxis,psiAxis,psiSep,bt0
-      read(gunit,2010,end=55,err=250)plas_cur,psiAxis,xdum,rmaxis,xdum
+      read(iunit,2010,end=55,err=250)plas_cur,psiAxis,xdum,rmaxis,xdum
       write(*,*) plas_cur,psiAxis,xdum,rmaxis,xdum
-      read(gunit,2010,end=55,err=250)zmaxis,xdum,psiSep,xdum,xdum
+      read(iunit,2010,end=55,err=250)zmaxis,xdum,psiSep,xdum,xdum
       write(*,*) zmaxis,xdum,psiSep,xdum,xdum
-      read(gunit,2010,end=55,err=250)(fpol(i),i=1,nwEQD)
-      read(gunit,2010,end=55,err=250)(pres(i),i=1,nwEQD)
-      read(gunit,2010,end=55,err=250)(ffprim(i),i=1,nwEQD)
-      read(gunit,2010,end=55,err=250)(pprime(i),i=1,nwEQD)
-      read(gunit,2010,end=55,err=250)((psiRZ(i,j),i=1,nwEQD),j=1,nhEQD)
-      read(gunit,2010,end=55,err=250)(qpsi(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)(fpol(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)(pres(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)(ffprim(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)(pprime(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)((psiRZ(i,j),i=1,nwEQD),j=1,nhEQD)
+      read(iunit,2010,end=55,err=250)(qpsi(i),i=1,nwEQD)
       print *, 'Equilibrium Done.', trim(gfile)
 ! Boundary Data
-      read(gunit,*,end=55,err=250)n_bndyxy,nlimEQD
+      read(iunit,*,end=55,err=250)n_bndyxy,nlimEQD
       allocate(LCFS(2*n_bndyxy))
       allocate(limEQD(2*nlimEQD))
-      read(gunit,2010,end=55,err=250)(LCFS(i),i=1,2*n_bndyxy)
-      read(gunit,2010,end=55,err=250)(limEQD(i),i=1,2*nlimEQD)
+      read(iunit,2010,end=55,err=250)(LCFS(i),i=1,2*n_bndyxy)
+      read(iunit,2010,end=55,err=250)(limEQD(i),i=1,2*nlimEQD)
 !      print *, 'Boundary Done.'
-      close(gunit)
+      close(iunit)
 
       call set_eqcoords(nwEQD,nhEQD,xdim,zdim,r1,zmid,rad,zet)
   return
@@ -848,7 +846,7 @@ subroutine read_dimeq1(nwEQD,nhEQD)
   integer :: idum
   character*10 case(6)
 !
-     open(unit=iunit,file=trim(gfile),status='old',action='read')
+     open(newunit=iunit,file=trim(gfile),status='old',action='read')
      read(iunit,2000)(case(i),i=1,6),idum,nwEQD,nhEQD
      close(iunit)
   return
@@ -877,7 +875,7 @@ subroutine read_eqfile1(nwEQD,nhEQD,psiSep, bt0, rzero, rad, zet, psiRZ)
   use input_files
   implicit none
   integer :: nwEQD, nhEQD
-  integer :: gunit, idum
+  integer :: idum
   character*10 case(6)
   integer :: i,j
   real (kind=8) :: xdim,zdim,r1,zmid,rmaxis,zmaxis,xdum
@@ -889,42 +887,40 @@ subroutine read_eqfile1(nwEQD,nhEQD,psiSep, bt0, rzero, rad, zet, psiRZ)
   integer :: n_bndyxy,nlimEQD
   real (kind=8), dimension(:), allocatable :: LCFS, limEQD
 
-      gunit=iunit
-
-      open(unit=gunit,file=trim(gfile),status='old',action='read')
+      open(newunit=iunit,file=trim(gfile),status='old',action='read')
 
 ! Equilibrium Parameters
-      read(gunit,2000)(case(i),i=1,6),idum,nwEQD,nhEQD
+      read(iunit,2000)(case(i),i=1,6),idum,nwEQD,nhEQD
       write(*,*) 'READ_EQFILE1: ',trim(gfile),nwEQD,nhEQD
-      read(gunit,2010,end=55,err=250)xdim,zdim,rzero,r1,zmid
+      read(iunit,2010,end=55,err=250)xdim,zdim,rzero,r1,zmid
       write(*,*) xdim, zdim, rzero, r1, zmid
-      read(gunit,2010,end=55,err=250)rmaxis,zmaxis,psiAxis,psiSep,bt0
+      read(iunit,2010,end=55,err=250)rmaxis,zmaxis,psiAxis,psiSep,bt0
       write(*,*) rmaxis,zmaxis,psiAxis,psiSep,bt0
-      read(gunit,2010,end=55,err=250)plas_cur,psiAxis,xdum,rmaxis,xdum
+      read(iunit,2010,end=55,err=250)plas_cur,psiAxis,xdum,rmaxis,xdum
       write(*,*) plas_cur,psiAxis,xdum,rmaxis,xdum
-      read(gunit,2010,end=55,err=250)zmaxis,xdum,psiSep,xdum,xdum
+      read(iunit,2010,end=55,err=250)zmaxis,xdum,psiSep,xdum,xdum
       write(*,*) zmaxis,xdum,psiSep,xdum,xdum
-      read(gunit,2010,end=55,err=250)(fpol(i),i=1,nwEQD)
-      read(gunit,2010,end=55,err=250)(pres(i),i=1,nwEQD)
-      read(gunit,2010,end=55,err=250)(ffprim(i),i=1,nwEQD)
-      read(gunit,2010,end=55,err=250)(pprime(i),i=1,nwEQD)
-      read(gunit,2010,end=55,err=250)((psiRZ(i,j),i=1,nwEQD),j=1,nhEQD)
-      read(gunit,2010,end=55,err=250)(qpsi(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)(fpol(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)(pres(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)(ffprim(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)(pprime(i),i=1,nwEQD)
+      read(iunit,2010,end=55,err=250)((psiRZ(i,j),i=1,nwEQD),j=1,nhEQD)
+      read(iunit,2010,end=55,err=250)(qpsi(i),i=1,nwEQD)
       print *, 'Equilibrium Done.', trim(gfile)
 ! Boundary Data
-      read(gunit,*,end=55,err=250)n_bndyxy,nlimEQD
+      read(iunit,*,end=55,err=250)n_bndyxy,nlimEQD
 
       if (n_bndyxy > 0) then
         allocate(LCFS(2*n_bndyxy))
-        read(gunit,2010,end=55,err=250)(LCFS(i),i=1,2*n_bndyxy)
+        read(iunit,2010,end=55,err=250)(LCFS(i),i=1,2*n_bndyxy)
       end if
 
       if (nlimEQD > 0) then
         allocate(limEQD(2*nlimEQD))
-        read(gunit,2010,end=55,err=250)(limEQD(i),i=1,2*nlimEQD)
+        read(iunit,2010,end=55,err=250)(limEQD(i),i=1,2*nlimEQD)
       end if
 !      print *, 'Boundary Done.'
-      close(gunit)
+      close(iunit)
 
       call set_eqcoords(nwEQD,nhEQD,xdim,zdim,r1,zmid,rad,zet)
   return
@@ -971,7 +967,7 @@ subroutine read_dimeq_west(nrad,nzet)
 !
   integer :: nrad,nzet
 !
-  open(unit=iunit,file=trim(gfile),status='old',action='read')
+  open(newunit=iunit,file=trim(gfile),status='old',action='read')
   read(iunit,*) nrad,nzet
   close(iunit)
 !
@@ -1060,7 +1056,7 @@ subroutine invert_mono_per(nx,arry_in,xmin,xmax,ny,arrx,ymin,ymax)
   !
     if(load_extract_fluxcoord.eq.1) then
       load_extract_fluxcoord=0
-      open(iunit,file=trim(fluxdatapath)//'/phinorm_arr.dat')
+      open(newunit=iunit,file=trim(fluxdatapath)//'/phinorm_arr.dat')
       read (iunit,*) nphinorm,psifmin,hpsif
       allocate(phinorm_arr(nphinorm))
       do k=1,nphinorm

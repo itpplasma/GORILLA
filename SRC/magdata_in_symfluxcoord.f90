@@ -30,7 +30,7 @@ module magdata_in_symfluxcoordinates_mod
 !
   implicit none
 !
-  integer :: i,nthetap1
+  integer :: i,nthetap1,iunit
   double precision, dimension(:,:), allocatable :: splcoe
 !
   !Free any pre-existing magdata arrays so a fresh load can proceed without external bookkeeping.
@@ -40,16 +40,16 @@ module magdata_in_symfluxcoordinates_mod
 !
 !-----------------------------------------------------------------------
 !
-  open(1,form='formatted',file='box_size_axis.dat')
-  read (1,*) rmn,rmx     !'<= rmn, rmx (cm)'
-  read (1,*) zmn,zmx     !'<= zmn, zmx (cm)'
-  read (1,*) raxis,zaxis !'<= raxis, zaxis (cm)'
-  close(1)
+  open(newunit=iunit,form='formatted',file='box_size_axis.dat')
+  read (iunit,*) rmn,rmx     !'<= rmn, rmx (cm)'
+  read (iunit,*) zmn,zmx     !'<= zmn, zmx (cm)'
+  read (iunit,*) raxis,zaxis !'<= raxis, zaxis (cm)'
+  close(iunit)
 !
 !-----------------------------------------------------------------------
 !
-  open(1,form='formatted',file='twodim_functions.dat')
-  read (1,*) nlabel, ntheta   !'<= nlabel, ntheta'
+  open(newunit=iunit,form='formatted',file='twodim_functions.dat')
+  read (iunit,*) nlabel, ntheta   !'<= nlabel, ntheta'
 !
   allocate(rbeg(nlabel),rsmall(nlabel),qsaf(nlabel),psisurf(0:nlabel),phitor(0:nlabel))
   allocate(R_st(0:nspl,0:ntheta,nlabel))
@@ -61,9 +61,9 @@ module magdata_in_symfluxcoordinates_mod
   h_theta = twopi/dfloat(ntheta)
   nthetap1=ntheta+1
 !
-  read (1,*)
+  read (iunit,*)
   do i=1,nlabel
-    read (1,*) splcoe(0,1:ntheta)
+    read (iunit,*) splcoe(0,1:ntheta)
     splcoe(0,0)=splcoe(0,ntheta)
 !
     call spl_per(nspl,nthetap1,h_theta,splcoe)
@@ -71,9 +71,9 @@ module magdata_in_symfluxcoordinates_mod
     R_st(:,:,i)=splcoe
   enddo
 !
-  read (1,*)
+  read (iunit,*)
   do i=1,nlabel
-    read (1,*) splcoe(0,1:ntheta)
+    read (iunit,*) splcoe(0,1:ntheta)
     splcoe(0,0)=splcoe(0,ntheta)
 !
     call spl_per(nspl,nthetap1,h_theta,splcoe)
@@ -81,9 +81,9 @@ module magdata_in_symfluxcoordinates_mod
     Z_st(:,:,i)=splcoe
   enddo
 !
-  read (1,*)
+  read (iunit,*)
   do i=1,nlabel
-    read (1,*) splcoe(0,1:ntheta)
+    read (iunit,*) splcoe(0,1:ntheta)
     splcoe(0,0)=splcoe(0,ntheta)
 !
     call spl_per(nspl,nthetap1,h_theta,splcoe)
@@ -91,27 +91,27 @@ module magdata_in_symfluxcoordinates_mod
     bmod_st(:,:,i)=splcoe
   enddo
 !
-  read (1,*)
+  read (iunit,*)
   do i=1,nlabel
-    read (1,*) splcoe(0,1:ntheta)
+    read (iunit,*) splcoe(0,1:ntheta)
     splcoe(0,0)=splcoe(0,ntheta)
-! 
+!
     call spl_per(nspl,nthetap1,h_theta,splcoe)
 !
     sqgnorm_st(:,:,i)=splcoe
   enddo
-  close(1)
+  close(iunit)
 !
   deallocate(splcoe)
 !
 !-----------------------------------------------------------------------
 !
-  open(1,form='formatted',file='flux_functions.dat')
-  read (1,*)
+  open(newunit=iunit,form='formatted',file='flux_functions.dat')
+  read (iunit,*)
   do i=1,nlabel
-    read (1,*) rbeg(i),rsmall(i),qsaf(i),psisurf(i),phitor(i)
+    read (iunit,*) rbeg(i),rsmall(i),qsaf(i),psisurf(i),phitor(i)
   enddo
-  close(1)
+  close(iunit)
 !
   psisurf(0)=0.d0
   phitor(0)=0.d0

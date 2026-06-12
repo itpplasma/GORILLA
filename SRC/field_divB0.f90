@@ -41,7 +41,7 @@ subroutine field(r,p,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ   &
 !
   if(icall .eq. 0) then
      icall = 1
-     open(iunit, file='field_divB0.inp')
+     open(newunit=iunit, file='field_divB0.inp')
      read(iunit,*) ipert        ! 0=eq only, 1=vac, 2=vac+plas no derivatives,
                                 ! 3=plas+vac with derivatives
      read(iunit,*) iequil       ! 0=perturbation alone, 1=with equilibrium
@@ -280,7 +280,7 @@ subroutine read_field2(icftype,nr,np,nz,rmin,rmax,pmin,pmax,zmin,zmax,Br,Bp,Bz)
   double precision :: rmin,pmin,zmin,rmax,pmax,zmax,xdim,zdim,zmid,dum
   double precision, dimension(nr,np,nz) :: Br,Bp,Bz
 !
-  open(iunit,file=trim(pfile),status='old',action='read')
+  open(newunit=iunit,file=trim(pfile),status='old',action='read')
 
 !---Input B      -->T = V*s/m/m
   do j=1,np-1   !only npmax-1 points are given
@@ -331,7 +331,7 @@ subroutine read_sizes(nr,np,nz)
   implicit none
   integer :: nr,np,nz
 !
-  open(iunit,file=pfile)
+  open(newunit=iunit,file=pfile)
   read(iunit,*) nr,np,nz
   close(iunit)
 !
@@ -347,7 +347,7 @@ subroutine read_field4(nr,np,nz,rmin,rmax,pmin,pmax,zmin,zmax,Br,Bp,Bz)
   double precision :: rmin,rmax,pmin,pmax,zmin,zmax
   double precision, dimension(nr,np,nz)       :: Br,Bp,Bz
 !
-  open(iunit,file=pfile)
+  open(newunit=iunit,file=pfile)
   read(iunit,*) nr,np,nz
   read(iunit,*) rmin,rmax
   read(iunit,*) pmin,pmax
@@ -370,81 +370,81 @@ end subroutine read_field4
 ! ----------- Runov's Original Method --------------------------------
 subroutine read_dimeq0(nrad,nzet)
   use input_files
-  integer :: nrad, nzet
+  integer :: nrad, nzet, equnit
 
-     open(11,file=eqfile)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
+     open(newunit=equnit,file=eqfile)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
 
-     read(11,111) nrad
-     read(11,111) nzet
+     read(equnit,111) nrad
+     read(equnit,111) nzet
 111  format(12x,i3)
 
-     close(11)
+     close(equnit)
   return
 end subroutine read_dimeq0
 
 subroutine read_eqfile0(nrad, nzet, psib, btf, rtf, rad, zet, psi)
   use input_files
-  integer :: nrad, nzet, dum, i, j, k
+  integer :: nrad, nzet, dum, i, j, k, equnit
   real(kind=8) :: psib, btf, rtf
   real(kind=8) :: rad(nrad), zet(nzet)
   real(kind=8) :: psi(nrad,nzet)
 
-     open(11,file=eqfile)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
-     read(11,*)
+     open(newunit=equnit,file=eqfile)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,*)
 
-     read(11,111) dum !nrad
-     read(11,111) dum !nzet
-     read(11,112) psib
-     read(11,112) btf
-     read(11,112) rtf
-     read(11,*)
-     read(11,*)
+     read(equnit,111) dum !nrad
+     read(equnit,111) dum !nzet
+     read(equnit,112) psib
+     read(equnit,112) btf
+     read(equnit,112) rtf
+     read(equnit,*)
+     read(equnit,*)
 
      print *, nrad, nzet, psib, btf, rtf
 
 !     nrad = nrad - 3
 !     nzet = nzet - 4
 
-!!$     read(11,113)dummy,dummy,(rad(i),i=1,nrad)
-!!$     read(11,*)
-!!$     read(11,*)
-!!$     read(11,113)dummy,dummy,(zet(i),i=1,nzet)
-!!$     read(11,*)
-!!$     read(11,*)
-!!$     read(11,113)(dummy,dummy,(psi(j,k),j=1,nrad),dummy,k=1,2)
-!!$     read(11,113)(dummy,dummy,(psi(j,k),j=1,nrad),dummy,k=1,nzet)
+!!$     read(equnit,113)dummy,dummy,(rad(i),i=1,nrad)
+!!$     read(equnit,*)
+!!$     read(equnit,*)
+!!$     read(equnit,113)dummy,dummy,(zet(i),i=1,nzet)
+!!$     read(equnit,*)
+!!$     read(equnit,*)
+!!$     read(equnit,113)(dummy,dummy,(psi(j,k),j=1,nrad),dummy,k=1,2)
+!!$     read(equnit,113)(dummy,dummy,(psi(j,k),j=1,nrad),dummy,k=1,nzet)
 
-     read(11,113)(rad(i),i=1,nrad)
-     read(11,*)
-     read(11,*)
-     read(11,113)(zet(i),i=1,nzet)
-     read(11,*)
-     read(11,*)
-     read(11,113)((psi(j,k),j=1,nrad),k=1,nzet)
+     read(equnit,113)(rad(i),i=1,nrad)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,113)(zet(i),i=1,nzet)
+     read(equnit,*)
+     read(equnit,*)
+     read(equnit,113)((psi(j,k),j=1,nrad),k=1,nzet)
 
 !!$     do k=1,nzet
 !!$        write(41,*)(psi(j,k),j=1,nrad)
 !!$     enddo
-    close(11)
+    close(equnit)
     return
 
 111  format(12x,i3)
@@ -464,7 +464,7 @@ subroutine read_field1(icftype,nr,np,nz,rmin,rmax,pmin,pmax,zmin,zmax,Br,Bp,Bz)
   double precision :: rmin,pmin,zmin,rmax,pmax,zmax,xdim,zdim,zmid,dum
   double precision, dimension(nr,np,nz) :: Br,Bp,Bz
 !
-  open(iunit,file=trim(pfile),status='old',action='read')
+  open(newunit=iunit,file=trim(pfile),status='old',action='read')
   read(iunit,*)
   read(iunit,*)
   read(iunit,*)

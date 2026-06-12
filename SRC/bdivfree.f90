@@ -434,7 +434,7 @@ subroutine field_fourier(r,phi,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ              &
 !
 ! Fourier ampitudes of the non-axisymmetric vacuum perturbation field:
 !
-  open(iunit,form='unformatted',file=trim(fluxdatapath)//'/amn.dat')
+  open(newunit=iunit,form='unformatted',file=trim(fluxdatapath)//'/amn.dat')
   read (iunit) ntor,mpol,nsqpsi,sqpsimin,sqpsimax
   allocate(apsimn(-mpol:mpol,ntor,nsqpsi))
   allocate(athetmn(-mpol:mpol,ntor,nsqpsi))
@@ -446,7 +446,7 @@ subroutine field_fourier(r,phi,z,Br,Bp,Bz,dBrdR,dBrdp,dBrdZ              &
   sqpsi,s_r,s_z,s_rr,s_rz,s_zz,s0,ds0ds,dds0ds)
 !
   nsqpsi_ff=0
-  open(iunit,form='unformatted',file=trim(fluxdatapath)//'/formfactors.dat')
+  open(newunit=iunit,form='unformatted',file=trim(fluxdatapath)//'/formfactors.dat')
   read (iunit,end=1) nmodes_ff,nsqpsi_ff,mpol_ff,mpol_ff,ntor_ff,ntor_ff
   read (iunit) sqpsimin_ff,sqpsimax_ff
   print *,'nsqpsi_ff = ',nsqpsi_ff
@@ -872,7 +872,7 @@ subroutine inthecore(R,Z)
 !
   if(prop) then
     prop=.false.
-    open(iunit,file=trim(fluxdatapath)//'/separ.dat')
+    open(newunit=iunit,file=trim(fluxdatapath)//'/separ.dat')
     read(iunit,*) x(1:2)
     psi_sep=x(2)+(x(1)-x(2))*(1.d0-epssep)
     psi_cut=x(2)+(x(1)-x(2))*cutoff
@@ -886,7 +886,7 @@ subroutine inthecore(R,Z)
     ri=0.d0
     zi=0.d0
     close(iunit)
-    open(iunit,file=trim(fluxdatapath)//'/separ.dat')
+    open(newunit=iunit,file=trim(fluxdatapath)//'/separ.dat')
     read(iunit,*)
     do i=1,npoi-1
       read(iunit,*) ri(i),zi(i)
@@ -990,7 +990,7 @@ subroutine stretch_coords(r,z,rm,zm)
       nrz = 0
       rad_w = 0.
       zet_w = 0.
-      open(iunit,file=trim(convexfile))
+      open(newunit=iunit,file=trim(convexfile))
       do i=1,nrzmx
         read(iunit,*,END=10)rad_w(i),zet_w(i)
         nrz = nrz + 1

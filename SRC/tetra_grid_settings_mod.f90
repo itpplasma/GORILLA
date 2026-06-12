@@ -80,9 +80,11 @@
 !
         subroutine load_tetra_grid_inp()
 !
-            open(unit=9, file='tetra_grid.inp', status='unknown')
-            read(9,nml=tetra_grid_nml)
-            close(9)
+            integer :: iunit
+!
+            open(newunit=iunit, file='tetra_grid.inp', status='unknown')
+            read(iunit,nml=tetra_grid_nml)
+            close(iunit)
 !
             !Set axisymmetric equilibrium type
             select case(grid_kind)

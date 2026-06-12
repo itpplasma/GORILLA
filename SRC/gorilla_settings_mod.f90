@@ -110,9 +110,11 @@
 !
         subroutine load_gorilla_inp()
 !
-            open(unit=10, file='gorilla.inp', status='unknown')
-            read(10,nml=gorillanml)
-            close(10)
+            integer :: iunit
+!
+            open(newunit=iunit, file='gorilla.inp', status='unknown')
+            read(iunit,nml=gorillanml)
+            close(iunit)
 !
             print *,'GORILLA: Loaded input data from gorilla.inp'
 !

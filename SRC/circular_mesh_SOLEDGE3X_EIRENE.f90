@@ -22,15 +22,13 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
     double precision, dimension(:,:),allocatable :: knots_SOLEDGE3X_EIRENE
 !
     integer :: n_verts,phi_position, i
-!           
+!
     !Load SOLEDGE3X_EIRENE mesh data
 !
-    !Define file ids and filenames for SOLEDGE3X_EIRENE mesh data
-    file_id_knots = 501
     filename_knots = knots_SOLEDGE3X_EIRENE_filename
 !
     !Load knots -> no internal grid generation in 2D needed
-    open(unit=file_id_knots, file=filename_knots, status='unknown')
+    open(newunit=file_id_knots, file=filename_knots, status='unknown')
     read(file_id_knots,*) shape_knots
     allocate(knots_SOLEDGE3X_EIRENE(shape_knots(1),shape_knots(2)))
     do i = 1,shape_knots(1)
@@ -77,7 +75,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
 !
     double precision, dimension(verts_per_slice) :: A_phi_vec
 !
-    integer :: file_id_triangles
+    integer :: file_id_triangles, iunit
     integer, dimension(2) :: shape_triangles
     character(70) :: filename_triangles
     integer, dimension(:,:), allocatable :: triangle_type, old_triangle_type
@@ -95,18 +93,17 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     enddo
 !
 if (diag_mesh_SOLEDGE3X_EIRENE) then
-open(123, file='./MESH_CHECK/poloidal_flux.dat')
+open(newunit=iunit, file='./MESH_CHECK/poloidal_flux.dat')
 do i = 1,verts_per_slice
-    write(123,*) points_rphiz(1,i),points_rphiz(3,i),A_phi_vec(i)
+    write(iunit,*) points_rphiz(1,i),points_rphiz(3,i),A_phi_vec(i)
 enddo
-close(123)
+close(iunit)
 endif
 !
-    file_id_triangles = 502
     filename_triangles = triangles_SOLEDGE3X_EIRENE_filename
 !
     !Load triangles (triples of vertex indices)
-    open(unit=file_id_triangles, file=filename_triangles, status='unknown')
+    open(newunit=file_id_triangles, file=filename_triangles, status='unknown')
     read(file_id_triangles,*) shape_triangles
     allocate(triangles_SOLEDGE3X_EIRENE(shape_triangles(1),shape_triangles(2)))
     do i = 1,shape_triangles(1)
@@ -776,63 +773,63 @@ end subroutine vector_potential_rz
         integer, dimension(:), intent(in) :: count_connected,count_connected_repaired
         integer, dimension(:,:), intent(in) :: triangle_type, old_triangle_type
 !
-        integer :: cur_triangle
+        integer :: cur_triangle, iunit
 !
         ! Lists all triangles/prism whose number of connections were, pre-repair, not equal to their expected number of neighbours
-        open(123, file='./MESH_CHECK/error_triangles.dat')
+        open(newunit=iunit, file='./MESH_CHECK/error_triangles.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected(cur_triangle) < 3)) then
                 if(number_of_neighbours(cur_triangle) /= count_connected(cur_triangle)) then
-                    write(123,*) cur_triangle
+                    write(iunit,*) cur_triangle
                 end if
             end if
         end do
-        close(123)
+        close(iunit)
 !
         ! Lists vertices of these initially faulty triangles from above (triple of vertex indices)
-        open(123, file='./MESH_CHECK/error_triangles_vertices.dat')
+        open(newunit=iunit, file='./MESH_CHECK/error_triangles_vertices.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected(cur_triangle) < 3)) then
                 if(number_of_neighbours(cur_triangle) /= count_connected(cur_triangle)) then
-                    write(123,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
+                    write(iunit,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
                 end if
             end if
         end do
-        close(123)
+        close(iunit)
 !
         ! Lists triangles/prism with less than three neighbours after repair -> should only include triangles on border
-        open(123, file='./MESH_CHECK/border_triangles.dat')
+        open(newunit=iunit, file='./MESH_CHECK/border_triangles.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected_repaired(cur_triangle) < 3)) then
-                write(123,*) cur_triangle
+                write(iunit,*) cur_triangle
             end if
         end do
-        close(123)
+        close(iunit)
 !
         ! Lists vertices of these hopefully only true border triangles (triple of vertex indices)
-        open(123, file='./MESH_CHECK/border_triangles_vertices.dat')
+        open(newunit=iunit, file='./MESH_CHECK/border_triangles_vertices.dat')
         do cur_triangle = 1, n_triangles
             if ((count_connected_repaired(cur_triangle) < 3)) then
-                write(123,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
+                write(iunit,*) triangles_SOLEDGE3X_EIRENE(cur_triangle,:)
             end if
         end do
-        close(123)
+        close(iunit)
 !
         ! Saves the triangle/prism types (top or bottom) and which of they vertices are the loose vertex of the knot triple
         ! BEFORE the repair attempt
-        open(123, file='./MESH_CHECK/old_triangle_type.dat')
+        open(newunit=iunit, file='./MESH_CHECK/old_triangle_type.dat')
         do cur_triangle = 1, n_triangles
-            write(123,*) old_triangle_type(cur_triangle,:)
+            write(iunit,*) old_triangle_type(cur_triangle,:)
         end do
-        close(123)
+        close(iunit)
 !
         ! Saves the triangle/prism types (top or bottom) and which of they vertices are the loose vertex of the knot triple
         ! AFTER the repair attempt
-        open(123, file='./MESH_CHECK/triangle_type.dat')
+        open(newunit=iunit, file='./MESH_CHECK/triangle_type.dat')
         do cur_triangle = 1, n_triangles
-            write(123,*) triangle_type(cur_triangle,:)
+            write(iunit,*) triangle_type(cur_triangle,:)
         end do
-        close(123)
+        close(iunit)
 !
     end subroutine repair_report
 !
