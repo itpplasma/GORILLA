@@ -228,7 +228,7 @@ end
 
 %Load Data-files and copy them into data_plots folder
 data=struct();
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 
 %Second run for trapped particle
@@ -245,7 +245,7 @@ gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 
 %Run GORILLA code
 ! ./test_gorilla_main.x
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 
 %Create plots of generated data

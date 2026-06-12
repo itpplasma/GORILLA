@@ -1,9 +1,4 @@
-function data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla)
-% sthetaphi output files only exist when coord_system == 2 (the orbit
-% integration writes sthetaphi, then sym_flux_in_cyl converts to rphiz).
-% For coord_system == 1 only the rphiz file is produced.
-has_sthetaphi = gorilla.GORILLANML.coord_system == 2;
-
+function data=load_copy(data,path_RUN,path_data_plots,gorilla_plot)
 if gorilla_plot.GORILLA_PLOT_NML.boole_J_par == true
     name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_J_par,'.');
     data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_J_par);
@@ -26,22 +21,18 @@ if gorilla_plot.GORILLA_PLOT_NML.boole_full_orbit == true
     name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_rphiz,'.');
     data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_rphiz);
     copyfile([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_rphiz],path_data_plots);
-    if has_sthetaphi
-        name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_sthetaphi,'.');
-        data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_sthetaphi);
-        copyfile([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_sthetaphi],path_data_plots);
-    end
+    name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_sthetaphi,'.');
+    data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_sthetaphi);
+    copyfile([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_full_orbit_sthetaphi],path_data_plots);
 end
 
 if gorilla_plot.GORILLA_PLOT_NML.boole_poincare_vpar_0 == true
     name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_rphiz,'.');
     data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_rphiz);
     copyfile([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_rphiz],path_data_plots);
-    if has_sthetaphi
-        name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi,'.');
-        data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi);
-        copyfile([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi],path_data_plots);
-    end
+    name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi,'.');
+    data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi);
+    copyfile([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_poincare_vpar_0_sthetaphi],path_data_plots);
 end
 
 
@@ -49,11 +40,9 @@ if gorilla_plot.GORILLA_PLOT_NML.boole_poincare_phi_0 == true
     name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_rphiz,'.');
     data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_rphiz);
     copyfile([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_rphiz],path_data_plots);
-    if has_sthetaphi
-        name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi,'.');
-        data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi);
-        copyfile([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi],path_data_plots);
-    end
+    name=strsplit(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi,'.');
+    data.(name{1})=load(gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi);
+    copyfile([path_RUN,'/',gorilla_plot.GORILLA_PLOT_NML.filename_poincare_phi_0_sthetaphi],path_data_plots);
 end
 
 end

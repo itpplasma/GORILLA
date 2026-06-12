@@ -209,7 +209,7 @@ end
 
 %Load Data-files and copy them into data_plots folder
 data=struct();
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 %Create plots of generated data
 %-----------------------------------------------------------------------------------------------------------------------

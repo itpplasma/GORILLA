@@ -247,7 +247,7 @@ end
 
 %Load Data-files and copy them into data_plots folder
 data=struct();
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 %polynominal order = 4
 gorilla.GORILLANML.poly_order = 4;
@@ -262,7 +262,7 @@ gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 %Commparison run of 4th order
 ! ./test_gorilla_main.x
 
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 %Changes for adaptive RUN
 gorilla.GORILLANML.poly_order = 2;
@@ -278,7 +278,7 @@ gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 %Run with energy control
 ! ./test_gorilla_main.x
 
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 %observe energy fluctuation in detail
 gorilla.GORILLANML.poly_order = 2;
@@ -294,7 +294,7 @@ gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 %Run for full orbit analysis (shorter orbit)
 ! ./test_gorilla_main.x
 
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 %observe energy fluctuation in detail (adaptive)
 gorilla.GORILLANML.poly_order = 2;
@@ -306,7 +306,7 @@ gorilla_plot.write([path_RUN,'/gorilla_plot.inp']);
 %Run for full orbit analysis (shorter orbit) witch energy control
 ! ./test_gorilla_main.x
 
-data=load_copy(data,path_RUN,path_data_plots,gorilla_plot,gorilla);
+data=load_copy(data,path_RUN,path_data_plots,gorilla_plot);
 
 cd(path_script)
 
