@@ -1,5 +1,6 @@
 program test_jorek_field_backend
     use, intrinsic :: iso_fortran_env, only: dp => real64
+    use jorek_bezier, only: jorek_locator_t, build_jorek_locator
     use jorek_field_backend_mod, only: evaluate_jorek_field_backend, &
         evaluate_jorek_model303_gorilla
     use jorek_restart, only: jorek_restart_t
@@ -7,6 +8,7 @@ program test_jorek_field_backend
     implicit none
 
     type(jorek_restart_t) :: data
+    type(jorek_locator_t) :: locator
     real(dp) :: a_covariant(3), b_covariant(3), bmod
     integer :: ierr, node
     real(dp), parameter :: r_node(4) = [10.0_dp, 11.0_dp, 11.0_dp, 10.0_dp]
@@ -45,8 +47,10 @@ program test_jorek_field_backend
         data%values(node, 1, 4, 1) = 1.0_dp/9.0_dp
     end do
 
+    call build_jorek_locator(data, locator, ierr)
+    if (ierr /= 0) error stop 'JOREK locator construction failed'
     call evaluate_jorek_model303_gorilla(data, 10.25_dp, 0.4_dp, 0.6_dp, &
-        a_covariant, b_covariant, bmod, ierr)
+        a_covariant, b_covariant, bmod, ierr, locator)
     if (ierr /= 0) error stop 'JOREK backend returned an error'
     call check(a_covariant, [0.0_dp, -6.15_dp, -20.0_dp*log(10.25_dp)])
     call check(b_covariant, [1.0_dp, 20.0_dp, -0.6_dp/10.25_dp])
