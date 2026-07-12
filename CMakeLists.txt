@@ -1,7 +1,9 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.22)
 
 project (GORILLA
   VERSION 1.0.0)
+
+option(GORILLA_ENABLE_JOREK "Build the JOREK model-303 field backend" OFF)
 
 enable_language(Fortran)
 
@@ -15,6 +17,18 @@ endif()
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 find_package(netCDF REQUIRED)
+
+if(GORILLA_ENABLE_JOREK)
+	include(FetchContent)
+	set(LIBNEO_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+	set(LIBNEO_BUILD_NUMERICS OFF CACHE BOOL "" FORCE)
+	set(LIBNEO_BUILD_JOREK ON CACHE BOOL "" FORCE)
+	FetchContent_Declare(libneo
+		GIT_REPOSITORY https://github.com/itpplasma/libneo.git
+		GIT_TAG d376680
+	)
+	FetchContent_MakeAvailable(libneo)
+endif()
 
 if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	find_package(PFUNIT REQUIRED)
@@ -40,5 +54,13 @@ add_executable(test_gorilla_main.x
 )
 
 target_link_libraries(test_gorilla_main.x GORILLA netcdff netcdf lapack)
+
+if(GORILLA_ENABLE_JOREK)
+	enable_testing()
+	add_executable(test_jorek_field_backend.x
+		SRC/TESTS/test_jorek_field_backend.f90)
+	target_link_libraries(test_jorek_field_backend.x GORILLA LIBNEO::jorek)
+	add_test(NAME test_jorek_field_backend COMMAND test_jorek_field_backend.x)
+endif()
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
