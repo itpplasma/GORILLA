@@ -9,6 +9,15 @@
  !This results in surfaces of equal potential coinciding with the flux surfaces and an electric field perpendicular to them
  eps_Phi =  0.d0 , !1.d-6
 !
+ !Magnetic field source: native or jorek
+ magnetic_field_source = 'native',
+ !Restart path, required for the jorek source
+ jorek_restart_filename = '',
+ !GORILLA length units per JOREK length unit
+ jorek_length_scale = 1.d0,
+ !GORILLA magnetic-field units per JOREK magnetic-field unit
+ jorek_magnetic_field_scale = 1.d0,
+!
  !Coordinate system
  !1 ... (R,phi,Z) cylindrical coordinate system
  !2 ... (s,theta,phi) symmetry flux coordinate system 
@@ -184,5 +193,3 @@
 !------------------------------------------------------------------------------------------------------------!
 !
 /
-
-

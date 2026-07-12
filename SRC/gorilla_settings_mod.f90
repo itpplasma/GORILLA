@@ -22,6 +22,12 @@
     !Change in the electrostatic potential within the plasma volume in Gaussian units
     double precision,public,protected  :: eps_Phi
 !
+    !Magnetic field source
+    character(len=16), public, protected :: magnetic_field_source = 'native'
+    character(len=256), public, protected :: jorek_restart_filename = ''
+    double precision, public, protected :: jorek_length_scale = 1.d0
+    double precision, public, protected :: jorek_magnetic_field_scale = 1.d0
+!
     !Coordinate system
     integer, public, protected :: coord_system
 !    
@@ -91,7 +97,9 @@
     logical, public, protected :: boole_pert_from_mephit
 !
     !Namelist for Gorilla input
-    NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
+    NAMELIST /GORILLANML/ eps_Phi, magnetic_field_source, &
+                        & jorek_restart_filename, jorek_length_scale, &
+                        & jorek_magnetic_field_scale, coord_system, ispecies, ipusher, &
                         & boole_pusher_ode45, boole_dt_dtau, boole_newton_precalc, poly_order, i_precomp, boole_guess, &
                         & rel_err_ode45,boole_periodic_relocation,handover_processing_kind, boole_axi_noise_vector_pot, &
                         & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, &
@@ -121,6 +129,19 @@
             call load_boole_array_optional_quantities
 !
             !Dependencies of input parameters
+            select case (trim(adjustl(magnetic_field_source)))
+                case ('native')
+                case ('jorek')
+                    if (len_trim(jorek_restart_filename).eq.0) then
+                        error stop 'jorek_restart_filename is required for magnetic_field_source=jorek'
+                    endif
+                    if (jorek_length_scale.le.0.d0 .or. jorek_magnetic_field_scale.le.0.d0) then
+                        error stop 'JOREK conversion scales must be positive'
+                    endif
+                case default
+                    error stop 'magnetic_field_source must be native or jorek'
+            end select
+!
             if( i_time_tracing_option.eq.2 ) then
                 if (ipusher.ne.2) then
                     print *, 'ERROR: When Hamiltonian time tracing is activated, set ipusher to 2 in gorilla.inp.'

@@ -135,7 +135,12 @@
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, &
             & axi_noise_eps_A, axi_noise_eps_Phi, non_axi_noise_eps_A, &
-            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
+            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit, &
+            & magnetic_field_source, jorek_restart_filename, jorek_length_scale, &
+            & jorek_magnetic_field_scale
+#ifdef GORILLA_ENABLE_JOREK
+      use jorek_field_backend_mod, only: load_jorek_field_backend, evaluate_jorek_field_backend
+#endif
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
       use differentiate_mod, only: differentiate
       use splint_vmec_data_mod, only: splint_vmec_data
@@ -167,6 +172,7 @@
       double precision :: psi_pol,dq_ds,sqrtg,dbmod_dtheta,dR_dtheta
       double precision :: dZ_dtheta,bmod1    
       double precision :: r_minor
+      double precision, dimension(3) :: jorek_a_covariant, jorek_b_covariant
 !
       double precision, dimension(3) :: vec_h_1
       double precision, dimension(3,3) :: mat_gh
@@ -268,7 +274,21 @@
 !
       !Pre-processing for EFIT
 !
-      if( (grid_kind.eq.1).or.(grid_kind.eq.2).or.(grid_kind.eq.4).or.(grid_kind.eq.5) ) then
+      if (trim(adjustl(magnetic_field_source)).eq.'jorek') then
+        if (coord_system.ne.1) error stop 'JOREK fields require cylindrical coordinates'
+        if (ipert_in.ne.0) error stop 'JOREK fields cannot use the native ipert perturbation'
+        if (boole_pert_from_mephit) error stop 'JOREK and MEPHIT field sources cannot be combined'
+#ifdef GORILLA_ENABLE_JOREK
+        call load_jorek_field_backend(trim(jorek_restart_filename), ierr, &
+          jorek_length_scale, jorek_magnetic_field_scale)
+        if (ierr.ne.0) then
+          print *, 'JOREK restart initialization failed with error', ierr
+          error stop
+        endif
+#else
+        error stop 'GORILLA was built without JOREK field support'
+#endif
+      elseif( (grid_kind.eq.1).or.(grid_kind.eq.2).or.(grid_kind.eq.4).or.(grid_kind.eq.5) ) then
         !subroutine field must be called in order to realize perturbation according to ipert_in
         rrr=1.d0
         ppp=0.d0
@@ -332,8 +352,26 @@
         select case(coord_system)
           case(1) !RphiZ --> Cylindrical coordinate system
 !
-            call vector_potential_rphiz(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),ipert_in,bmod_multiplier, &
-                              & A_x1(iv),A_x2(iv),A_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv))
+            if (trim(adjustl(magnetic_field_source)).eq.'jorek') then
+#ifdef GORILLA_ENABLE_JOREK
+              call evaluate_jorek_field_backend(verts_rphiz(1,iv), verts_rphiz(2,iv), &
+                verts_rphiz(3,iv), jorek_a_covariant, jorek_b_covariant, Bmod(iv), ierr)
+              if (ierr.ne.0) then
+                print *, 'JOREK field evaluation failed at vertex', iv, 'with error', ierr
+                error stop
+              endif
+              A_x1(iv) = jorek_a_covariant(1)
+              A_x2(iv) = jorek_a_covariant(2)
+              A_x3(iv) = jorek_a_covariant(3)
+              h_x1(iv) = jorek_b_covariant(1)
+              h_x2(iv) = jorek_b_covariant(2)
+              h_x3(iv) = jorek_b_covariant(3)
+              Bmod(iv) = Bmod(iv)*bmod_multiplier
+#endif
+            else
+              call vector_potential_rphiz(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),ipert_in,bmod_multiplier, &
+                                & A_x1(iv),A_x2(iv),A_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv))
+            endif
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! add vector potential and magnetic field perturbations from Markus here !!!!!!!!!!!!!!!
             if (boole_pert_from_mephit) then
@@ -1382,4 +1420,3 @@ enddo
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
   end module tetra_physics_mod
-

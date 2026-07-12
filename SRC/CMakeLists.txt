@@ -63,6 +63,7 @@ target_include_directories(GORILLA PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 if(GORILLA_ENABLE_JOREK)
 	target_sources(GORILLA PRIVATE jorek_field_backend_mod.f90)
 	target_link_libraries(GORILLA PUBLIC LIBNEO::jorek)
+	target_compile_definitions(GORILLA PRIVATE GORILLA_ENABLE_JOREK)
 endif()
 
 if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")

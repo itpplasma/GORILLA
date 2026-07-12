@@ -18,6 +18,10 @@ program test_jorek_field_backend
         a_covariant, b_covariant, bmod, ierr)
     if (ierr /= 9) error stop 'uninitialized JOREK backend was accepted'
 
+    call evaluate_jorek_model303_gorilla(data, 10.25_dp, 0.4_dp, 0.6_dp, &
+        a_covariant, b_covariant, bmod, ierr, length_scale_in=0.0_dp)
+    if (ierr /= 10) error stop 'invalid JOREK conversion scale was accepted'
+
     data%jorek_model = 303
     data%n_order = 3
     data%n_degrees = 4
@@ -49,13 +53,15 @@ program test_jorek_field_backend
 
     call build_jorek_locator(data, locator, ierr)
     if (ierr /= 0) error stop 'JOREK locator construction failed'
-    call evaluate_jorek_model303_gorilla(data, 10.25_dp, 0.4_dp, 0.6_dp, &
-        a_covariant, b_covariant, bmod, ierr, locator)
+    call evaluate_jorek_model303_gorilla(data, 1025.0_dp, 0.4_dp, 60.0_dp, &
+        a_covariant, b_covariant, bmod, ierr, locator, 100.0_dp, 1.0e4_dp)
     if (ierr /= 0) error stop 'JOREK backend returned an error'
-    call check(a_covariant, [0.0_dp, -6.15_dp, -20.0_dp*log(10.25_dp)])
-    call check(b_covariant, [1.0_dp, 20.0_dp, -0.6_dp/10.25_dp])
-    if (abs(bmod - sqrt(1.0_dp + (20.0_dp/10.25_dp)**2 &
-            + (0.6_dp/10.25_dp)**2)) > 3.0e-14_dp) &
+    call check(a_covariant, [0.0_dp, -6.15e8_dp, &
+        -20.0e6_dp*log(10.25_dp)])
+    call check(b_covariant, [1.0e4_dp, 20.0e6_dp, &
+        -0.6e4_dp/10.25_dp])
+    if (abs(bmod - 1.0e4_dp*sqrt(1.0_dp + (20.0_dp/10.25_dp)**2 &
+            + (0.6_dp/10.25_dp)**2)) > 3.0e-10_dp) &
         error stop 'JOREK backend returned the wrong field magnitude'
 
     print '(A)', 'PASS: JOREK model-303 GORILLA field conventions'
@@ -65,7 +71,7 @@ contains
     subroutine check(actual, expected)
         real(dp), intent(in) :: actual(3), expected(3)
 
-        if (maxval(abs(actual - expected)) > 3.0e-14_dp) &
+        if (maxval(abs(actual - expected)) > 3.0e-7_dp) &
             error stop 'JOREK backend component mismatch'
     end subroutine check
 
