@@ -10,7 +10,7 @@ module jorek_refined_plane_mod
     implicit none
     private
 
-    public :: extract_refined_jorek_plane
+    public :: extract_refined_jorek_plane, orient_triangles
 
 contains
 
