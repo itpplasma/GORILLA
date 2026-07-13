@@ -1,6 +1,7 @@
 module jorek_inserted_plane_mod
     use, intrinsic :: iso_fortran_env, only: dp => real64
-    use jorek_bezier, only: evaluate_jorek_geometry
+    use jorek_bezier, only: jorek_locator_t, build_jorek_locator, &
+        evaluate_jorek_geometry, locate_jorek_element_indexed
     use jorek_field_values, only: evaluate_jorek_variable
     use jorek_refined_plane_mod, only: extract_refined_jorek_plane, &
         orient_triangles
@@ -53,6 +54,9 @@ contains
             psi, vertex_element, vertex_st, triangle_work, parent_work, &
             triangle_count, node, ierr)
         if (ierr /= 0 .or. node /= size(psi)) return
+        call assign_inserted_owners(data, size(psi) - extra_count + 1, plane_rz, &
+            psi, vertex_element, vertex_st, ierr)
+        if (ierr /= 0) return
         deallocate(triangles, triangle_parent)
         allocate(triangles(triangle_count, 3), &
             source=triangle_work(:triangle_count, :))
@@ -148,6 +152,32 @@ contains
         end do
         ierr = 0
     end subroutine insert_selected_nodes
+
+    subroutine assign_inserted_owners(data, first_node, plane_rz, psi, &
+            vertex_element, vertex_st, ierr)
+        type(jorek_restart_t), intent(in) :: data
+        integer, intent(in) :: first_node
+        real(dp), intent(in) :: plane_rz(:, :)
+        real(dp), intent(inout) :: psi(:), vertex_st(:, :)
+        integer, intent(inout) :: vertex_element(:)
+        integer, intent(out) :: ierr
+
+        type(jorek_locator_t) :: locator
+        real(dp) :: derivatives(3)
+        integer :: node
+
+        call build_jorek_locator(data, locator, ierr)
+        if (ierr /= 0) return
+        do node = first_node, size(vertex_element)
+            call locate_jorek_element_indexed(data, locator, plane_rz(:, node), &
+                vertex_element(node), vertex_st(1, node), vertex_st(2, node), ierr)
+            if (ierr /= 0) return
+            call evaluate_jorek_variable(data, vertex_element(node), 1, &
+                vertex_st(1, node), vertex_st(2, node), 0.0_dp, psi(node), &
+                derivatives, ierr)
+            if (ierr /= 0) return
+        end do
+    end subroutine assign_inserted_owners
 
     subroutine store_side_node(data, element, side, k, subdivisions, rz, &
             value, st, ierr)

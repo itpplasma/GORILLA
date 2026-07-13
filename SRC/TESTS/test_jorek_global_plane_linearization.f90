@@ -255,8 +255,8 @@ program test_jorek_global_plane_linearization
                 .or. neighbor_recovered /= 344328 .or. global_outside /= 5200 &
                 .or. ambiguous /= 0 .or. strict_ambiguous /= 0 &
                 .or. boundary_outside /= 5200 .or. interior_outside /= 0 &
-                .or. count(hole_element) /= 148 .or. tail_point_count /= 16 &
-                .or. tail_edge_count /= 15) &
+                .or. count(hole_element) /= 148 .or. tail_point_count /= 18 &
+                .or. tail_edge_count /= 16) &
             error stop 'insert-4 global-plane fixture changed'
         call verify_insert4_maximum
     else
@@ -577,21 +577,25 @@ contains
     subroutine verify_insert4_maximum
         real(dp), parameter :: tolerance = 1.0e-12_dp
 
-        if (maximum(1)%element /= 5987 .or. maximum(1)%triangle /= 48805 &
-                .or. maximum(1)%triangle_element /= 5987 &
+        if (maximum(1)%element /= 5175 .or. maximum(1)%triangle /= 41170 &
+                .or. maximum(1)%triangle_element /= 5175 &
                 .or. maximum(1)%relation /= 1 &
-                .or. abs(maximum(1)%error - 0.020434701685116553_dp) &
+                .or. abs(maximum(1)%error - 0.019959234428708204_dp) &
                     > tolerance &
                 .or. maximum(2)%element /= 5175 &
                 .or. maximum(2)%triangle /= 48836 &
                 .or. maximum(2)%triangle_element /= 5987 &
                 .or. maximum(2)%element_distance /= 3 &
                 .or. maximum(2)%relation /= 4 &
-                .or. abs(maximum(2)%error - 0.043714707375519496_dp) &
+                .or. abs(maximum(2)%error - 0.043385386233720333_dp) &
                     > tolerance &
                 .or. any(recovered_relation_counts &
                     /= [4, 297216, 47088, 20]) &
-                .or. any(recovered_high_counts /= [0, 39, 12, 4])) &
+                .or. any(recovered_high_counts /= [0, 43, 12, 8]) &
+                .or. maxval(abs(recovered_relation_metrics(1, :) - [ &
+                    0.0051750424482673758_dp, 0.033642681741412578_dp, &
+                    0.028862752750893582_dp, 0.043385386233720333_dp])) &
+                    > tolerance) &
             error stop 'insert-4 field maximum changed'
     end subroutine verify_insert4_maximum
 
