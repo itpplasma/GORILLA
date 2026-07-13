@@ -74,6 +74,24 @@ if(GORILLA_ENABLE_JOREK)
 			COMMAND test_jorek_restart_backend.x "${GORILLA_JOREK_GOLDEN_RESTART}")
 		set_tests_properties(test_jorek_restart_backend PROPERTIES
 			LABELS "jorek;golden")
+		set(JOREK_ORBIT_DIR "${CMAKE_CURRENT_BINARY_DIR}/jorek_snapshot_orbit")
+		file(MAKE_DIRECTORY "${JOREK_ORBIT_DIR}")
+		configure_file(SRC/TESTS/jorek_snapshot_orbit/gorilla.inp.in
+			"${JOREK_ORBIT_DIR}/gorilla.inp" @ONLY)
+		foreach(INPUT_FILE tetra_grid.inp gorilla_plot.inp orbit_start_rphizlambda.dat)
+			configure_file("SRC/TESTS/jorek_snapshot_orbit/${INPUT_FILE}"
+				"${JOREK_ORBIT_DIR}/${INPUT_FILE}" COPYONLY)
+		endforeach()
+		add_executable(test_jorek_orbit_output.x
+			SRC/TESTS/test_jorek_orbit_output.f90)
+		add_test(NAME test_jorek_snapshot_orbit
+			COMMAND ${CMAKE_COMMAND}
+				-DGORILLA_MAIN=$<TARGET_FILE:test_gorilla_main.x>
+				-DORBIT_VALIDATOR=$<TARGET_FILE:test_jorek_orbit_output.x>
+				-DORBIT_DIR=${JOREK_ORBIT_DIR}
+				-P ${CMAKE_CURRENT_SOURCE_DIR}/SRC/TESTS/run_jorek_snapshot_orbit.cmake)
+		set_tests_properties(test_jorek_snapshot_orbit PROPERTIES
+			DEPENDS test_jorek_restart_backend LABELS "jorek;golden")
 	endif()
 endif()
 
