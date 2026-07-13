@@ -22,6 +22,7 @@ program test_jorek_poloidal_linearization
     type(jorek_locator_t) :: locator
     logical, allocatable :: owner_mismatch_elements(:), uncovered_elements(:)
     real(dp) :: corner_rz(2, 4), metrics(6), phi, rz_st(2, 2)
+    real(dp) :: outside_distance(2)
     real(dp) :: worst_b_exact(3), worst_b_interp(3), worst_rz(2)
     character(len=1024) :: filename
     integer :: axis_elements, element, i, ierr, j, level, outside, phase
@@ -45,6 +46,7 @@ program test_jorek_poloidal_linearization
         worst_case = 0
         axis_elements = 0
         outside = 0
+        outside_distance = 0.0_dp
         samples = 0
         owner_mismatch_elements = .false.
         uncovered_elements = .false.
@@ -93,6 +95,11 @@ program test_jorek_poloidal_linearization
         print '(A, I0, A, I0)', 'uncovered elements=', &
             count(uncovered_elements), ' interior owner mismatches=', &
             count(owner_mismatch_elements)
+        if (outside > 0) then
+            outside_distance(2) = sqrt(outside_distance(2)/outside)
+            print '(A, 2(ES14.6, 1X))', &
+                'max/rms uncovered distance [cm]: ', 100.0_dp*outside_distance
+        end if
         print '(A, 4(I0, 1X), A, I0, A, 2(ES14.6, 1X), A, 2(ES14.6, 1X))', &
             'worst B element/phase/i/j ', worst_case, &
             'found ', worst_found, ' st ', worst_st, ' RZ ', worst_rz
@@ -183,6 +190,8 @@ contains
                     .or. any(barycentric > 1.0_dp + 1.0e-10_dp)) then
                 uncovered = uncovered + 1
                 uncovered_elements(element) = .true.
+                call update_metrics(distance_to_triangles(corner_rz, rz), &
+                    outside_distance)
                 return
             end if
         end if
@@ -265,6 +274,38 @@ contains
             *(vertices(2, 2) - vertices(2, 1)))/determinant
         weight(1) = 1.0_dp - weight(2) - weight(3)
     end subroutine physical_barycentric
+
+    real(dp) function distance_to_triangles(corners, point)
+        real(dp), intent(in) :: corners(2, 4), point(2)
+
+        integer, parameter :: edges(2, 5) = reshape([ &
+            1, 2, 2, 3, 3, 4, 4, 1, 1, 3], [2, 5])
+        integer :: edge
+
+        distance_to_triangles = huge(1.0_dp)
+        do edge = 1, size(edges, 2)
+            distance_to_triangles = min(distance_to_triangles, &
+                point_segment_distance(point, corners(:, edges(1, edge)), &
+                    corners(:, edges(2, edge))))
+        end do
+    end function distance_to_triangles
+
+    real(dp) function point_segment_distance(point, left, right)
+        real(dp), intent(in) :: point(2), left(2), right(2)
+
+        real(dp) :: fraction, segment(2), scale
+
+        segment = right - left
+        scale = sum(segment**2)
+        if (scale <= tiny(1.0_dp)) then
+            point_segment_distance = sqrt(sum((point - left)**2))
+            return
+        end if
+        fraction = dot_product(point - left, segment)/scale
+        fraction = min(1.0_dp, max(0.0_dp, fraction))
+        point_segment_distance = &
+            sqrt(sum((point - left - fraction*segment)**2))
+    end function point_segment_distance
 
     subroutine convert_components(r, a_jorek, b_jorek, a, h, bmod)
         real(dp), intent(in) :: r, a_jorek(3), b_jorek(3)
