@@ -13,7 +13,6 @@ program test_jorek_global_plane_linearization
 
     implicit none
 
-    integer, parameter :: refinement = 8
     real(dp), parameter :: pi = acos(-1.0_dp)
     real(dp), parameter :: phases(4) = [0.0_dp, 0.5_dp*pi, pi, 1.5_dp*pi]
     real(dp), parameter :: weights(3, 4) = reshape([ &
@@ -32,9 +31,9 @@ program test_jorek_global_plane_linearization
     logical, allocatable :: hole_element(:)
     real(dp) :: barycentric(3), corner_rz(2, 4), metrics(2, 2), rz(2)
     real(dp) :: rz_st(2, 2), s, t
-    character(len=1024) :: filename, output_filename
+    character(len=1024) :: argument, filename, output_filename
     integer :: ambiguous, boundary_outside, element, global_outside, i, ierr, j
-    integer :: interior_outside, located
+    integer :: interior_outside, located, refinement
     integer :: matches, neighbor_recovered
     integer :: phase, sample, source_covered, source_outside, triangle
     integer :: unique_sample
@@ -42,9 +41,13 @@ program test_jorek_global_plane_linearization
     integer :: output_unit
     logical :: source_hit, write_output
 
-    if (command_argument_count() < 1 .or. command_argument_count() > 2) &
-        error stop 'restart path and optional output path are required'
+    if (command_argument_count() < 2 .or. command_argument_count() > 3) &
+        error stop 'restart path, refinement, and optional output path are required'
     call get_command_argument(1, filename)
+    call get_command_argument(2, argument)
+    read(argument, *, iostat=ierr) refinement
+    if (ierr /= 0 .or. .not. any(refinement == [8, 16])) &
+        error stop 'refinement must be 8 or 16'
     call load_jorek_restart(trim(filename), data, ierr)
     if (ierr /= 0) error stop 'JOREK restart load failed'
     call build_jorek_locator(data, field_locator, ierr)
@@ -57,8 +60,8 @@ program test_jorek_global_plane_linearization
     allocate(hole_element(data%n_elements), source=.false.)
     output_unit = -1
     write_output = .false.
-    if (command_argument_count() == 2) then
-        call get_command_argument(2, output_filename)
+    if (command_argument_count() == 3) then
+        call get_command_argument(3, output_filename)
         open(newunit=output_unit, file=trim(output_filename), status='replace', &
             action='write', iostat=ierr)
         if (ierr /= 0) error stop 'cannot open global-hole output'
@@ -126,14 +129,27 @@ program test_jorek_global_plane_linearization
             end do
         end do
     end do
-    if (source_covered /= 765124 .or. source_outside /= 4668) &
-        error stop 'source-element coverage fixture changed'
+    select case (refinement)
+    case (8)
+        if (source_covered /= 765124 .or. source_outside /= 4668 &
+                .or. neighbor_recovered /= 4372 .or. global_outside /= 296 &
+                .or. ambiguous /= 334792 .or. boundary_outside /= 296 &
+                .or. interior_outside /= 0 .or. count(hole_element) /= 59) &
+            error stop 'factor-8 global-plane fixture changed'
+    case (16)
+        if (source_covered /= 769032 .or. source_outside /= 760 &
+                .or. neighbor_recovered /= 756 .or. global_outside /= 4 &
+                .or. ambiguous /= 338408 .or. boundary_outside /= 4 &
+                .or. interior_outside /= 0 .or. count(hole_element) /= 1) &
+            error stop 'factor-16 global-plane fixture changed'
+    end select
     if (source_covered + source_outside /= 769792 &
             .or. source_covered + source_outside - global_outside &
                 /= sum(metric_counts) &
             .or. boundary_outside + interior_outside /= global_outside &
             .or. .not. all(ieee_is_finite(metrics))) &
         error stop 'global-plane sample partition failed'
+    print '(A, I0)', 'refinement=', refinement
     print '(A, I0, A, I0, A, I0)', 'source outside=', source_outside, &
         ' recovered by global plane=', neighbor_recovered, &
         ' global outside=', global_outside
