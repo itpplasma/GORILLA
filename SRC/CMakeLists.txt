@@ -49,6 +49,12 @@ add_library(GORILLA STATIC
 	gorilla_plot_mod.f90
 	)
 
+set_source_files_properties(
+	tetra_grid_mod.f90
+	tetra_physics_mod.f90
+	PROPERTIES Fortran_PREPROCESS ON
+)
+
 if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	target_compile_options(GORILLA
 		PRIVATE --coverage
