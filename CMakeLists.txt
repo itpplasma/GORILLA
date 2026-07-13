@@ -115,7 +115,8 @@ if(GORILLA_ENABLE_JOREK)
 			GORILLA LIBNEO::jorek netcdff netcdf lapack)
 		add_test(NAME test_jorek_global_plane_linearization
 			COMMAND test_jorek_global_plane_linearization.x
-				"${GORILLA_JOREK_GOLDEN_RESTART}")
+				"${GORILLA_JOREK_GOLDEN_RESTART}"
+				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_holes.csv")
 		set_tests_properties(test_jorek_global_plane_linearization PROPERTIES
 			DEPENDS test_jorek_poloidal_linearization LABELS "jorek;golden")
 		add_executable(test_jorek_refined_plane.x
