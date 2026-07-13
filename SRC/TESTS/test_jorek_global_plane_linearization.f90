@@ -3,6 +3,7 @@ program test_jorek_global_plane_linearization
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use jorek_bezier, only: jorek_locator_t, build_jorek_locator, &
         evaluate_jorek_geometry
+    use jorek_boundary_plane_mod, only: extract_boundary_refined_jorek_plane
     use jorek_field_backend_mod, only: evaluate_jorek_model303_gorilla, &
         evaluate_jorek_model303_gorilla_element
     use jorek_model303_field, only: evaluate_jorek_model303_b
@@ -27,6 +28,7 @@ program test_jorek_global_plane_linearization
     type(jorek_triangle_locator_t) :: plane_locator
     real(dp), allocatable :: plane_rz(:, :), psi(:), vertex_st(:, :)
     integer, allocatable :: element_vertex(:, :, :), triangles(:, :)
+    integer, allocatable :: element_triangle_range(:, :)
     integer, allocatable :: vertex_element(:)
     logical, allocatable :: hole_element(:)
     real(dp) :: barycentric(3), corner_rz(2, 4), metrics(2, 2), rz(2)
@@ -40,21 +42,31 @@ program test_jorek_global_plane_linearization
     integer :: strict_ambiguous, unique_sample
     integer :: metric_counts(2)
     integer :: output_unit, overlap_output_unit
-    logical :: source_hit, write_output, write_overlap_output
+    logical :: boundary_mode, source_hit, write_output, write_overlap_output
 
     if (command_argument_count() < 2 .or. command_argument_count() > 4) &
         error stop 'restart path, refinement, and optional output paths are required'
     call get_command_argument(1, filename)
     call get_command_argument(2, argument)
-    read(argument, *, iostat=ierr) refinement
-    if (ierr /= 0 .or. .not. any(refinement == [2, 4, 8, 16])) &
-        error stop 'refinement must be 2, 4, 8, or 16'
+    boundary_mode = trim(argument) == 'boundary8'
+    if (boundary_mode) then
+        refinement = -8
+    else
+        read(argument, *, iostat=ierr) refinement
+        if (ierr /= 0 .or. .not. any(refinement == [2, 4, 8, 16])) &
+            error stop 'refinement must be 2, 4, 8, 16, or boundary8'
+    end if
     call load_jorek_restart(trim(filename), data, ierr)
     if (ierr /= 0) error stop 'JOREK restart load failed'
     call build_jorek_locator(data, field_locator, ierr)
     if (ierr /= 0) error stop 'JOREK field locator build failed'
-    call extract_refined_jorek_plane(data, refinement, plane_rz, psi, &
-        triangles, vertex_element, vertex_st, ierr, element_vertex)
+    if (boundary_mode) then
+        call extract_boundary_refined_jorek_plane(data, 8, plane_rz, psi, &
+            triangles, vertex_element, vertex_st, element_triangle_range, ierr)
+    else
+        call extract_refined_jorek_plane(data, refinement, plane_rz, psi, &
+            triangles, vertex_element, vertex_st, ierr, element_vertex)
+    end if
     if (ierr /= 0) error stop 'JOREK plane refinement failed'
     call build_jorek_triangle_locator(plane_rz, triangles, plane_locator, ierr)
     if (ierr /= 0) error stop 'JOREK triangle locator build failed'
@@ -153,6 +165,13 @@ program test_jorek_global_plane_linearization
         end do
     end do
     select case (refinement)
+    case (-8)
+        if (source_covered /= 420684 .or. source_outside /= 349108 &
+                .or. neighbor_recovered /= 344324 .or. global_outside /= 4784 &
+                .or. ambiguous /= 0 .or. strict_ambiguous /= 0 &
+                .or. boundary_outside /= 4784 .or. interior_outside /= 0 &
+                .or. count(hole_element) /= 148) &
+            error stop 'boundary-8 global-plane fixture changed'
     case (2)
         if (source_covered /= 420264 .or. source_outside /= 349528 &
                 .or. neighbor_recovered /= 344328 .or. global_outside /= 5200 &
@@ -185,7 +204,11 @@ program test_jorek_global_plane_linearization
             .or. boundary_outside + interior_outside /= global_outside &
             .or. .not. all(ieee_is_finite(metrics))) &
         error stop 'global-plane sample partition failed'
-    print '(A, I0)', 'refinement=', refinement
+    if (boundary_mode) then
+        print '(A)', 'refinement=boundary8'
+    else
+        print '(A, I0)', 'refinement=', refinement
+    end if
     print '(A, I0, A, I0, A, I0)', 'source outside=', source_outside, &
         ' recovered by global plane=', neighbor_recovered, &
         ' global outside=', global_outside
@@ -245,6 +268,22 @@ contains
         real(dp) :: corners(2, 4), weight(3)
         integer :: cell_i, cell_j, grid_i(4), grid_j(4), ierr, node, trial
 
+        if (boundary_mode) then
+            source_contains = .false.
+            do trial = element_triangle_range(1, element), &
+                    element_triangle_range(2, element)
+                call barycentric_weights(plane_rz(:, triangles(trial, :)), &
+                    point, weight, ierr)
+                if (ierr == 0) then
+                    if (all(weight >= -1.0e-10_dp) &
+                            .and. all(weight <= 1.0_dp + 1.0e-10_dp)) then
+                        source_contains = .true.
+                        return
+                    end if
+                end if
+            end do
+            return
+        end if
         cell_i = min(refinement - 1, int(s*refinement))
         cell_j = min(refinement - 1, int(t*refinement))
         grid_i = [cell_i, cell_i + 1, cell_i + 1, cell_i]
