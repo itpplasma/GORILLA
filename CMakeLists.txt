@@ -85,6 +85,15 @@ if(GORILLA_ENABLE_JOREK)
 			COMMAND test_jorek_restart_mesh.x "${GORILLA_JOREK_GOLDEN_RESTART}")
 		set_tests_properties(test_jorek_restart_mesh PROPERTIES
 			DEPENDS test_jorek_restart_backend LABELS "jorek;golden")
+		add_executable(test_jorek_poloidal_linearization.x
+			SRC/TESTS/test_jorek_poloidal_linearization.f90)
+		target_link_libraries(test_jorek_poloidal_linearization.x
+			GORILLA LIBNEO::jorek netcdff netcdf lapack)
+		add_test(NAME test_jorek_poloidal_linearization
+			COMMAND test_jorek_poloidal_linearization.x
+				"${GORILLA_JOREK_GOLDEN_RESTART}")
+		set_tests_properties(test_jorek_poloidal_linearization PROPERTIES
+			DEPENDS test_jorek_restart_mesh LABELS "jorek;golden")
 		set(JOREK_ORBIT_DIR "${CMAKE_CURRENT_BINARY_DIR}/jorek_snapshot_orbit")
 		file(MAKE_DIRECTORY "${JOREK_ORBIT_DIR}")
 		configure_file(SRC/TESTS/jorek_snapshot_orbit/gorilla.inp.in
