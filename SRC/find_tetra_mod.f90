@@ -142,6 +142,7 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
                 steps_b(1) = steps_b(2)
                 steps_b(2) = nb
             endif
+            call clamp_box_steps(steps_a, steps_b, steps_c)
 !
             do b = steps_b(1), steps_b(2)
                 do c = steps_c(1), steps_c(2)
@@ -192,6 +193,7 @@ print*, 'abc_factor, delta_abc = ', a_factor, b_factor, c_factor, delta_a, delta
                 steps_b(1) = steps_b(2)
                 steps_b(2) = nb
             endif
+            call clamp_box_steps(steps_a, steps_b, steps_c)
 !
             do b = steps_b(1), steps_b(2)
                 do c = steps_c(1), steps_c(2)
@@ -277,6 +279,16 @@ dble(sum(entry_counter))/dble(num_hexahedra)
 !
 PRINT*, 'grid_for_find_tetra finished'
     end subroutine grid_for_find_tetra
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine clamp_box_steps(steps_a, steps_b, steps_c)
+        integer, dimension(2), intent(inout) :: steps_a, steps_b, steps_c
+
+        steps_a = max(1, min(steps_a, na))
+        steps_b = max(1, min(steps_b, nb))
+        steps_c = max(1, min(steps_c, nc))
+    end subroutine clamp_box_steps
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
