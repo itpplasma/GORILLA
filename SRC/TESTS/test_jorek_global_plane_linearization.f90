@@ -32,7 +32,8 @@ program test_jorek_global_plane_linearization
     real(dp) :: barycentric(3), corner_rz(2, 4), metrics(2, 2), rz(2)
     real(dp) :: rz_st(2, 2), s, t
     character(len=1024) :: filename
-    integer :: ambiguous, element, global_outside, i, ierr, j, located
+    integer :: ambiguous, boundary_outside, element, global_outside, i, ierr, j
+    integer :: interior_outside, located
     integer :: matches, neighbor_recovered
     integer :: phase, sample, source_covered, source_outside, triangle
     integer :: unique_sample
@@ -51,6 +52,8 @@ program test_jorek_global_plane_linearization
     call build_jorek_triangle_locator(plane_rz, triangles, plane_locator, ierr)
     if (ierr /= 0) error stop 'JOREK triangle locator build failed'
     global_outside = 0
+    boundary_outside = 0
+    interior_outside = 0
     ambiguous = 0
     neighbor_recovered = 0
     source_covered = 0
@@ -88,6 +91,11 @@ program test_jorek_global_plane_linearization
                         end if
                         if (ierr /= 0) then
                             global_outside = global_outside + size(phases)
+                            if (any(data%neighbours(element, :) == -1)) then
+                                boundary_outside = boundary_outside + size(phases)
+                            else
+                                interior_outside = interior_outside + size(phases)
+                            end if
                             cycle
                         end if
                         do phase = 1, size(phases)
@@ -104,12 +112,15 @@ program test_jorek_global_plane_linearization
     if (source_covered + source_outside /= 769792 &
             .or. source_covered + source_outside - global_outside &
                 /= sum(metric_counts) &
+            .or. boundary_outside + interior_outside /= global_outside &
             .or. .not. all(ieee_is_finite(metrics))) &
         error stop 'global-plane sample partition failed'
     print '(A, I0, A, I0, A, I0)', 'source outside=', source_outside, &
         ' recovered by global plane=', neighbor_recovered, &
         ' global outside=', global_outside
     print '(A, I0)', 'multiple containing global triangles=', ambiguous
+    print '(A, I0, A, I0)', 'global outside from boundary elements=', &
+        boundary_outside, ' from interior elements=', interior_outside
     print '(A, 2(ES14.6, 1X))', 'source-contained max/rms B error: ', &
         metrics(1, 1), sqrt(metrics(2, 1)/metric_counts(1))
     print '(A, 2(ES14.6, 1X))', 'neighbor-recovered max/rms B error: ', &
