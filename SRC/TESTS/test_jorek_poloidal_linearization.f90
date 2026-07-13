@@ -18,12 +18,13 @@ program test_jorek_poloidal_linearization
         1.0_dp/3, 1.0_dp/3, 1.0_dp/3, 0.6_dp, 0.2_dp, 0.2_dp, &
         0.2_dp, 0.6_dp, 0.2_dp, 0.2_dp, 0.2_dp, 0.6_dp], [3, 4])
     integer, parameter :: triangle_vertices(3, 2) = reshape([1, 2, 3, 1, 3, 4], [3, 2])
-    integer, parameter :: refinements(4) = [1, 2, 4, 8]
+    integer, parameter :: refinements(5) = [1, 2, 4, 8, 16]
     integer, parameter :: reference_refinement = 2
 
     type(jorek_restart_t) :: data
     type(jorek_locator_t) :: locator
-    logical, allocatable :: axis_mask(:), covered_at_four(:), uncovered_elements(:)
+    logical, allocatable :: axis_mask(:), covered_at_four(:), covered_at_eight(:)
+    logical, allocatable :: uncovered_elements(:)
     logical :: write_metrics
     real(dp), allocatable :: element_metrics(:, :)
     integer, allocatable :: element_covered(:), element_outside(:)
@@ -31,7 +32,7 @@ program test_jorek_poloidal_linearization
     integer, allocatable :: mesh_nodes(:, :, :), mesh_owner(:), mesh_triangles(:, :)
     real(dp) :: corner_rz(2, 4), metrics(6), phi, rz_st(2, 2), target_metrics(2)
     real(dp) :: split_metrics(2, 2)
-    real(dp) :: coverage_metrics(2, 2)
+    real(dp) :: coverage_metrics(2, 3)
     real(dp) :: outside_distance(2)
     real(dp) :: worst_b_exact(3), worst_b_interp(3), worst_rz(2)
     character(len=1024) :: filename, metrics_filename
@@ -40,6 +41,7 @@ program test_jorek_poloidal_linearization
     integer :: refinement, sample, samples, triangle, vertex
     integer :: fallback_samples, regular_samples
     integer :: common_samples, new_samples
+    integer :: middle_samples
     real(dp) :: target_s, target_t
     integer :: worst_case(4), worst_found
     integer :: worst_corner_owner(4)
@@ -54,6 +56,7 @@ program test_jorek_poloidal_linearization
     if (ierr /= 0) error stop 'JOREK locator build failed'
     allocate(axis_mask(data%n_elements), uncovered_elements(data%n_elements))
     allocate(covered_at_four(769792), source=.false.)
+    allocate(covered_at_eight(769792), source=.false.)
     allocate(element_metrics(6, data%n_elements))
     allocate(element_covered(data%n_elements), element_outside(data%n_elements))
     metrics_unit = -1
@@ -84,6 +87,7 @@ program test_jorek_poloidal_linearization
         fallback_samples = 0
         regular_samples = 0
         common_samples = 0
+        middle_samples = 0
         new_samples = 0
         axis_mask = .false.
         element_covered = 0
@@ -146,6 +150,10 @@ program test_jorek_poloidal_linearization
                 .and. (common_samples + new_samples /= samples &
                     .or. .not. all(ieee_is_finite(coverage_metrics)))) &
             error stop 'coverage-population metric partition failed'
+        if (refinement == 16 &
+                .and. (common_samples + middle_samples + new_samples /= samples &
+                    .or. .not. all(ieee_is_finite(coverage_metrics)))) &
+            error stop 'nested coverage-population metric partition failed'
         if (outside == 0) error stop 'coverage-failure fixture changed'
         print '(A, I0, A, I0, A, I0, A, I0)', 'refinement=', refinement, &
             ' samples=', samples, ' outside=', outside, &
@@ -171,6 +179,19 @@ program test_jorek_poloidal_linearization
                 new_samples, ' max/rms target-owner B errors: ', &
                 coverage_metrics(1, 2), &
                 sqrt(coverage_metrics(2, 2)/max(1, new_samples))
+        else if (refinement == 16) then
+            print '(A, I0, A, 2(ES14.6, 1X))', 'factor-4 core samples=', &
+                common_samples, ' max/rms target-owner B errors: ', &
+                coverage_metrics(1, 1), &
+                sqrt(coverage_metrics(2, 1)/max(1, common_samples))
+            print '(A, I0, A, 2(ES14.6, 1X))', 'factor-8 band samples=', &
+                middle_samples, ' max/rms target-owner B errors: ', &
+                coverage_metrics(1, 2), &
+                sqrt(coverage_metrics(2, 2)/max(1, middle_samples))
+            print '(A, I0, A, 2(ES14.6, 1X))', 'factor-16 new samples=', &
+                new_samples, ' max/rms target-owner B errors: ', &
+                coverage_metrics(1, 3), &
+                sqrt(coverage_metrics(2, 3)/max(1, new_samples))
         end if
         print '(A, I0)', 'uncovered elements=', count(uncovered_elements)
         if (outside > 0) then
@@ -249,6 +270,7 @@ contains
             refinement, cell_i, cell_j, vertices, barycentric, ierr)
         if (ierr /= 0) then
             if (refinement == 4) covered_at_four(sample_index) = .false.
+            if (refinement == 8) covered_at_eight(sample_index) = .false.
             uncovered = uncovered + 1
             element_outside(element) = element_outside(element) + 1
             uncovered_elements(element) = .true.
@@ -258,6 +280,7 @@ contains
             return
         end if
         if (refinement == 4) covered_at_four(sample_index) = .true.
+        if (refinement == 8) covered_at_eight(sample_index) = .true.
         call evaluate_jorek_model303_a(data, element, target_s, target_t, &
             phi, a_jorek, ierr)
         if (ierr == 0) call evaluate_jorek_model303_b(data, element, target_s, &
@@ -308,6 +331,20 @@ contains
             else
                 call update_metrics(relative_error(b_target_interp, b_exact), &
                     coverage_metrics(:, 2))
+                new_samples = new_samples + 1
+            end if
+        else if (refinement == 16) then
+            if (covered_at_four(sample_index)) then
+                call update_metrics(relative_error(b_target_interp, b_exact), &
+                    coverage_metrics(:, 1))
+                common_samples = common_samples + 1
+            else if (covered_at_eight(sample_index)) then
+                call update_metrics(relative_error(b_target_interp, b_exact), &
+                    coverage_metrics(:, 2))
+                middle_samples = middle_samples + 1
+            else
+                call update_metrics(relative_error(b_target_interp, b_exact), &
+                    coverage_metrics(:, 3))
                 new_samples = new_samples + 1
             end if
         end if
