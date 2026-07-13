@@ -23,7 +23,7 @@ program test_jorek_poloidal_linearization
 
     type(jorek_restart_t) :: data
     type(jorek_locator_t) :: locator
-    logical, allocatable :: axis_mask(:), uncovered_elements(:)
+    logical, allocatable :: axis_mask(:), covered_at_four(:), uncovered_elements(:)
     logical :: write_metrics
     real(dp), allocatable :: element_metrics(:, :)
     integer, allocatable :: element_covered(:), element_outside(:)
@@ -31,12 +31,15 @@ program test_jorek_poloidal_linearization
     integer, allocatable :: mesh_nodes(:, :, :), mesh_owner(:), mesh_triangles(:, :)
     real(dp) :: corner_rz(2, 4), metrics(6), phi, rz_st(2, 2), target_metrics(2)
     real(dp) :: split_metrics(2, 2)
+    real(dp) :: coverage_metrics(2, 2)
     real(dp) :: outside_distance(2)
     real(dp) :: worst_b_exact(3), worst_b_interp(3), worst_rz(2)
     character(len=1024) :: filename, metrics_filename
-    integer :: axis_elements, element, i, ierr, j, level, metrics_unit, outside, phase
+    integer :: axis_elements, element, fixed_sample, i, ierr, j, level
+    integer :: metrics_unit, outside, phase
     integer :: refinement, sample, samples, triangle, vertex
     integer :: fallback_samples, regular_samples
+    integer :: common_samples, new_samples
     real(dp) :: target_s, target_t
     integer :: worst_case(4), worst_found
     integer :: worst_corner_owner(4)
@@ -50,6 +53,7 @@ program test_jorek_poloidal_linearization
     call build_jorek_locator(data, locator, ierr)
     if (ierr /= 0) error stop 'JOREK locator build failed'
     allocate(axis_mask(data%n_elements), uncovered_elements(data%n_elements))
+    allocate(covered_at_four(769792), source=.false.)
     allocate(element_metrics(6, data%n_elements))
     allocate(element_covered(data%n_elements), element_outside(data%n_elements))
     metrics_unit = -1
@@ -70,13 +74,17 @@ program test_jorek_poloidal_linearization
         metrics = 0.0_dp
         target_metrics = 0.0_dp
         split_metrics = 0.0_dp
+        coverage_metrics = 0.0_dp
         worst_case = 0
         axis_elements = 0
         outside = 0
         outside_distance = 0.0_dp
         samples = 0
+        fixed_sample = 0
         fallback_samples = 0
         regular_samples = 0
+        common_samples = 0
+        new_samples = 0
         axis_mask = .false.
         element_covered = 0
         element_outside = 0
@@ -104,11 +112,12 @@ program test_jorek_poloidal_linearization
                     do i = 0, reference_refinement - 1
                         do triangle = 1, 2
                             do sample = 1, size(weights, 2)
+                                fixed_sample = fixed_sample + 1
                                 call reference_parameters(i, j, triangle, &
                                     weights(:, sample), target_s, target_t)
                                 call compare_fixed_sample(data, phi, &
                                     target_s, target_t, refinement, metrics, &
-                                    samples, outside)
+                                    samples, outside, fixed_sample)
                             end do
                         end do
                     end do
@@ -123,7 +132,8 @@ program test_jorek_poloidal_linearization
         if (refinement == 1 &
                 .and. maxval(abs(target_metrics - metrics(1:2))) > 1.0e-14_dp) &
             error stop 'factor-1 owner interpolation identity failed'
-        if (samples + outside /= 769792) &
+        if (fixed_sample /= size(covered_at_four) &
+                .or. samples + outside /= size(covered_at_four)) &
             error stop 'fixed poloidal sample count changed'
         if (sum(element_covered) /= samples &
                 .or. sum(element_outside) /= outside &
@@ -132,6 +142,10 @@ program test_jorek_poloidal_linearization
         if (fallback_samples + regular_samples /= samples &
                 .or. .not. all(ieee_is_finite(split_metrics))) &
             error stop 'chart-fallback metric partition failed'
+        if (refinement == 8 &
+                .and. (common_samples + new_samples /= samples &
+                    .or. .not. all(ieee_is_finite(coverage_metrics)))) &
+            error stop 'coverage-population metric partition failed'
         if (outside == 0) error stop 'coverage-failure fixture changed'
         print '(A, I0, A, I0, A, I0, A, I0)', 'refinement=', refinement, &
             ' samples=', samples, ' outside=', outside, &
@@ -148,6 +162,16 @@ program test_jorek_poloidal_linearization
             regular_samples, ' max/rms target-owner B errors: ', &
             split_metrics(1, 2), &
             sqrt(split_metrics(2, 2)/max(1, regular_samples))
+        if (refinement == 8) then
+            print '(A, I0, A, 2(ES14.6, 1X))', 'factor-4 common samples=', &
+                common_samples, ' max/rms target-owner B errors: ', &
+                coverage_metrics(1, 1), &
+                sqrt(coverage_metrics(2, 1)/max(1, common_samples))
+            print '(A, I0, A, 2(ES14.6, 1X))', 'factor-8 new samples=', &
+                new_samples, ' max/rms target-owner B errors: ', &
+                coverage_metrics(1, 2), &
+                sqrt(coverage_metrics(2, 2)/max(1, new_samples))
+        end if
         print '(A, I0)', 'uncovered elements=', count(uncovered_elements)
         if (outside > 0) then
             outside_distance(2) = sqrt(outside_distance(2)/outside)
@@ -194,10 +218,10 @@ contains
     end subroutine reference_parameters
 
     subroutine compare_fixed_sample(data, phi, target_s, target_t, &
-            refinement, metrics, samples, uncovered)
+            refinement, metrics, samples, uncovered, sample_index)
         type(jorek_restart_t), intent(in) :: data
         real(dp), intent(in) :: phi, target_s, target_t
-        integer, intent(in) :: refinement
+        integer, intent(in) :: refinement, sample_index
         real(dp), intent(inout) :: metrics(6)
         integer, intent(inout) :: samples, uncovered
 
@@ -224,6 +248,7 @@ contains
         call find_sample_triangle(corner_rz, rz, target_s, target_t, &
             refinement, cell_i, cell_j, vertices, barycentric, ierr)
         if (ierr /= 0) then
+            if (refinement == 4) covered_at_four(sample_index) = .false.
             uncovered = uncovered + 1
             element_outside(element) = element_outside(element) + 1
             uncovered_elements(element) = .true.
@@ -232,6 +257,7 @@ contains
             call update_metrics(miss_distance, element_metrics(3:4, element))
             return
         end if
+        if (refinement == 4) covered_at_four(sample_index) = .true.
         call evaluate_jorek_model303_a(data, element, target_s, target_t, &
             phi, a_jorek, ierr)
         if (ierr == 0) call evaluate_jorek_model303_b(data, element, target_s, &
@@ -273,6 +299,17 @@ contains
             call update_metrics(relative_error(b_target_interp, b_exact), &
                 split_metrics(:, 2))
             regular_samples = regular_samples + 1
+        end if
+        if (refinement == 8) then
+            if (covered_at_four(sample_index)) then
+                call update_metrics(relative_error(b_target_interp, b_exact), &
+                    coverage_metrics(:, 1))
+                common_samples = common_samples + 1
+            else
+                call update_metrics(relative_error(b_target_interp, b_exact), &
+                    coverage_metrics(:, 2))
+                new_samples = new_samples + 1
+            end if
         end if
         call update_metrics(relative_error(a_interp, a_exact), metrics(3:4))
         call update_metrics(abs(bmod_interp/bmod_exact - 1.0_dp), metrics(5:6))
