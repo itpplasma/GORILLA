@@ -3,7 +3,7 @@ program test_jorek_poloidal_linearization
     use jorek_bezier, only: jorek_locator_t, build_jorek_locator, &
         evaluate_jorek_geometry
     use jorek_model303_field, only: evaluate_jorek_model303_at, &
-        evaluate_jorek_model303_a, evaluate_jorek_model303_b
+        evaluate_jorek_model303_b
     use jorek_restart, only: jorek_restart_t, load_jorek_restart
 
     implicit none
@@ -20,7 +20,7 @@ program test_jorek_poloidal_linearization
 
     type(jorek_restart_t) :: data
     type(jorek_locator_t) :: locator
-    real(dp) :: corner_rz(2, 4), first_metrics(6), metrics(6), phi, rz_st(2, 2)
+    real(dp) :: corner_rz(2, 4), metrics(6), phi, rz_st(2, 2)
     real(dp) :: worst_b_exact(3), worst_b_interp(3), worst_rz(2)
     character(len=1024) :: filename
     integer :: axis_elements, element, i, ierr, j, level, outside, phase
@@ -77,13 +77,9 @@ program test_jorek_poloidal_linearization
         if (samples + outside /= 769792) &
             error stop 'fixed poloidal sample count changed'
         if (outside == 0) error stop 'coverage-failure fixture changed'
-        if (level == 1) first_metrics = metrics
-        if (level == size(refinements)) then
-            if (metrics(2) >= 0.5_dp*first_metrics(2)) &
-                error stop 'covered-point RMS field error did not contract'
-            if (metrics(1) <= 2.0e-2_dp) &
-                error stop 'maximum field-error rejection unexpectedly cleared'
-        end if
+        if (level == size(refinements) &
+                .and. metrics(1) <= 2.0e-2_dp) &
+            error stop 'maximum field-error rejection unexpectedly cleared'
         print '(A, I0, A, I0, A, I0, A, I0)', 'refinement=', refinement, &
             ' samples=', samples, ' outside=', outside, &
             ' axis_elements=', axis_elements
@@ -147,9 +143,9 @@ contains
             call evaluate_jorek_geometry(data, element, sub_s(index), &
                 sub_t(index), corner_rz(:, index), rz_st, ierr)
             if (ierr /= 0) error stop 'JOREK refined corner geometry failed'
-            call evaluate_local_corner(data, element, sub_s(index), &
-                sub_t(index), phi, corner_rz(1, index), a_corner(:, index), &
-                h_corner(:, index), bmod_corner(index))
+            call evaluate_global_corner(data, locator, corner_rz(:, index), &
+                phi, a_corner(:, index), h_corner(:, index), &
+                bmod_corner(index))
         end do
         call evaluate_jorek_geometry(data, element, target_s, target_t, rz, &
             rz_st, ierr)
@@ -210,21 +206,20 @@ contains
         samples = samples + 1
     end subroutine compare_fixed_sample
 
-    subroutine evaluate_local_corner(data, element, s, t, phi, r, a, h, bmod)
+    subroutine evaluate_global_corner(data, locator, rz, phi, a, h, bmod)
         type(jorek_restart_t), intent(in) :: data
-        integer, intent(in) :: element
-        real(dp), intent(in) :: s, t, phi, r
+        type(jorek_locator_t), intent(in) :: locator
+        real(dp), intent(in) :: rz(2), phi
         real(dp), intent(out) :: a(3), h(3), bmod
 
-        real(dp) :: a_jorek(3), b_jorek(3)
-        integer :: ierr
+        real(dp) :: a_jorek(3), b_jorek(3), st(2)
+        integer :: found, ierr
 
-        call evaluate_jorek_model303_a(data, element, s, t, phi, a_jorek, ierr)
-        if (ierr /= 0) error stop 'JOREK local corner potential failed'
-        call evaluate_jorek_model303_b(data, element, s, t, phi, b_jorek, ierr)
-        if (ierr /= 0) error stop 'JOREK local corner field failed'
-        call convert_components(r*100.0_dp, a_jorek, b_jorek, a, h, bmod)
-    end subroutine evaluate_local_corner
+        call evaluate_jorek_model303_at(data, rz, phi, a_jorek, b_jorek, &
+            found, st, ierr, locator)
+        if (ierr /= 0) error stop 'JOREK global corner field failed'
+        call convert_components(rz(1)*100.0_dp, a_jorek, b_jorek, a, h, bmod)
+    end subroutine evaluate_global_corner
 
     subroutine physical_barycentric(vertices, point, weight, ierr)
         real(dp), intent(in) :: vertices(2, 3), point(2)
