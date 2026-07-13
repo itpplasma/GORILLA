@@ -59,10 +59,9 @@ contains
         real(dp), allocatable :: extended_rz(:, :), extended_psi(:)
         real(dp), allocatable :: extended_st(:, :)
         integer, allocatable :: extended_element(:)
-        integer :: element, first_new, k, new_count, node, side
+        integer :: new_count, node
 
         new_count = count(data%neighbours == 0)*(subdivisions - 2)
-        first_new = size(psi) + 1
         allocate(extended_rz(2, size(psi) + new_count))
         allocate(extended_psi(size(psi) + new_count))
         allocate(extended_element(size(psi) + new_count))
@@ -72,22 +71,11 @@ contains
         extended_element(:size(psi)) = vertex_element
         extended_st(:, :size(psi)) = vertex_st
         allocate(extra_node(4, subdivisions - 1, data%n_elements), source=0)
-        node = first_new - 1
-        do element = 1, data%n_elements
-            do side = 1, 4
-                if (data%neighbours(element, side) /= 0) cycle
-                do k = 1, subdivisions - 1
-                    if (k == subdivisions/2) cycle
-                    node = node + 1
-                    extra_node(side, k, element) = node
-                    call store_boundary_node(data, element, side, k, &
-                        subdivisions, extended_rz(:, node), extended_psi(node), &
-                        extended_st(:, node), ierr)
-                    if (ierr /= 0) return
-                    extended_element(node) = element
-                end do
-            end do
-        end do
+        node = size(psi)
+        call populate_boundary_nodes(data, subdivisions, extra_node, &
+            extended_rz, extended_psi, extended_element, extended_st, &
+            node, ierr)
+        if (ierr /= 0) return
         if (node /= size(extended_psi)) then
             ierr = 2
             return
@@ -98,6 +86,34 @@ contains
         call move_alloc(extended_st, vertex_st)
         ierr = 0
     end subroutine append_boundary_nodes
+
+    subroutine populate_boundary_nodes(data, subdivisions, extra_node, &
+            plane_rz, psi, vertex_element, vertex_st, node, ierr)
+        type(jorek_restart_t), intent(in) :: data
+        integer, intent(in) :: subdivisions
+        integer, intent(inout) :: extra_node(:, :, :), vertex_element(:), node
+        real(dp), intent(inout) :: plane_rz(:, :), psi(:), vertex_st(:, :)
+        integer, intent(out) :: ierr
+
+        integer :: element, k, side
+
+        do element = 1, data%n_elements
+            do side = 1, 4
+                if (data%neighbours(element, side) /= 0) cycle
+                do k = 1, subdivisions - 1
+                    if (k == subdivisions/2) cycle
+                    node = node + 1
+                    extra_node(side, k, element) = node
+                    call store_boundary_node(data, element, side, k, &
+                        subdivisions, plane_rz(:, node), psi(node), &
+                        vertex_st(:, node), ierr)
+                    if (ierr /= 0) return
+                    vertex_element(node) = element
+                end do
+            end do
+        end do
+        ierr = 0
+    end subroutine populate_boundary_nodes
 
     subroutine append_boundary_cell_centers(data, plane_rz, psi, &
             vertex_element, vertex_st, cell_center, ierr)
@@ -246,59 +262,82 @@ contains
         integer, intent(in) :: element_vertex(0:, 0:, :), extra_node(:, :, :)
         integer, intent(inout) :: triangles(:, :), triangle
 
-        integer :: current, k, next
+        integer :: current, side
 
         current = element_vertex(i, j, element)
-        if (j == 0 .and. data%neighbours(element, 1) == 0) then
-            do k = i*subdivisions/2 + 1, (i + 1)*subdivisions/2
-                next = boundary_node(element, 1, k, subdivisions, &
-                    element_vertex, extra_node)
-                call append_triangle([center, current, next], triangles, triangle)
-                current = next
-            end do
-        else
-            next = element_vertex(i + 1, j, element)
-            call append_triangle([center, current, next], triangles, triangle)
-            current = next
-        end if
-        if (i == 1 .and. data%neighbours(element, 2) == 0) then
-            do k = j*subdivisions/2 + 1, (j + 1)*subdivisions/2
-                next = boundary_node(element, 2, k, subdivisions, &
-                    element_vertex, extra_node)
-                call append_triangle([center, current, next], triangles, triangle)
-                current = next
-            end do
-        else
-            next = element_vertex(i + 1, j + 1, element)
-            call append_triangle([center, current, next], triangles, triangle)
-            current = next
-        end if
-        if (j == 1 .and. data%neighbours(element, 3) == 0) then
-            do k = (1 - i)*subdivisions/2 + 1, &
-                    (2 - i)*subdivisions/2
-                next = boundary_node(element, 3, k, subdivisions, &
-                    element_vertex, extra_node)
-                call append_triangle([center, current, next], triangles, triangle)
-                current = next
-            end do
-        else
-            next = element_vertex(i, j + 1, element)
-            call append_triangle([center, current, next], triangles, triangle)
-            current = next
-        end if
-        if (i == 0 .and. data%neighbours(element, 4) == 0) then
-            do k = (1 - j)*subdivisions/2 + 1, &
-                    (2 - j)*subdivisions/2
-                next = boundary_node(element, 4, k, subdivisions, &
-                    element_vertex, extra_node)
-                call append_triangle([center, current, next], triangles, triangle)
-                current = next
-            end do
-        else
-            next = element_vertex(i, j, element)
-            call append_triangle([center, current, next], triangles, triangle)
-        end if
+        do side = 1, 4
+            call append_cell_edge(data, element, i, j, side, subdivisions, &
+                element_vertex, extra_node, center, current, triangles, triangle)
+        end do
     end subroutine append_boundary_cell_fan
+
+    subroutine append_cell_edge(data, element, i, j, side, subdivisions, &
+            element_vertex, extra_node, center, current, triangles, triangle)
+        type(jorek_restart_t), intent(in) :: data
+        integer, intent(in) :: element, i, j, side, subdivisions, center
+        integer, intent(in) :: element_vertex(0:, 0:, :), extra_node(:, :, :)
+        integer, intent(inout) :: current, triangles(:, :), triangle
+
+        integer :: first, k, last, next
+
+        if (cell_edge_is_physical(data, element, i, j, side)) then
+            select case (side)
+            case (1)
+                first = i*subdivisions/2
+            case (2)
+                first = j*subdivisions/2
+            case (3)
+                first = (1 - i)*subdivisions/2
+            case (4)
+                first = (1 - j)*subdivisions/2
+            end select
+            last = first + subdivisions/2
+            do k = first + 1, last
+                next = boundary_node(element, side, k, subdivisions, &
+                    element_vertex, extra_node)
+                call append_triangle([center, current, next], triangles, triangle)
+                current = next
+            end do
+        else
+            next = cell_edge_endpoint(element, i, j, side, element_vertex)
+            call append_triangle([center, current, next], triangles, triangle)
+            current = next
+        end if
+    end subroutine append_cell_edge
+
+    logical function cell_edge_is_physical(data, element, i, j, side)
+        type(jorek_restart_t), intent(in) :: data
+        integer, intent(in) :: element, i, j, side
+
+        select case (side)
+        case (1)
+            cell_edge_is_physical = j == 0
+        case (2)
+            cell_edge_is_physical = i == 1
+        case (3)
+            cell_edge_is_physical = j == 1
+        case (4)
+            cell_edge_is_physical = i == 0
+        end select
+        cell_edge_is_physical = cell_edge_is_physical &
+            .and. data%neighbours(element, side) == 0
+    end function cell_edge_is_physical
+
+    integer function cell_edge_endpoint(element, i, j, side, element_vertex)
+        integer, intent(in) :: element, i, j, side
+        integer, intent(in) :: element_vertex(0:, 0:, :)
+
+        select case (side)
+        case (1)
+            cell_edge_endpoint = element_vertex(i + 1, j, element)
+        case (2)
+            cell_edge_endpoint = element_vertex(i + 1, j + 1, element)
+        case (3)
+            cell_edge_endpoint = element_vertex(i, j + 1, element)
+        case (4)
+            cell_edge_endpoint = element_vertex(i, j, element)
+        end select
+    end function cell_edge_endpoint
 
     integer function count_boundary_cells(data)
         type(jorek_restart_t), intent(in) :: data
