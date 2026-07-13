@@ -127,7 +127,8 @@
     subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in, boole_keep_phi_elec)
 !
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
-                                & set_verts_sthetaphi,verts_xyz,Rmin,Rmax,Zmin,Zmax
+                                & set_verts_sthetaphi,verts_xyz,Rmin,Rmax,Zmin,Zmax, &
+                                & jorek_vertex_element,jorek_vertex_st
       use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,R0_analytic_circ
       use constants, only: pi
       use field_mod, only: ipert
@@ -139,7 +140,8 @@
             & magnetic_field_source, jorek_restart_filename, jorek_length_scale, &
             & jorek_magnetic_field_scale
 #ifdef GORILLA_ENABLE_JOREK
-      use jorek_field_backend_mod, only: load_jorek_field_backend, evaluate_jorek_field_backend
+      use jorek_field_backend_mod, only: load_jorek_field_backend, &
+        evaluate_jorek_field_backend, evaluate_jorek_field_backend_element
 #endif
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
       use differentiate_mod, only: differentiate
@@ -362,8 +364,16 @@
 !
             if (trim(adjustl(magnetic_field_source)).eq.'jorek') then
 #ifdef GORILLA_ENABLE_JOREK
-              call evaluate_jorek_field_backend(verts_rphiz(1,iv), verts_rphiz(2,iv), &
-                verts_rphiz(3,iv), jorek_a_covariant, jorek_b_covariant, Bmod(iv), ierr)
+              if (allocated(jorek_vertex_element)) then
+                call evaluate_jorek_field_backend_element(verts_rphiz(1,iv), &
+                  verts_rphiz(2,iv), verts_rphiz(3,iv), jorek_vertex_element(iv), &
+                  jorek_vertex_st(:,iv), jorek_a_covariant, jorek_b_covariant, &
+                  Bmod(iv), ierr)
+              else
+                call evaluate_jorek_field_backend(verts_rphiz(1,iv), &
+                  verts_rphiz(2,iv), verts_rphiz(3,iv), jorek_a_covariant, &
+                  jorek_b_covariant, Bmod(iv), ierr)
+              endif
               if (ierr.ne.0) then
                 print *, 'JOREK field evaluation failed at vertex', iv, 'with error', ierr
                 error stop

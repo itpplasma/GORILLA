@@ -1,7 +1,9 @@
 module jorek_mesh_mod
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use circular_mesh_SOLEDGE3X_EIRENE, only: calc_mesh_SOLEDGE3X_EIRENE
-    use jorek_bezier, only: evaluate_jorek_geometry
+    use jorek_bezier, only: jorek_locator_t, build_jorek_locator, &
+        evaluate_jorek_geometry, is_jorek_axis_target, &
+        locate_jorek_element_indexed
     use jorek_field_values, only: evaluate_jorek_variable
     use jorek_restart, only: jorek_restart_t
 
@@ -13,7 +15,8 @@ module jorek_mesh_mod
 contains
 
     subroutine build_jorek_mesh_arrays(data, n_slices, length_scale, &
-            points_rphiz, verts, neighbours, neighbour_faces, perbou_phi, ierr)
+            points_rphiz, verts, neighbours, neighbour_faces, perbou_phi, &
+            ierr, vertex_element, vertex_st)
         type(jorek_restart_t), intent(in) :: data
         integer, intent(in) :: n_slices
         real(dp), intent(in) :: length_scale
@@ -21,12 +24,15 @@ contains
         integer, allocatable, intent(out) :: verts(:, :), neighbours(:, :)
         integer, allocatable, intent(out) :: neighbour_faces(:, :), perbou_phi(:, :)
         integer, intent(out) :: ierr
+        integer, allocatable, intent(out), optional :: vertex_element(:)
+        real(dp), allocatable, intent(out), optional :: vertex_st(:, :)
 
-        real(dp), allocatable :: plane_rz(:, :), psi(:)
-        integer, allocatable :: triangles(:, :)
+        real(dp), allocatable :: plane_rz(:, :), plane_st(:, :), psi(:)
+        integer, allocatable :: plane_element(:), triangles(:, :)
         integer :: n_tetras
 
-        call extract_jorek_plane(data, plane_rz, psi, triangles, ierr)
+        call extract_jorek_plane(data, plane_rz, psi, triangles, &
+            plane_element, plane_st, ierr)
         if (ierr /= 0) return
         if (n_slices < 3 .or. length_scale <= 0.0_dp .or. data%n_period < 1) then
             ierr = 5
@@ -34,6 +40,9 @@ contains
         end if
         call extrude_jorek_plane(plane_rz*length_scale, n_slices, &
             data%n_period, points_rphiz)
+        if (present(vertex_element)) &
+            call extrude_integer_plane(plane_element, n_slices, vertex_element)
+        if (present(vertex_st)) call extrude_real_plane(plane_st, n_slices, vertex_st)
         call calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, size(plane_rz, 2), &
             n_tetras, verts, neighbours, neighbour_faces, perbou_phi, &
             triangles, psi)
@@ -41,10 +50,13 @@ contains
             neighbour_faces, n_slices, data%n_period, ierr)
     end subroutine build_jorek_mesh_arrays
 
-    subroutine extract_jorek_plane(data, plane_rz, psi, triangles, ierr)
+    subroutine extract_jorek_plane(data, plane_rz, psi, triangles, &
+            vertex_element, vertex_st, ierr)
         type(jorek_restart_t), intent(in) :: data
         real(dp), allocatable, intent(out) :: plane_rz(:, :), psi(:)
         integer, allocatable, intent(out) :: triangles(:, :)
+        integer, allocatable, intent(out) :: vertex_element(:)
+        real(dp), allocatable, intent(out) :: vertex_st(:, :)
         integer, intent(out) :: ierr
 
         real(dp), parameter :: corner_s(4) = [0.0_dp, 1.0_dp, 1.0_dp, 0.0_dp]
@@ -86,8 +98,36 @@ contains
         end if
         call collapse_coincident_nodes(data, plane_rz, psi, triangles, ierr)
         if (ierr /= 0) return
+        call assign_vertex_owners(data, plane_rz, vertex_element, vertex_st, ierr)
+        if (ierr /= 0) return
         call orient_triangles(plane_rz, triangles, ierr)
     end subroutine extract_jorek_plane
+
+    subroutine assign_vertex_owners(data, plane_rz, vertex_element, vertex_st, ierr)
+        type(jorek_restart_t), intent(in) :: data
+        real(dp), intent(in) :: plane_rz(:, :)
+        integer, allocatable, intent(out) :: vertex_element(:)
+        real(dp), allocatable, intent(out) :: vertex_st(:, :)
+        integer, intent(out) :: ierr
+
+        type(jorek_locator_t) :: locator
+        integer :: node
+
+        call build_jorek_locator(data, locator, ierr)
+        if (ierr /= 0) return
+        allocate(vertex_element(size(plane_rz, 2)))
+        allocate(vertex_st(2, size(plane_rz, 2)))
+        do node = 1, size(vertex_element)
+            if (is_jorek_axis_target(locator, plane_rz(:, node))) then
+                vertex_element(node) = 0
+                vertex_st(:, node) = 0.0_dp
+                cycle
+            end if
+            call locate_jorek_element_indexed(data, locator, plane_rz(:, node), &
+                vertex_element(node), vertex_st(1, node), vertex_st(2, node), ierr)
+            if (ierr /= 0) return
+        end do
+    end subroutine assign_vertex_owners
 
     subroutine set_element_triangles(data, element, triangles, ierr)
         type(jorek_restart_t), intent(in) :: data
@@ -283,6 +323,35 @@ contains
             points_rphiz(3, first:first + n_nodes - 1) = plane_rz(2, :)
         end do
     end subroutine extrude_jorek_plane
+
+    subroutine extrude_integer_plane(plane_values, n_slices, values)
+        integer, intent(in) :: plane_values(:), n_slices
+        integer, allocatable, intent(out) :: values(:)
+
+        integer :: first, n_nodes, slice
+
+        n_nodes = size(plane_values)
+        allocate(values(n_nodes*n_slices))
+        do slice = 0, n_slices - 1
+            first = slice*n_nodes + 1
+            values(first:first + n_nodes - 1) = plane_values
+        end do
+    end subroutine extrude_integer_plane
+
+    subroutine extrude_real_plane(plane_values, n_slices, values)
+        real(dp), intent(in) :: plane_values(:, :)
+        integer, intent(in) :: n_slices
+        real(dp), allocatable, intent(out) :: values(:, :)
+
+        integer :: first, n_nodes, slice
+
+        n_nodes = size(plane_values, 2)
+        allocate(values(size(plane_values, 1), n_nodes*n_slices))
+        do slice = 0, n_slices - 1
+            first = slice*n_nodes + 1
+            values(:, first:first + n_nodes - 1) = plane_values
+        end do
+    end subroutine extrude_real_plane
 
     subroutine validate_face_orientations(points, verts, neighbours, faces, &
             n_slices, n_period, ierr)

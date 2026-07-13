@@ -2,12 +2,12 @@ program test_jorek_field_backend
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use jorek_bezier, only: jorek_locator_t, build_jorek_locator
     use jorek_field_backend_mod, only: evaluate_jorek_field_backend, &
-        evaluate_jorek_model303_gorilla
+        evaluate_jorek_model303_gorilla, evaluate_jorek_model303_gorilla_element
     use jorek_restart, only: jorek_restart_t
 
     implicit none
 
-    type(jorek_restart_t) :: data
+    type(jorek_restart_t) :: data, overlap
     type(jorek_locator_t) :: locator
     real(dp) :: a_covariant(3), b_covariant(3), bmod
     integer :: ierr, node
@@ -64,14 +64,80 @@ program test_jorek_field_backend
             + (0.6_dp/10.25_dp)**2)) > 3.0e-10_dp) &
         error stop 'JOREK backend returned the wrong field magnitude'
 
+    call initialize_overlap(overlap)
+    call evaluate_jorek_model303_gorilla_element(overlap, 2, 0.25_dp, &
+        0.6_dp, 0.4_dp, 1025.0_dp, a_covariant, b_covariant, bmod, ierr, &
+        100.0_dp, 1.0e4_dp)
+    if (ierr /= 0) error stop 'explicit overlapping owner returned an error'
+    call check(a_covariant, [0.0_dp, -12.3e8_dp, &
+        -20.0e6_dp*log(10.25_dp)])
+    call check(b_covariant, [2.0e4_dp, 20.0e6_dp, &
+        -1.2e4_dp/10.25_dp])
+    if (abs(bmod - 1.0e4_dp*sqrt(4.0_dp + (20.0_dp/10.25_dp)**2 &
+            + (1.2_dp/10.25_dp)**2)) > 3.0e-10_dp) &
+        error stop 'explicit overlapping owner returned the wrong magnitude'
+
+    call evaluate_jorek_model303_gorilla_element(data, 1, 0.25_dp, 0.6_dp, &
+        0.4_dp, 1025.0_dp, a_covariant, b_covariant, bmod, ierr, &
+        100.0_dp, 1.0e4_dp)
+    if (ierr /= 0) error stop 'owner-aware JOREK backend returned an error'
+    call check(a_covariant, [0.0_dp, -6.15e8_dp, &
+        -20.0e6_dp*log(10.25_dp)])
+    call check(b_covariant, [1.0e4_dp, 20.0e6_dp, &
+        -0.6e4_dp/10.25_dp])
+
     print '(A)', 'PASS: JOREK model-303 GORILLA field conventions'
 
 contains
 
+    subroutine initialize_overlap(overlap)
+        type(jorek_restart_t), intent(out) :: overlap
+
+        real(dp) :: factor
+        integer :: element, local_node, node
+
+        overlap%jorek_model = 303
+        overlap%n_order = 3
+        overlap%n_degrees = 4
+        overlap%n_coord_tor = 1
+        overlap%n_dim = 2
+        overlap%n_tor = 1
+        overlap%n_period = 1
+        overlap%n_var = 7
+        overlap%n_nodes = 8
+        overlap%n_elements = 2
+        overlap%n_vertex_max = 4
+        overlap%F0 = 20.0_dp
+        allocate (overlap%x(8, 1, 4, 2), overlap%values(8, 1, 4, 7))
+        allocate (overlap%vertex(2, 4), overlap%size(2, 4, 4))
+        overlap%x = 0.0_dp
+        overlap%values = 0.0_dp
+        overlap%size = 1.0_dp
+        do element = 1, 2
+            factor = real(element, dp)
+            do local_node = 1, 4
+                node = 4*(element - 1) + local_node
+                overlap%vertex(element, local_node) = node
+                overlap%x(node, 1, 1, 1) = r_node(local_node)
+                overlap%x(node, 1, 1, 2) = z_node(local_node)
+                overlap%x(node, 1, 2, 1) = 1.0_dp/3.0_dp
+                overlap%x(node, 1, 3, 2) = 1.0_dp/3.0_dp
+                overlap%values(node, 1, 1, 1) = &
+                    factor*r_node(local_node)*z_node(local_node)
+                overlap%values(node, 1, 2, 1) = &
+                    factor*z_node(local_node)/3.0_dp
+                overlap%values(node, 1, 3, 1) = &
+                    factor*r_node(local_node)/3.0_dp
+                overlap%values(node, 1, 4, 1) = factor/9.0_dp
+            end do
+        end do
+    end subroutine initialize_overlap
+
     subroutine check(actual, expected)
         real(dp), intent(in) :: actual(3), expected(3)
 
-        if (maxval(abs(actual - expected)) > 3.0e-7_dp) &
+        if (maxval(abs(actual - expected)) > &
+                1.0e-12_dp*max(1.0_dp, maxval(abs(expected)))) &
             error stop 'JOREK backend component mismatch'
     end subroutine check
 

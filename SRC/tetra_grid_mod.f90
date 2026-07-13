@@ -19,6 +19,8 @@
     double precision,  dimension(:,:), allocatable, public, protected :: verts_xyz
     double precision,  dimension(:,:), allocatable, public, protected :: verts_sthetaphi
     double precision,  dimension(:), allocatable, public, protected :: verts_theta_vmec
+    integer, dimension(:), allocatable, public, protected :: jorek_vertex_element
+    double precision, dimension(:,:), allocatable, public, protected :: jorek_vertex_st
     integer, public, protected :: ntetr,nvert
     double precision, public, protected :: Rmin,Rmax,Zmin,Zmax
 !
@@ -170,7 +172,8 @@
             call set_n_field_periods(jorek_data%n_period)
             call build_jorek_mesh_arrays(jorek_data, grid_size(2), &
               jorek_length_scale, verts_rphiz, jorek_verts, jorek_neighbours, &
-              jorek_neighbour_faces, jorek_perbou_phi, ierr)
+              jorek_neighbour_faces, jorek_perbou_phi, ierr, &
+              jorek_vertex_element, jorek_vertex_st)
             if (ierr /= 0) error stop 'failed to construct JOREK-derived mesh'
             nvert = size(verts_rphiz, 2)
             ntetr = size(jorek_verts, 2)
@@ -786,6 +789,8 @@ b: do ind_tetr=1,ntetr
     if (allocated(verts_xyz)) deallocate(verts_xyz)
     if (allocated(verts_sthetaphi)) deallocate(verts_sthetaphi)
     if (allocated(verts_theta_vmec)) deallocate(verts_theta_vmec)
+    if (allocated(jorek_vertex_element)) deallocate(jorek_vertex_element)
+    if (allocated(jorek_vertex_st)) deallocate(jorek_vertex_st)
 !
     end subroutine deallocate_tetra_grid
 !

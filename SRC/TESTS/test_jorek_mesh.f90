@@ -8,6 +8,8 @@ program test_jorek_mesh
     type(jorek_restart_t) :: data
     real(dp), allocatable :: points(:, :)
     integer, allocatable :: verts(:, :), neighbours(:, :), faces(:, :), perbou(:, :)
+    integer, allocatable :: owner(:)
+    real(dp), allocatable :: owner_st(:, :)
     real(dp), parameter :: pi = acos(-1.0_dp)
     real(dp), parameter :: r_node(4) = [10.0_dp, 11.0_dp, 11.0_dp, 10.0_dp]
     real(dp), parameter :: z_node(4) = [0.0_dp, 0.0_dp, 1.0_dp, 1.0_dp]
@@ -42,7 +44,7 @@ program test_jorek_mesh
     end do
 
     call build_jorek_mesh_arrays(data, 3, 100.0_dp, points, verts, &
-        neighbours, faces, perbou, ierr)
+        neighbours, faces, perbou, ierr, owner, owner_st)
     if (ierr /= 0) then
         write (*, '(A, I0)') 'synthetic JOREK mesh construction error: ', ierr
         error stop 'synthetic JOREK mesh construction failed'
@@ -58,6 +60,13 @@ program test_jorek_mesh
         error stop 'JOREK mesh toroidal extrusion failed'
     if (any(verts < 1) .or. any(verts > 12) .or. count(perbou /= 0) == 0) &
         error stop 'JOREK tetrahedral connectivity is invalid'
+    if (any(owner /= 1)) error stop 'JOREK mesh vertex owner is wrong'
+    if (maxval(abs(owner_st(:, 1:4) - reshape([0.0_dp, 0.0_dp, &
+            1.0_dp, 0.0_dp, 1.0_dp, 1.0_dp, 0.0_dp, 1.0_dp], [2, 4]))) &
+            > 1.0e-14_dp) error stop 'JOREK mesh owner coordinates are wrong'
+    if (maxval(abs(owner_st(:, 5:8) - owner_st(:, 1:4))) > 1.0e-14_dp &
+            .or. maxval(abs(owner_st(:, 9:12) - owner_st(:, 1:4))) &
+            > 1.0e-14_dp) error stop 'JOREK mesh owner coordinates changed by extrusion'
 
     do tetra = 1, size(neighbours, 2)
         do face = 1, 4
@@ -71,7 +80,7 @@ program test_jorek_mesh
     end do
 
     call build_jorek_mesh_arrays(data, 3, 0.0_dp, points, verts, &
-        neighbours, faces, perbou, ierr)
+        neighbours, faces, perbou, ierr, owner, owner_st)
     if (ierr /= 5) error stop 'invalid JOREK mesh scale was accepted'
 
     print '(A)', 'PASS: JOREK-derived tetrahedral mesh'
