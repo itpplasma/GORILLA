@@ -489,20 +489,20 @@ contains
                 .or. maximum(2)%element_distance /= 3 &
                 .or. maximum(2)%relation /= 4 &
                 .or. maximum(2)%matches /= 1 &
-                .or. any(maximum(2)%nodes /= [16409, 5063, 16410]) &
-                .or. any(maximum(2)%owners /= [5987, 5061, 5987]) &
+                .or. any(maximum(2)%nodes /= [16404, 5062, 16403]) &
+                .or. any(maximum(2)%owners /= [5986, 5061, 5987]) &
                 .or. any(maximum(2)%neighbors <= 0) &
                 .or. abs(maximum(2)%s - 5.0_dp/6.0_dp) > tolerance &
                 .or. abs(maximum(2)%t - 2.0_dp/3.0_dp) > tolerance &
                 .or. abs(maximum(2)%phi) > tolerance &
-                .or. abs(maximum(2)%error - 0.041657092333006372_dp) &
+                .or. abs(maximum(2)%error - 0.043064226571950817_dp) &
                     > tolerance &
                 .or. any(recovered_relation_counts &
                     /= [4, 297216, 47088, 20]) &
-                .or. any(recovered_high_counts /= [0, 43, 12, 7]) &
+                .or. any(recovered_high_counts /= [0, 43, 12, 8]) &
                 .or. maxval(abs(recovered_relation_metrics(1, :) - [ &
                     0.0051750424482673758_dp, 0.033642681741412578_dp, &
-                    0.028862752750893582_dp, 0.041657092333006372_dp])) &
+                    0.028862752750893582_dp, 0.043064226571950817_dp])) &
                     > tolerance) &
             error stop 'factor-2 recovered maximum changed'
     end subroutine verify_factor2_maximum

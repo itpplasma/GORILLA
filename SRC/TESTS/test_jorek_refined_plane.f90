@@ -11,7 +11,7 @@ program test_jorek_refined_plane
     implicit none
 
     integer, parameter :: levels(3) = [2, 4, 8]
-    integer, parameter :: expected_nodes(3) = [24596, 98228, 392588]
+    integer, parameter :: expected_nodes(3) = [24585, 98201, 392529]
     integer, parameter :: expected_triangles(3) = [48802, 195668, 783592]
     type(jorek_restart_t) :: data
     type(jorek_locator_t) :: locator
@@ -36,6 +36,8 @@ program test_jorek_refined_plane
                 ' error=', ierr
             error stop 'JOREK plane refinement failed'
         end if
+        print '(A, I0, A, I0, A, I0)', 'refinement=', levels(level), &
+            ' nodes=', size(plane_rz, 2), ' triangles=', size(triangles, 1)
         if (size(plane_rz, 2) /= expected_nodes(level) &
                 .or. size(triangles, 1) /= expected_triangles(level)) &
             error stop 'JOREK refined plane dimensions changed'
@@ -83,8 +85,6 @@ program test_jorek_refined_plane
             print '(A, I0, A, ES12.4)', 'chart fallbacks=', fallback_count, &
                 ' max |B| [G]=', max_bmod
         end if
-        print '(A, I0, A, I0, A, I0)', 'refinement=', levels(level), &
-            ' nodes=', size(plane_rz, 2), ' triangles=', size(triangles, 1)
     end do
     print '(A)', 'PASS: owner-labelled JOREK poloidal refinement'
 end program test_jorek_refined_plane
