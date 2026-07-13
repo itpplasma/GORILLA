@@ -30,11 +30,13 @@ program test_jorek_poloidal_linearization
     real(dp), allocatable :: mesh_psi(:), mesh_rz(:, :), mesh_st(:, :)
     integer, allocatable :: mesh_nodes(:, :, :), mesh_owner(:), mesh_triangles(:, :)
     real(dp) :: corner_rz(2, 4), metrics(6), phi, rz_st(2, 2), target_metrics(2)
+    real(dp) :: split_metrics(2, 2)
     real(dp) :: outside_distance(2)
     real(dp) :: worst_b_exact(3), worst_b_interp(3), worst_rz(2)
     character(len=1024) :: filename, metrics_filename
     integer :: axis_elements, element, i, ierr, j, level, metrics_unit, outside, phase
     integer :: refinement, sample, samples, triangle, vertex
+    integer :: fallback_samples, regular_samples
     real(dp) :: target_s, target_t
     integer :: worst_case(4), worst_found
     integer :: worst_corner_owner(4)
@@ -67,11 +69,14 @@ program test_jorek_poloidal_linearization
         refinement = refinements(level)
         metrics = 0.0_dp
         target_metrics = 0.0_dp
+        split_metrics = 0.0_dp
         worst_case = 0
         axis_elements = 0
         outside = 0
         outside_distance = 0.0_dp
         samples = 0
+        fallback_samples = 0
+        regular_samples = 0
         axis_mask = .false.
         element_covered = 0
         element_outside = 0
@@ -124,6 +129,9 @@ program test_jorek_poloidal_linearization
                 .or. sum(element_outside) /= outside &
                 .or. .not. all(ieee_is_finite(element_metrics))) &
             error stop 'per-element metric partition failed'
+        if (fallback_samples + regular_samples /= samples &
+                .or. .not. all(ieee_is_finite(split_metrics))) &
+            error stop 'chart-fallback metric partition failed'
         if (outside == 0) error stop 'coverage-failure fixture changed'
         print '(A, I0, A, I0, A, I0, A, I0)', 'refinement=', refinement, &
             ' samples=', samples, ' outside=', outside, &
@@ -132,6 +140,14 @@ program test_jorek_poloidal_linearization
             'max/rms B, A, |B| relative errors: ', metrics
         print '(A, 2(ES14.6, 1X))', &
             'target-owner max/rms B relative errors: ', target_metrics
+        print '(A, I0, A, 2(ES14.6, 1X))', 'fallback samples=', &
+            fallback_samples, ' max/rms target-owner B errors: ', &
+            split_metrics(1, 1), &
+            sqrt(split_metrics(2, 1)/max(1, fallback_samples))
+        print '(A, I0, A, 2(ES14.6, 1X))', 'regular samples=', &
+            regular_samples, ' max/rms target-owner B errors: ', &
+            split_metrics(1, 2), &
+            sqrt(split_metrics(2, 2)/max(1, regular_samples))
         print '(A, I0)', 'uncovered elements=', count(uncovered_elements)
         if (outside > 0) then
             outside_distance(2) = sqrt(outside_distance(2)/outside)
@@ -195,12 +211,13 @@ contains
         real(dp) :: corner_rz(2, 4), h_corner(3, 4), h_exact(3)
         real(dp) :: h_target_corner(3, 4), rz(2), rz_st(2, 2), st(2)
         integer :: cell_i, cell_j, corner_owner(4), found, ierr, vertices(3)
+        logical :: target_fallback(4)
 
         cell_i = min(refinement - 1, int(target_s*refinement))
         cell_j = min(refinement - 1, int(target_t*refinement))
         call prepare_sample_corners(data, phi, refinement, cell_i, cell_j, &
             corner_rz, corner_owner, a_corner, h_corner, bmod_corner, &
-            a_target_corner, h_target_corner, bmod_target)
+            a_target_corner, h_target_corner, bmod_target, target_fallback)
         call evaluate_jorek_geometry(data, element, target_s, target_t, rz, &
             rz_st, ierr)
         if (ierr /= 0) error stop 'JOREK fixed-point geometry failed'
@@ -248,6 +265,15 @@ contains
             target_metrics)
         call update_metrics(relative_error(b_target_interp, b_exact), &
             element_metrics(5:6, element))
+        if (any(target_fallback(vertices))) then
+            call update_metrics(relative_error(b_target_interp, b_exact), &
+                split_metrics(:, 1))
+            fallback_samples = fallback_samples + 1
+        else
+            call update_metrics(relative_error(b_target_interp, b_exact), &
+                split_metrics(:, 2))
+            regular_samples = regular_samples + 1
+        end if
         call update_metrics(relative_error(a_interp, a_exact), metrics(3:4))
         call update_metrics(abs(bmod_interp/bmod_exact - 1.0_dp), metrics(5:6))
         samples = samples + 1
@@ -256,7 +282,7 @@ contains
 
     subroutine prepare_sample_corners(data, phi, refinement, cell_i, cell_j, &
             corner_rz, corner_owner, a_corner, h_corner, bmod_corner, &
-            a_target, h_target, bmod_target)
+            a_target, h_target, bmod_target, target_fallback)
         type(jorek_restart_t), intent(in) :: data
         real(dp), intent(in) :: phi
         integer, intent(in) :: refinement, cell_i, cell_j
@@ -264,6 +290,7 @@ contains
         real(dp), intent(out) :: bmod_corner(4), a_target(3, 4), h_target(3, 4)
         real(dp), intent(out) :: bmod_target(4)
         integer, intent(out) :: corner_owner(4)
+        logical, intent(out) :: target_fallback(4)
 
         real(dp) :: rz_st(2, 2), sub_s(4), sub_t(4)
         integer :: grid_i(4), grid_j(4), ierr, index, mesh_node, owner
@@ -285,6 +312,9 @@ contains
                 if (owner == 0) error stop 'non-axis sample uses axis owner'
             end if
             corner_owner(index) = owner
+            call jorek_chart_requires_global(data, element, sub_s(index), &
+                sub_t(index), target_fallback(index), ierr)
+            if (ierr /= 0) error stop 'JOREK target chart test failed'
             if (refinement == 1) then
                 call evaluate_owner_corner(data, owner, sub_s(index), &
                     sub_t(index), phi, corner_rz(:, index), a_corner(:, index), &
