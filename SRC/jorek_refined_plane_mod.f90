@@ -191,6 +191,9 @@ contains
                 if (ierr /= 0) return
             end do
         end do
+        call join_reciprocal_side_nodes(data, subdivisions, element_nodes, &
+            plane_rz, psi, parent, ierr)
+        if (ierr /= 0) return
         do i = 1, size(parent)
             parent(i) = node_root(parent, i)
         end do
@@ -208,6 +211,108 @@ contains
             plane_rz, psi, triangles, vertex_element, vertex_st, is_corner, &
             root_element, root_st, root_corner)
     end subroutine collapse_axis_nodes
+
+    subroutine join_reciprocal_side_nodes(data, subdivisions, element_nodes, &
+            plane_rz, psi, parent, ierr)
+        type(jorek_restart_t), intent(in) :: data
+        integer, intent(in) :: subdivisions
+        integer, intent(in) :: element_nodes(0:, 0:, :)
+        real(dp), intent(in) :: plane_rz(:, :), psi(:)
+        integer, intent(inout) :: parent(:)
+        integer, intent(out) :: ierr
+
+        integer :: element, neighbor, neighbor_side, side
+
+        ierr = 0
+        if (.not. allocated(data%neighbours)) return
+        if (any(shape(data%neighbours) /= [data%n_elements, 4])) return
+        do element = 1, data%n_elements
+            do side = 1, 4
+                neighbor = data%neighbours(element, side)
+                if (neighbor <= element) cycle
+                if (neighbor > data%n_elements) then
+                    ierr = 10
+                    return
+                end if
+                neighbor_side = reciprocal_side(data, neighbor, element)
+                if (neighbor_side == 0) then
+                    ierr = 10
+                    return
+                end if
+                call join_side_nodes(subdivisions, element_nodes, element, &
+                    side, neighbor, neighbor_side, plane_rz, psi, parent, ierr)
+                if (ierr /= 0) return
+            end do
+        end do
+    end subroutine join_reciprocal_side_nodes
+
+    subroutine join_side_nodes(subdivisions, element_nodes, element, side, &
+            neighbor, neighbor_side, plane_rz, psi, parent, ierr)
+        integer, intent(in) :: subdivisions, element, side, neighbor
+        integer, intent(in) :: neighbor_side
+        integer, intent(in) :: element_nodes(0:, 0:, :)
+        real(dp), intent(in) :: plane_rz(:, :), psi(:)
+        integer, intent(inout) :: parent(:)
+        integer, intent(out) :: ierr
+
+        logical :: used(0:subdivisions)
+        real(dp) :: distance, minimum
+        integer :: i, j, left, matched, right
+
+        ierr = 0
+        used = .false.
+        do i = 0, subdivisions
+            left = side_node(element_nodes, subdivisions, element, side, i)
+            minimum = huge(1.0_dp)
+            matched = -1
+            do j = 0, subdivisions
+                if (used(j)) cycle
+                right = side_node(element_nodes, subdivisions, neighbor, &
+                    neighbor_side, j)
+                distance = maxval(abs(plane_rz(:, left) - plane_rz(:, right)))
+                if (distance < minimum) then
+                    minimum = distance
+                    matched = j
+                end if
+            end do
+            right = side_node(element_nodes, subdivisions, neighbor, &
+                neighbor_side, matched)
+            if (.not. same_point(plane_rz(:, left), plane_rz(:, right))) then
+                ierr = 11
+                return
+            end if
+            call join_if_coincident(left, right, plane_rz, psi, parent, ierr)
+            if (ierr /= 0) return
+            used(matched) = .true.
+        end do
+    end subroutine join_side_nodes
+
+    integer function reciprocal_side(data, element, neighbor) result(side)
+        type(jorek_restart_t), intent(in) :: data
+        integer, intent(in) :: element, neighbor
+
+        do side = 1, 4
+            if (data%neighbours(element, side) == neighbor) return
+        end do
+        side = 0
+    end function reciprocal_side
+
+    integer function side_node(nodes, subdivisions, element, side, index) &
+            result(node)
+        integer, intent(in) :: nodes(0:, 0:, :)
+        integer, intent(in) :: subdivisions, element, side, index
+
+        select case (side)
+        case (1)
+            node = nodes(index, 0, element)
+        case (2)
+            node = nodes(subdivisions, index, element)
+        case (3)
+            node = nodes(subdivisions - index, subdivisions, element)
+        case (4)
+            node = nodes(0, subdivisions - index, element)
+        end select
+    end function side_node
 
     subroutine compact_refined_plane(parent, subdivisions, element_nodes, &
             plane_rz, psi, triangles, vertex_element, vertex_st, is_corner, &

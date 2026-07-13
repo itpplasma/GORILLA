@@ -11,6 +11,11 @@ program test_jorek_find_tetra_continuity
     implicit none
 
     integer, parameter :: target_faces = 512
+    integer, parameter :: former_alias_edges(2, 16) = reshape([ &
+        4947, 16172, 5062, 16172, 5062, 16400, 5063, 16400, &
+        5176, 16405, 5062, 16405, 5062, 16401, 5177, 16401, &
+        5292, 16402, 5062, 16402, 6009, 16406, 5062, 16406, &
+        5062, 16404, 6021, 16404, 5062, 16403, 6028, 16403], [2, 16])
     real(dp), parameter :: inward_fraction = 1.0e-6_dp
     type :: continuity_metrics_t
         integer :: samples = 0
@@ -26,6 +31,7 @@ program test_jorek_find_tetra_continuity
     call load_gorilla_inp()
     call initialize_gorilla()
     call verify_continuity()
+    call verify_former_alias_interfaces()
 
 contains
 
@@ -61,6 +67,55 @@ contains
             error stop 'production JOREK field is discontinuous across a shared face'
         print '(A)', 'PASS: production JOREK find_tetra face continuity'
     end subroutine verify_continuity
+
+    subroutine verify_former_alias_interfaces()
+        type(continuity_metrics_t) :: metrics
+        integer :: face, neighbour, n_plane, tetra
+
+        n_plane = size(verts_rphiz, 2)/3
+        do tetra = 1, ntetr
+            do face = 1, 4
+                if (.not. is_candidate_face(tetra, face)) cycle
+                if (.not. is_former_alias_face(tetra, face, n_plane)) cycle
+                neighbour = tetra_grid(tetra)%neighbour_tetr(face)
+                call sample_face(tetra, face, neighbour, metrics)
+            end do
+        end do
+        print '(A, I0, A, I0, A, I0)', 'former-alias faces=', metrics%samples, &
+            ' missing=', metrics%missing, ' wrong owner=', metrics%wrong_owner
+        print '(A, ES14.6)', 'former-alias maximum face-limit B jump=', &
+            metrics%max_face_jump
+        print '(A, ES14.6)', 'former-alias maximum near-face B jump=', &
+            metrics%max_near_jump
+        if (metrics%samples /= 64 .or. metrics%missing /= 0 &
+                .or. metrics%wrong_owner /= 0 &
+                .or. metrics%constant_phi_faces /= 0 &
+                .or. metrics%spanning_phi_faces /= 64 &
+                .or. metrics%max_face_jump > 1.0e-12_dp &
+                .or. metrics%max_near_jump > 1.0e-7_dp) &
+            error stop 'former JOREK alias interface is discontinuous'
+    end subroutine verify_former_alias_interfaces
+
+    logical function is_former_alias_face(tetra_index, face_index, n_plane)
+        integer, intent(in) :: tetra_index, face_index, n_plane
+
+        integer :: base(3), edge, face_nodes(3), i, nodes(3), slices(3)
+
+        face_nodes = pack([1, 2, 3, 4], [1, 2, 3, 4] /= face_index)
+        nodes = tetra_grid(tetra_index)%ind_knot(face_nodes)
+        base = modulo(nodes - 1, n_plane) + 1
+        slices = (nodes - 1)/n_plane
+        is_former_alias_face = .false.
+        if (maxval(slices) - minval(slices) /= 1) return
+        do edge = 1, size(former_alias_edges, 2)
+            if (all([(any(base == former_alias_edges(i, edge)), i=1, 2)]) &
+                    .and. all([(any(former_alias_edges(:, edge) == base(i)), &
+                        i=1, 3)])) then
+                is_former_alias_face = .true.
+                return
+            end if
+        end do
+    end function is_former_alias_face
 
     integer function count_candidate_faces()
         integer :: face, tetra

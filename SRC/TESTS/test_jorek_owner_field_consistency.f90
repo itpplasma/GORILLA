@@ -9,7 +9,7 @@ program test_jorek_owner_field_consistency
     implicit none
 
     integer, parameter :: levels(3) = [2, 4, 8]
-    integer, parameter :: expected_samples(3) = [120896, 217704, 411320]
+    integer, parameter :: expected_samples(3) = [120928, 217800, 411544]
     real(dp), parameter :: pi = acos(-1.0_dp)
     real(dp), parameter :: phases(4) = [0.0_dp, 0.5_dp*pi, pi, 1.5_dp*pi]
     type(jorek_restart_t) :: data
@@ -76,15 +76,15 @@ program test_jorek_owner_field_consistency
                 end do
             end do
         end do
+        print '(A, I0, A, I0, A, ES12.4, A, ES12.4, A, I0)', &
+            'refinement=', levels(level), ' samples=', samples, &
+            ' max=', metrics(1), ' rms=', sqrt(metrics(2)/samples), &
+            ' above 2%=', sum(jumps_above_limit)
         if (samples /= expected_samples(level) &
                 .or. samples /= size(phases)*sum(foreign_vertices) &
                 .or. samples == 0 &
                 .or. .not. all(ieee_is_finite(element_metrics))) &
             error stop 'owner-consistency sample partition failed'
-        print '(A, I0, A, I0, A, ES12.4, A, ES12.4, A, I0)', &
-            'refinement=', levels(level), ' samples=', samples, &
-            ' max=', metrics(1), ' rms=', sqrt(metrics(2)/samples), &
-            ' above 2%=', sum(jumps_above_limit)
         call write_element_metrics(output_unit, levels(level), &
             foreign_vertices, jumps_above_limit, element_metrics)
     end do

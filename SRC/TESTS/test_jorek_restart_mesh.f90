@@ -47,7 +47,9 @@ program test_jorek_restart_mesh
         write (*, '(A, I0)') 'refined golden JOREK mesh error: ', ierr
         error stop 'refined golden JOREK mesh construction failed'
     end if
-    if (any(shape(points) /= [3, 73788]) &
+    print '(A, I0, A, I0)', 'refined vertices=', size(points, 2), &
+        ' tetrahedra=', size(verts, 2)
+    if (any(shape(points) /= [3, 73755]) &
             .or. any(shape(verts) /= [4, 439218])) &
         error stop 'refined golden JOREK mesh has wrong dimensions'
     if (count(owner == 0) /= 3 .or. any(owner < 0) &

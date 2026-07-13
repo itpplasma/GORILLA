@@ -6,11 +6,13 @@ program test_jorek_edge_sagitta
 
     implicit none
 
-    integer, parameter :: implicated_nodes(2, 16) = reshape([ &
-        5063, 16408, 5063, 16410, 5064, 16176, 5064, 16411, &
-        5064, 16412, 5064, 16413, 5066, 16408, 5066, 16418, &
-        5067, 16418, 5067, 16420, 5068, 16420, 5178, 16642, &
-        5179, 16411, 5179, 16642, 6031, 18219, 6044, 18219], [2, 16])
+    integer, parameter :: implicated_element(16) = [ &
+        5061, 5061, 5062, 5062, 5063, 5063, 5174, 5174, &
+        5175, 5175, 5175, 5986, 5986, 5987, 5988, 5988]
+    integer, parameter :: implicated_side(16) = [ &
+        2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 3, 2, 2, 2]
+    integer, parameter :: implicated_segment(16) = [ &
+        0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1]
     type(jorek_restart_t) :: data
     real(dp), allocatable :: plane_rz(:, :), psi(:), sagitta(:), vertex_st(:, :)
     integer, allocatable :: element_vertex(:, :, :), triangles(:, :)
@@ -62,8 +64,8 @@ program test_jorek_edge_sagitta
     minimum_implicated = minval(sagitta(:record), mask=implicated(:record))
     maximum_other = maxval(sagitta(:record), mask=.not. implicated(:record))
     selected = count(sagitta(:record) >= minimum_implicated)
-    if (count(aliased(:record)) /= 16 &
-            .or. count(aliased(:record) .and. implicated(:record)) /= 8 &
+    if (count(aliased(:record)) /= 0 &
+            .or. count(aliased(:record) .and. implicated(:record)) /= 0 &
             .or. selected /= 15831 &
             .or. abs(minimum_implicated - 0.00066086640499836424_dp) &
                 > 1.0e-12_dp &
@@ -87,20 +89,21 @@ contains
 
         real(dp) :: chord_midpoint(2)
         integer :: endpoint_nodes(2), key(2), neighbor_nodes(2), neighbor_side
-        integer :: neighbor_key(2)
+        integer :: neighbor_key(2), neighbor_segment
 
         endpoint_nodes = [side_node(element, side, segment), &
             side_node(element, side, segment + 1)]
         key = [minval(endpoint_nodes), maxval(endpoint_nodes)]
         neighbor_side = reciprocal_side(neighbor, element)
         call matched_neighbor_nodes(endpoint_nodes, neighbor, neighbor_side, &
-            neighbor_nodes)
+            neighbor_nodes, neighbor_segment)
         neighbor_key = [minval(neighbor_nodes), maxval(neighbor_nodes)]
         chord_midpoint = 0.5_dp*(plane_rz(:, endpoint_nodes(1)) &
             + plane_rz(:, endpoint_nodes(2)))
         sagitta(record) = sqrt(sum((midpoint - chord_midpoint)**2))
         aliased(record) = any(key /= neighbor_key)
-        implicated(record) = is_implicated(key) .or. is_implicated(neighbor_key)
+        implicated(record) = is_implicated(element, side, segment) .or. &
+            is_implicated(neighbor, neighbor_side, neighbor_segment)
         write(output_unit, '(*(g0,:,","))') key, neighbor_key, element, side, &
             segment, neighbor, neighbor_side, sagitta(record), &
             merge(1, 0, aliased(record)), merge(1, 0, implicated(record))
@@ -115,15 +118,17 @@ contains
         error stop 'JOREK shared side is not reciprocal'
     end function reciprocal_side
 
-    subroutine matched_neighbor_nodes(nodes, neighbor, side, matched)
+    subroutine matched_neighbor_nodes(nodes, neighbor, side, matched, &
+            matched_segment)
         integer, intent(in) :: nodes(2), neighbor, side
-        integer, intent(out) :: matched(2)
+        integer, intent(out) :: matched(2), matched_segment
 
         real(dp) :: best, direct, reverse
         integer :: candidate, trial(2)
 
         best = huge(1.0_dp)
         matched = 0
+        matched_segment = -1
         do candidate = 0, 1
             trial = [side_node(neighbor, side, candidate), &
                 side_node(neighbor, side, candidate + 1)]
@@ -134,6 +139,7 @@ contains
             if (min(direct, reverse) < best) then
                 best = min(direct, reverse)
                 matched = trial
+                matched_segment = candidate
             end if
         end do
         if (sqrt(best) > 1.0e-8_dp) &
@@ -176,14 +182,17 @@ contains
         end select
     end subroutine side_parameters
 
-    logical function is_implicated(key)
-        integer, intent(in) :: key(2)
+    logical function is_implicated(element, side, segment)
+        integer, intent(in) :: element, side, segment
 
         integer :: i
 
         is_implicated = .false.
-        do i = 1, size(implicated_nodes, 2)
-            if (all(key == implicated_nodes(:, i))) is_implicated = .true.
+        do i = 1, size(implicated_element)
+            if (element == implicated_element(i) &
+                    .and. side == implicated_side(i) &
+                    .and. segment == implicated_segment(i)) &
+                is_implicated = .true.
         end do
     end function is_implicated
 
