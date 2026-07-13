@@ -1,7 +1,8 @@
 module jorek_field_backend_mod
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
-    use jorek_bezier, only: jorek_locator_t, build_jorek_locator
+    use jorek_bezier, only: jorek_locator_t, build_jorek_locator, &
+        evaluate_jorek_geometry
     use jorek_model303_field, only: evaluate_jorek_model303_a, &
         evaluate_jorek_model303_b, evaluate_jorek_model303_at
     use jorek_restart, only: jorek_restart_t, load_jorek_restart, &
@@ -20,6 +21,7 @@ module jorek_field_backend_mod
     public :: evaluate_jorek_field_backend, evaluate_jorek_field_backend_element
     public :: evaluate_jorek_model303_gorilla, &
         evaluate_jorek_model303_gorilla_element
+    public :: jorek_chart_requires_global
 
 contains
 
@@ -111,7 +113,7 @@ contains
 
     pure subroutine evaluate_jorek_model303_gorilla_element(data, element, &
             s, t, phi, r, a_covariant, b_covariant, bmod, ierr, &
-            length_scale_in, magnetic_field_scale_in)
+            length_scale_in, magnetic_field_scale_in, locator)
         type(jorek_restart_t), intent(in) :: data
         integer, intent(in) :: element
         real(dp), intent(in) :: s, t, phi, r
@@ -119,9 +121,11 @@ contains
         integer, intent(out) :: ierr
         real(dp), intent(in), optional :: length_scale_in
         real(dp), intent(in), optional :: magnetic_field_scale_in
+        type(jorek_locator_t), intent(in), optional :: locator
 
-        real(dp) :: a_jorek(3), b_physical(3)
+        real(dp) :: a_jorek(3), b_physical(3), rz(2), rz_st(2, 2)
         real(dp) :: length_conversion, field_conversion
+        logical :: use_global
 
         length_conversion = 1.0_dp
         field_conversion = 1.0_dp
@@ -145,6 +149,19 @@ contains
             ierr = 10
             return
         end if
+        a_covariant = 0.0_dp
+        b_covariant = 0.0_dp
+        bmod = 0.0_dp
+        call evaluate_jorek_geometry(data, element, s, t, rz, rz_st, ierr)
+        if (ierr /= 0) return
+        call jorek_chart_requires_global(data, element, s, t, use_global, ierr)
+        if (ierr /= 0) return
+        if (use_global .and. present(locator)) then
+            call evaluate_jorek_model303_gorilla(data, r, phi, &
+                rz(2)*length_conversion, a_covariant, b_covariant, bmod, &
+                ierr, locator, length_conversion, field_conversion)
+            return
+        end if
         call evaluate_jorek_model303_a(data, element, s, t, phi, a_jorek, ierr)
         if (ierr == 0) call evaluate_jorek_model303_b(data, element, s, t, &
             phi, b_physical, ierr)
@@ -160,6 +177,37 @@ contains
         b_covariant = [b_physical(1), r*b_physical(3), b_physical(2)]
         bmod = sqrt(sum(b_physical**2))
     end subroutine evaluate_jorek_model303_gorilla_element
+
+    pure subroutine jorek_chart_requires_global(data, element, s, t, &
+            requires_global, ierr)
+        type(jorek_restart_t), intent(in) :: data
+        integer, intent(in) :: element
+        real(dp), intent(in) :: s, t
+        logical, intent(out) :: requires_global
+        integer, intent(out) :: ierr
+
+        real(dp), parameter :: sample_s(5) = &
+            [0.0_dp, 1.0_dp, 1.0_dp, 0.0_dp, 0.5_dp]
+        real(dp), parameter :: sample_t(5) = &
+            [0.0_dp, 0.0_dp, 1.0_dp, 1.0_dp, 0.5_dp]
+        real(dp) :: determinant, reference, rz(2), rz_st(2, 2)
+        integer :: sample
+
+        requires_global = .false.
+        call evaluate_jorek_geometry(data, element, s, t, rz, rz_st, ierr)
+        if (ierr /= 0) return
+        determinant = abs(rz_st(1, 1)*rz_st(2, 2) &
+            - rz_st(1, 2)*rz_st(2, 1))
+        reference = 0.0_dp
+        do sample = 1, size(sample_s)
+            call evaluate_jorek_geometry(data, element, sample_s(sample), &
+                sample_t(sample), rz, rz_st, ierr)
+            if (ierr /= 0) return
+            reference = max(reference, abs(rz_st(1, 1)*rz_st(2, 2) &
+                - rz_st(1, 2)*rz_st(2, 1)))
+        end do
+        requires_global = determinant < 1.0e-3_dp*max(reference, tiny(1.0_dp))
+    end subroutine jorek_chart_requires_global
 
     subroutine evaluate_jorek_field_backend(r, phi, z, a_covariant, &
             b_covariant, bmod, ierr)
@@ -200,7 +248,7 @@ contains
         end if
         call evaluate_jorek_model303_gorilla_element(field_data, element, &
             st(1), st(2), phi, r, a_covariant, b_covariant, bmod, ierr, &
-            length_scale, magnetic_field_scale)
+            length_scale, magnetic_field_scale, field_locator)
     end subroutine evaluate_jorek_field_backend_element
 
 end module jorek_field_backend_mod

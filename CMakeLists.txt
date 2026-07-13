@@ -94,6 +94,15 @@ if(GORILLA_ENABLE_JOREK)
 				"${GORILLA_JOREK_GOLDEN_RESTART}")
 		set_tests_properties(test_jorek_poloidal_linearization PROPERTIES
 			DEPENDS test_jorek_restart_mesh LABELS "jorek;golden")
+		add_executable(test_jorek_refined_plane.x
+			SRC/TESTS/test_jorek_refined_plane.f90)
+		target_link_libraries(test_jorek_refined_plane.x
+			GORILLA LIBNEO::jorek netcdff netcdf lapack)
+		add_test(NAME test_jorek_refined_plane
+			COMMAND test_jorek_refined_plane.x
+				"${GORILLA_JOREK_GOLDEN_RESTART}")
+		set_tests_properties(test_jorek_refined_plane PROPERTIES
+			DEPENDS test_jorek_restart_mesh LABELS "jorek;golden")
 		set(JOREK_ORBIT_DIR "${CMAKE_CURRENT_BINARY_DIR}/jorek_snapshot_orbit")
 		file(MAKE_DIRECTORY "${JOREK_ORBIT_DIR}")
 		configure_file(SRC/TESTS/jorek_snapshot_orbit/gorilla.inp.in
@@ -133,6 +142,27 @@ if(GORILLA_ENABLE_JOREK)
 				-P ${CMAKE_CURRENT_SOURCE_DIR}/SRC/TESTS/run_jorek_snapshot_orbit.cmake)
 		set_tests_properties(test_jorek_derived_mesh_orbit PROPERTIES
 			DEPENDS test_jorek_restart_mesh LABELS "jorek;golden;slow")
+		set(JOREK_REFINED_ORBIT_DIR
+			"${CMAKE_CURRENT_BINARY_DIR}/jorek_refined_orbit")
+		file(MAKE_DIRECTORY "${JOREK_REFINED_ORBIT_DIR}")
+		configure_file(SRC/TESTS/jorek_snapshot_orbit/gorilla.inp.in
+			"${JOREK_REFINED_ORBIT_DIR}/gorilla.inp" @ONLY)
+		configure_file(SRC/TESTS/jorek_refined_orbit/tetra_grid.inp
+			"${JOREK_REFINED_ORBIT_DIR}/tetra_grid.inp" COPYONLY)
+		foreach(INPUT_FILE gorilla_plot.inp orbit_start_rphizlambda.dat)
+			configure_file("SRC/TESTS/jorek_snapshot_orbit/${INPUT_FILE}"
+				"${JOREK_REFINED_ORBIT_DIR}/${INPUT_FILE}" COPYONLY)
+		endforeach()
+		add_test(NAME test_jorek_refined_mesh_orbit
+			COMMAND ${CMAKE_COMMAND}
+				-DGORILLA_MAIN=$<TARGET_FILE:test_gorilla_main.x>
+				-DORBIT_VALIDATOR=$<TARGET_FILE:test_jorek_orbit_output.x>
+				-DORBIT_DIR=${JOREK_REFINED_ORBIT_DIR}
+				-DEXPECTED_RECORDS=246
+				-DMIN_PPHI_RESPONSE=1.0e-7
+				-P ${CMAKE_CURRENT_SOURCE_DIR}/SRC/TESTS/run_jorek_snapshot_orbit.cmake)
+		set_tests_properties(test_jorek_refined_mesh_orbit PROPERTIES
+			DEPENDS test_jorek_refined_plane LABELS "jorek;golden;slow")
 	endif()
 endif()
 

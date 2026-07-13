@@ -2,8 +2,10 @@ program test_jorek_poloidal_linearization
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use jorek_bezier, only: jorek_locator_t, build_jorek_locator, &
         evaluate_jorek_geometry
-    use jorek_model303_field, only: evaluate_jorek_model303_at, &
-        evaluate_jorek_model303_b
+    use jorek_field_backend_mod, only: jorek_chart_requires_global
+    use jorek_model303_field, only: evaluate_jorek_model303_a, &
+        evaluate_jorek_model303_at, evaluate_jorek_model303_b
+    use jorek_refined_plane_mod, only: extract_refined_jorek_plane
     use jorek_restart, only: jorek_restart_t, load_jorek_restart
 
     implicit none
@@ -15,12 +17,14 @@ program test_jorek_poloidal_linearization
         1.0_dp/3, 1.0_dp/3, 1.0_dp/3, 0.6_dp, 0.2_dp, 0.2_dp, &
         0.2_dp, 0.6_dp, 0.2_dp, 0.2_dp, 0.2_dp, 0.6_dp], [3, 4])
     integer, parameter :: triangle_vertices(3, 2) = reshape([1, 2, 3, 1, 3, 4], [3, 2])
-    integer, parameter :: refinements(3) = [1, 2, 4]
+    integer, parameter :: refinements(4) = [1, 2, 4, 8]
     integer, parameter :: reference_refinement = 2
 
     type(jorek_restart_t) :: data
     type(jorek_locator_t) :: locator
-    logical, allocatable :: owner_mismatch_elements(:), uncovered_elements(:)
+    logical, allocatable :: uncovered_elements(:)
+    real(dp), allocatable :: mesh_psi(:), mesh_rz(:, :), mesh_st(:, :)
+    integer, allocatable :: mesh_nodes(:, :, :), mesh_owner(:), mesh_triangles(:, :)
     real(dp) :: corner_rz(2, 4), metrics(6), phi, rz_st(2, 2)
     real(dp) :: outside_distance(2)
     real(dp) :: worst_b_exact(3), worst_b_interp(3), worst_rz(2)
@@ -29,6 +33,7 @@ program test_jorek_poloidal_linearization
     integer :: refinement, sample, samples, triangle, vertex
     real(dp) :: target_s, target_t
     integer :: worst_case(4), worst_found
+    integer :: worst_corner_owner(4)
     real(dp) :: worst_st(2)
 
     if (command_argument_count() /= 1) error stop 'restart path argument is required'
@@ -37,7 +42,6 @@ program test_jorek_poloidal_linearization
     if (ierr /= 0) error stop 'JOREK restart load failed'
     call build_jorek_locator(data, locator, ierr)
     if (ierr /= 0) error stop 'JOREK locator build failed'
-    allocate (owner_mismatch_elements(data%n_elements))
     allocate (uncovered_elements(data%n_elements))
 
     do level = 1, size(refinements)
@@ -48,8 +52,12 @@ program test_jorek_poloidal_linearization
         outside = 0
         outside_distance = 0.0_dp
         samples = 0
-        owner_mismatch_elements = .false.
         uncovered_elements = .false.
+        if (refinement > 1) then
+            call extract_refined_jorek_plane(data, refinement, mesh_rz, &
+                mesh_psi, mesh_triangles, mesh_owner, mesh_st, ierr, mesh_nodes)
+            if (ierr /= 0) error stop 'production JOREK refinement failed'
+        end if
         do element = 1, data%n_elements
             do vertex = 1, 4
                 call evaluate_jorek_geometry(data, element, corner_s(vertex), &
@@ -68,7 +76,7 @@ program test_jorek_poloidal_linearization
                             do sample = 1, size(weights, 2)
                                 call reference_parameters(i, j, triangle, &
                                     weights(:, sample), target_s, target_t)
-                                call compare_fixed_sample(data, locator, phi, &
+                                call compare_fixed_sample(data, phi, &
                                     target_s, target_t, refinement, metrics, &
                                     samples, outside)
                             end do
@@ -84,17 +92,12 @@ program test_jorek_poloidal_linearization
         if (samples + outside /= 769792) &
             error stop 'fixed poloidal sample count changed'
         if (outside == 0) error stop 'coverage-failure fixture changed'
-        if (level == size(refinements) &
-                .and. metrics(1) <= 2.0e-2_dp) &
-            error stop 'maximum field-error rejection unexpectedly cleared'
         print '(A, I0, A, I0, A, I0, A, I0)', 'refinement=', refinement, &
             ' samples=', samples, ' outside=', outside, &
             ' axis_elements=', axis_elements
         print '(A, 6(ES14.6, 1X))', &
             'max/rms B, A, |B| relative errors: ', metrics
-        print '(A, I0, A, I0)', 'uncovered elements=', &
-            count(uncovered_elements), ' interior owner mismatches=', &
-            count(owner_mismatch_elements)
+        print '(A, I0)', 'uncovered elements=', count(uncovered_elements)
         if (outside > 0) then
             outside_distance(2) = sqrt(outside_distance(2)/outside)
             print '(A, 2(ES14.6, 1X))', &
@@ -105,6 +108,7 @@ program test_jorek_poloidal_linearization
             'found ', worst_found, ' st ', worst_st, ' RZ ', worst_rz
         print '(A, 3(ES14.6, 1X))', 'worst B exact ', worst_b_exact
         print '(A, 3(ES14.6, 1X))', 'worst B interpolated ', worst_b_interp
+        print '(A, 4(I0, 1X))', 'worst corner owners ', worst_corner_owner
     end do
     call print_axis_limit(data, 0.0_dp)
     call print_axis_limit(data, pi)
@@ -134,10 +138,9 @@ contains
         end do
     end subroutine reference_parameters
 
-    subroutine compare_fixed_sample(data, locator, phi, target_s, target_t, &
+    subroutine compare_fixed_sample(data, phi, target_s, target_t, &
             refinement, metrics, samples, uncovered)
         type(jorek_restart_t), intent(in) :: data
-        type(jorek_locator_t), intent(in) :: locator
         real(dp), intent(in) :: phi, target_s, target_t
         integer, intent(in) :: refinement
         real(dp), intent(inout) :: metrics(6)
@@ -148,24 +151,37 @@ contains
         real(dp) :: bmod_corner(4), bmod_exact, bmod_interp
         real(dp) :: corner_rz(2, 4), h_corner(3, 4), h_exact(3), h_interp(3)
         real(dp) :: rz(2), rz_st(2, 2), st(2), sub_s(4), sub_t(4)
-        integer :: cell_i, cell_j, corner_owner, found, ierr, index, vertices(3)
+        integer :: cell_i, cell_j, corner_owner(4), found, grid_i(4), grid_j(4), ierr, index
+        integer :: mesh_node, owner, vertices(3)
 
         cell_i = min(refinement - 1, int(target_s*refinement))
         cell_j = min(refinement - 1, int(target_t*refinement))
         sub_s = real([cell_i, cell_i + 1, cell_i + 1, cell_i], dp)/refinement
         sub_t = real([cell_j, cell_j, cell_j + 1, cell_j + 1], dp)/refinement
+        grid_i = [cell_i, cell_i + 1, cell_i + 1, cell_i]
+        grid_j = [cell_j, cell_j, cell_j + 1, cell_j + 1]
         do index = 1, 4
-            call evaluate_jorek_geometry(data, element, sub_s(index), &
-                sub_t(index), corner_rz(:, index), rz_st, ierr)
-            if (ierr /= 0) error stop 'JOREK refined corner geometry failed'
-            call evaluate_global_corner(data, locator, corner_rz(:, index), &
-                phi, a_corner(:, index), h_corner(:, index), &
-                bmod_corner(index), corner_owner)
-            if (sub_s(index) > 0.0_dp .and. sub_s(index) < 1.0_dp &
-                    .and. sub_t(index) > 0.0_dp &
-                    .and. sub_t(index) < 1.0_dp &
-                    .and. corner_owner /= element) &
-                owner_mismatch_elements(element) = .true.
+            if (refinement == 1) then
+                call evaluate_jorek_geometry(data, element, sub_s(index), &
+                    sub_t(index), corner_rz(:, index), rz_st, ierr)
+                if (ierr /= 0) error stop 'JOREK corner geometry failed'
+                owner = element
+                corner_owner(index) = owner
+                call evaluate_owner_corner(data, owner, sub_s(index), &
+                    sub_t(index), phi, corner_rz(:, index), &
+                    a_corner(:, index), h_corner(:, index), &
+                    bmod_corner(index))
+            else
+                mesh_node = mesh_nodes(grid_i(index), grid_j(index), element)
+                corner_rz(:, index) = mesh_rz(:, mesh_node)
+                owner = mesh_owner(mesh_node)
+                corner_owner(index) = owner
+                if (owner == 0) error stop 'non-axis sample uses axis owner'
+                call evaluate_owner_corner(data, owner, &
+                    mesh_st(1, mesh_node), mesh_st(2, mesh_node), phi, &
+                    corner_rz(:, index), a_corner(:, index), &
+                    h_corner(:, index), bmod_corner(index))
+            end if
         end do
         call evaluate_jorek_geometry(data, element, target_s, target_t, rz, &
             rz_st, ierr)
@@ -195,9 +211,13 @@ contains
                 return
             end if
         end if
-        call evaluate_jorek_model303_at(data, rz, phi, a_jorek, b_jorek, &
-            found, st, ierr, locator)
+        call evaluate_jorek_model303_a(data, element, target_s, target_t, &
+            phi, a_jorek, ierr)
+        if (ierr == 0) call evaluate_jorek_model303_b(data, element, target_s, &
+            target_t, phi, b_jorek, ierr)
         if (ierr /= 0) error stop 'JOREK fixed-point field evaluation failed'
+        found = element
+        st = [target_s, target_t]
         call convert_components(rz(1)*100.0_dp, a_jorek, b_jorek, a_exact, &
             h_exact, bmod_exact)
         a_interp = 0.0_dp
@@ -222,6 +242,7 @@ contains
             worst_rz = rz
             worst_b_exact = b_exact
             worst_b_interp = b_interp
+            worst_corner_owner = corner_owner
         end if
         call update_metrics(relative_error(b_interp, b_exact), metrics(1:2))
         call update_metrics(relative_error(a_interp, a_exact), metrics(3:4))
@@ -229,22 +250,31 @@ contains
         samples = samples + 1
     end subroutine compare_fixed_sample
 
-    subroutine evaluate_global_corner(data, locator, rz, phi, a, h, bmod, &
-            found)
+    subroutine evaluate_owner_corner(data, element, s, t, phi, rz, a, h, bmod)
         type(jorek_restart_t), intent(in) :: data
-        type(jorek_locator_t), intent(in) :: locator
-        real(dp), intent(in) :: rz(2), phi
+        integer, intent(in) :: element
+        real(dp), intent(in) :: s, t, phi, rz(2)
         real(dp), intent(out) :: a(3), h(3), bmod
-        integer, intent(out) :: found
 
-        real(dp) :: a_jorek(3), b_jorek(3), st(2)
-        integer :: ierr
+        real(dp) :: a_jorek(3), b_jorek(3)
+        real(dp) :: st_found(2)
+        integer :: found, ierr
+        logical :: use_global
 
-        call evaluate_jorek_model303_at(data, rz, phi, a_jorek, b_jorek, &
-            found, st, ierr, locator)
-        if (ierr /= 0) error stop 'JOREK global corner field failed'
+        call jorek_chart_requires_global(data, element, s, t, use_global, ierr)
+        if (ierr /= 0) error stop 'JOREK chart test failed'
+        if (use_global) then
+            call evaluate_jorek_model303_at(data, rz, phi, a_jorek, b_jorek, &
+                found, st_found, ierr, locator)
+        else
+            call evaluate_jorek_model303_a(data, element, s, t, phi, &
+                a_jorek, ierr)
+            if (ierr == 0) call evaluate_jorek_model303_b(data, element, s, t, &
+                phi, b_jorek, ierr)
+        end if
+        if (ierr /= 0) error stop 'JOREK owner corner field failed'
         call convert_components(rz(1)*100.0_dp, a_jorek, b_jorek, a, h, bmod)
-    end subroutine evaluate_global_corner
+    end subroutine evaluate_owner_corner
 
     subroutine physical_barycentric(vertices, point, weight, ierr)
         real(dp), intent(in) :: vertices(2, 3), point(2)

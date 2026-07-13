@@ -9,6 +9,8 @@ program test_jorek_restart_mesh
     type(jorek_restart_t) :: data
     real(dp), allocatable :: points(:, :)
     integer, allocatable :: verts(:, :), neighbours(:, :), faces(:, :), perbou(:, :)
+    integer, allocatable :: owner(:)
+    real(dp), allocatable :: owner_st(:, :)
     character(len=1024) :: filename
     integer :: ierr, n_plane, n_tetras
 
@@ -37,6 +39,22 @@ program test_jorek_restart_mesh
         error stop 'golden JOREK mesh extrusion changed the poloidal plane'
     if (count(perbou /= 0) == 0 .or. any(abs(perbou) > 1)) &
         error stop 'golden JOREK mesh periodic flags are invalid'
+
+    call build_jorek_mesh_arrays(data, 3, 100.0_dp, points, verts, &
+        neighbours, faces, perbou, ierr, owner, owner_st, &
+        poloidal_subdivisions=2)
+    if (ierr /= 0) then
+        write (*, '(A, I0)') 'refined golden JOREK mesh error: ', ierr
+        error stop 'refined golden JOREK mesh construction failed'
+    end if
+    if (any(shape(points) /= [3, 73788]) &
+            .or. any(shape(verts) /= [4, 439218])) &
+        error stop 'refined golden JOREK mesh has wrong dimensions'
+    if (count(owner == 0) /= 3 .or. any(owner < 0) &
+            .or. any(owner > data%n_elements)) &
+        error stop 'refined golden JOREK mesh owners are invalid'
+    if (any(owner_st < 0.0_dp) .or. any(owner_st > 1.0_dp)) &
+        error stop 'refined golden JOREK owner coordinates are invalid'
 
     print '(A, I0, A, I0)', 'PASS: golden JOREK mesh with ', &
         size(points, 2), ' vertices and ', size(verts, 2)

@@ -5,7 +5,9 @@ module jorek_mesh_mod
         evaluate_jorek_geometry, is_jorek_axis_target, &
         locate_jorek_element_indexed
     use jorek_field_values, only: evaluate_jorek_variable
+    use jorek_refined_plane_mod, only: extract_refined_jorek_plane
     use jorek_restart, only: jorek_restart_t
+    use jorek_tetra_mesh_mod, only: extrude_jorek_triangles
 
     implicit none
     private
@@ -16,7 +18,7 @@ contains
 
     subroutine build_jorek_mesh_arrays(data, n_slices, length_scale, &
             points_rphiz, verts, neighbours, neighbour_faces, perbou_phi, &
-            ierr, vertex_element, vertex_st)
+            ierr, vertex_element, vertex_st, poloidal_subdivisions)
         type(jorek_restart_t), intent(in) :: data
         integer, intent(in) :: n_slices
         real(dp), intent(in) :: length_scale
@@ -26,13 +28,25 @@ contains
         integer, intent(out) :: ierr
         integer, allocatable, intent(out), optional :: vertex_element(:)
         real(dp), allocatable, intent(out), optional :: vertex_st(:, :)
+        integer, intent(in), optional :: poloidal_subdivisions
 
         real(dp), allocatable :: plane_rz(:, :), plane_st(:, :), psi(:)
         integer, allocatable :: plane_element(:), triangles(:, :)
-        integer :: n_tetras
+        integer :: n_tetras, subdivisions
 
-        call extract_jorek_plane(data, plane_rz, psi, triangles, &
-            plane_element, plane_st, ierr)
+        subdivisions = 1
+        if (present(poloidal_subdivisions)) subdivisions = poloidal_subdivisions
+        if (subdivisions < 1 .or. subdivisions > 2) then
+            ierr = 9
+            return
+        end if
+        if (subdivisions == 1) then
+            call extract_jorek_plane(data, plane_rz, psi, triangles, &
+                plane_element, plane_st, ierr)
+        else
+            call extract_refined_jorek_plane(data, subdivisions, plane_rz, &
+                psi, triangles, plane_element, plane_st, ierr)
+        end if
         if (ierr /= 0) return
         if (n_slices < 3 .or. length_scale <= 0.0_dp .or. data%n_period < 1) then
             ierr = 5
@@ -43,9 +57,15 @@ contains
         if (present(vertex_element)) &
             call extrude_integer_plane(plane_element, n_slices, vertex_element)
         if (present(vertex_st)) call extrude_real_plane(plane_st, n_slices, vertex_st)
-        call calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, size(plane_rz, 2), &
-            n_tetras, verts, neighbours, neighbour_faces, perbou_phi, &
-            triangles, psi)
+        if (subdivisions == 1) then
+            call calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, &
+                size(plane_rz, 2), n_tetras, verts, neighbours, &
+                neighbour_faces, perbou_phi, triangles, psi)
+        else
+            call extrude_jorek_triangles(size(plane_rz, 2), n_slices, &
+                triangles, verts, neighbours, neighbour_faces, perbou_phi, ierr)
+            if (ierr /= 0) return
+        end if
         call validate_face_orientations(points_rphiz, verts, neighbours, &
             neighbour_faces, n_slices, data%n_period, ierr)
     end subroutine build_jorek_mesh_arrays
