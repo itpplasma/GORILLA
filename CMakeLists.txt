@@ -64,6 +64,10 @@ if(GORILLA_ENABLE_JOREK)
 	add_executable(test_jorek_mesh.x SRC/TESTS/test_jorek_mesh.f90)
 	target_link_libraries(test_jorek_mesh.x GORILLA LIBNEO::jorek netcdff netcdf lapack)
 	add_test(NAME test_jorek_mesh COMMAND test_jorek_mesh.x)
+	add_executable(test_jorek_triangle_locator.x
+		SRC/TESTS/test_jorek_triangle_locator.f90)
+	target_link_libraries(test_jorek_triangle_locator.x GORILLA)
+	add_test(NAME test_jorek_triangle_locator COMMAND test_jorek_triangle_locator.x)
 	set(GORILLA_JOREK_GOLDEN_RESTART "" CACHE FILEPATH
 		"JOREK restart with SHA256 ac152cd345cd233664b6fa659e1000200519158ba385c2acab09494929bc315c")
 	if(GORILLA_JOREK_GOLDEN_RESTART)
@@ -104,6 +108,15 @@ if(GORILLA_ENABLE_JOREK)
 				"${GORILLA_JOREK_GOLDEN_RESTART}"
 				"${CMAKE_CURRENT_BINARY_DIR}/jorek_owner_field_consistency.csv")
 		set_tests_properties(test_jorek_owner_field_consistency PROPERTIES
+			DEPENDS test_jorek_poloidal_linearization LABELS "jorek;golden")
+		add_executable(test_jorek_global_plane_linearization.x
+			SRC/TESTS/test_jorek_global_plane_linearization.f90)
+		target_link_libraries(test_jorek_global_plane_linearization.x
+			GORILLA LIBNEO::jorek netcdff netcdf lapack)
+		add_test(NAME test_jorek_global_plane_linearization
+			COMMAND test_jorek_global_plane_linearization.x
+				"${GORILLA_JOREK_GOLDEN_RESTART}")
+		set_tests_properties(test_jorek_global_plane_linearization PROPERTIES
 			DEPENDS test_jorek_poloidal_linearization LABELS "jorek;golden")
 		add_executable(test_jorek_refined_plane.x
 			SRC/TESTS/test_jorek_refined_plane.f90)
