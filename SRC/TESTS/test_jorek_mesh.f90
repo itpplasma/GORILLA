@@ -79,6 +79,22 @@ program test_jorek_mesh
         end do
     end do
 
+    call build_jorek_mesh_arrays(data, 3, 100.0_dp, points, verts, &
+        neighbours, faces, perbou, ierr, owner, owner_st, &
+        poloidal_subdivisions=2)
+    if (ierr /= 0) error stop 'refined JOREK mesh construction failed'
+    if (any(shape(points) /= [3, 27]) .or. any(shape(verts) /= [4, 72])) &
+        error stop 'refined JOREK mesh has wrong dimensions'
+    if (any(owner /= 1)) error stop 'refined JOREK mesh owner is wrong'
+    node = minloc(sum((owner_st(:, 1:9) - 0.5_dp)**2, dim=1), dim=1)
+    if (maxval(abs(points([1, 3], node) - [1050.0_dp, 50.0_dp])) &
+            > 1.0e-12_dp) error stop 'refined JOREK center is wrong'
+
+    call build_jorek_mesh_arrays(data, 3, 100.0_dp, points, verts, &
+        neighbours, faces, perbou, ierr, owner, owner_st, &
+        poloidal_subdivisions=4)
+    if (ierr /= 9) error stop 'unsafe JOREK volume refinement was accepted'
+
     call build_jorek_mesh_arrays(data, 3, 0.0_dp, points, verts, &
         neighbours, faces, perbou, ierr, owner, owner_st)
     if (ierr /= 5) error stop 'invalid JOREK mesh scale was accepted'

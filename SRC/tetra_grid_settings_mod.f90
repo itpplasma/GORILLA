@@ -14,6 +14,7 @@
     integer,public,protected  :: n1
     integer,public,protected  :: n2
     integer,public,protected  :: n3
+    integer,public,protected  :: jorek_poloidal_subdivisions = 1
 !
     !In certain regions (e.g. close to the magnetic axis and / or close to rational surfaces), extra grid points might be added in 
     ! radial direction if grid_kind = 2 or 3
@@ -73,7 +74,8 @@
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
                             & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename, &
-                            & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ
+                            & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
+                            & jorek_poloidal_subdivisions
 !
     public :: load_tetra_grid_inp,set_grid_size,set_n_field_periods,set_n2,set_n3
 !

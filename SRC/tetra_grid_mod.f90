@@ -31,6 +31,7 @@
         use field_eq_mod, only : nrad,nzet,rad,zet
         use tetra_grid_settings_mod, only: boole_n_field_periods,n_field_periods_manual,grid_size,n1,n2,n3,grid_kind, &
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
+                                         & jorek_poloidal_subdivisions, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
                                          & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ
         use new_vmec_stuff_mod, only: nper
@@ -173,7 +174,8 @@
             call build_jorek_mesh_arrays(jorek_data, grid_size(2), &
               jorek_length_scale, verts_rphiz, jorek_verts, jorek_neighbours, &
               jorek_neighbour_faces, jorek_perbou_phi, ierr, &
-              jorek_vertex_element, jorek_vertex_st)
+              jorek_vertex_element, jorek_vertex_st, &
+              jorek_poloidal_subdivisions)
             if (ierr /= 0) error stop 'failed to construct JOREK-derived mesh'
             nvert = size(verts_rphiz, 2)
             ntetr = size(jorek_verts, 2)
