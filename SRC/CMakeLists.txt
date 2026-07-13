@@ -70,6 +70,7 @@ if(GORILLA_ENABLE_JOREK)
 	target_sources(GORILLA PRIVATE jorek_refined_topology_mod.f90
 		jorek_refined_plane_mod.f90
 		jorek_boundary_plane_mod.f90
+		jorek_inserted_plane_mod.f90
 		jorek_triangle_locator_mod.f90
 		jorek_tetra_mesh_mod.f90
 		jorek_mesh_mod.f90 jorek_field_backend_mod.f90)

@@ -143,6 +143,15 @@ if(GORILLA_ENABLE_JOREK)
 		set_tests_properties(test_jorek_global_plane_linearization_tail4 PROPERTIES
 			DEPENDS test_jorek_global_plane_linearization_boundary8
 			LABELS "jorek;golden" TIMEOUT 120)
+		add_test(NAME test_jorek_global_plane_linearization_insert4
+			COMMAND test_jorek_global_plane_linearization.x
+				"${GORILLA_JOREK_GOLDEN_RESTART}"
+				insert4
+				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_holes_insert4.csv"
+				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_overlaps_insert4.csv")
+		set_tests_properties(test_jorek_global_plane_linearization_insert4 PROPERTIES
+			DEPENDS test_jorek_global_plane_linearization_tail4
+			LABELS "jorek;golden" TIMEOUT 120)
 		add_test(NAME test_jorek_global_plane_linearization_factor4
 			COMMAND test_jorek_global_plane_linearization.x
 				"${GORILLA_JOREK_GOLDEN_RESTART}"
@@ -150,7 +159,7 @@ if(GORILLA_ENABLE_JOREK)
 				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_holes_factor4.csv"
 				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_overlaps_factor4.csv")
 		set_tests_properties(test_jorek_global_plane_linearization_factor4 PROPERTIES
-			DEPENDS test_jorek_global_plane_linearization_tail4
+			DEPENDS test_jorek_global_plane_linearization_insert4
 			LABELS "jorek;golden" TIMEOUT 120)
 		add_test(NAME test_jorek_global_plane_linearization_factor8
 			COMMAND test_jorek_global_plane_linearization.x

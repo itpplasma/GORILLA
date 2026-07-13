@@ -7,6 +7,7 @@ program test_jorek_global_plane_linearization
         extract_selected_refined_jorek_plane
     use jorek_field_backend_mod, only: evaluate_jorek_model303_gorilla, &
         evaluate_jorek_model303_gorilla_element
+    use jorek_inserted_plane_mod, only: extract_inserted_side_jorek_plane
     use jorek_model303_field, only: evaluate_jorek_model303_b
     use jorek_refined_plane_mod, only: extract_refined_jorek_plane
     use jorek_restart, only: jorek_restart_t, load_jorek_restart
@@ -66,8 +67,8 @@ program test_jorek_global_plane_linearization
     integer :: tail_point_count, tail_point_element(max_tail_records)
     real(dp) :: tail_point_s(max_tail_records), tail_point_t(max_tail_records)
     integer :: output_unit, overlap_output_unit, tail_output_unit
-    logical :: boundary_mode, custom_mode, source_hit, tail_mode, write_output
-    logical :: write_overlap_output, write_tail_output
+    logical :: boundary_mode, custom_mode, inserted_mode, source_hit, tail_mode
+    logical :: write_output, write_overlap_output, write_tail_output
 
     if (command_argument_count() < 2 .or. command_argument_count() > 7) &
         error stop 'restart path, refinement, and optional output paths are required'
@@ -75,15 +76,18 @@ program test_jorek_global_plane_linearization
     call get_command_argument(2, argument)
     boundary_mode = trim(argument) == 'boundary8'
     tail_mode = trim(argument) == 'tail4'
+    inserted_mode = trim(argument) == 'insert4'
     custom_mode = boundary_mode .or. tail_mode
     if (boundary_mode) then
         refinement = -8
     else if (tail_mode) then
         refinement = -4
+    else if (inserted_mode) then
+        refinement = 2
     else
         read(argument, *, iostat=ierr) refinement
         if (ierr /= 0 .or. .not. any(refinement == [2, 4, 8, 16])) &
-            error stop 'refinement must be 2, 4, 8, 16, boundary8, or tail4'
+            error stop 'refinement must be 2, 4, 8, 16, boundary8, tail4, or insert4'
     end if
     call load_jorek_restart(trim(filename), data, ierr)
     if (ierr /= 0) error stop 'JOREK restart load failed'
@@ -97,16 +101,23 @@ program test_jorek_global_plane_linearization
         call extract_selected_refined_jorek_plane(data, 4, selected_side, &
             plane_rz, psi, triangles, vertex_element, vertex_st, &
             element_triangle_range, ierr)
+    else if (inserted_mode) then
+        call build_tail_side_mask
+        call extract_inserted_side_jorek_plane(data, 4, selected_side, plane_rz, &
+            psi, triangles, vertex_element, vertex_st, triangle_parent, &
+            element_vertex, ierr)
     else
         call extract_refined_jorek_plane(data, refinement, plane_rz, psi, &
             triangles, vertex_element, vertex_st, ierr, element_vertex)
     end if
     if (ierr /= 0) error stop 'JOREK plane refinement failed'
-    allocate(triangle_parent(size(triangles, 1)))
-    if (custom_mode) then
-        call build_boundary_triangle_parents
-    else
-        call build_triangle_parents
+    if (.not. inserted_mode) then
+        allocate(triangle_parent(size(triangles, 1)))
+        if (custom_mode) then
+            call build_boundary_triangle_parents
+        else
+            call build_triangle_parents
+        end if
     end if
     call build_jorek_triangle_locator(plane_rz, triangles, plane_locator, ierr)
     if (ierr /= 0) error stop 'JOREK triangle locator build failed'
@@ -238,7 +249,18 @@ program test_jorek_global_plane_linearization
                 maximum(i)%element, maximum(i)%triangle_element)
         end do
     end if
-    select case (refinement)
+    if (inserted_mode) then
+        if (size(psi) /= 24605 .or. size(triangles, 1) /= 48842 &
+                .or. source_covered /= 420264 .or. source_outside /= 349528 &
+                .or. neighbor_recovered /= 344328 .or. global_outside /= 5200 &
+                .or. ambiguous /= 0 .or. strict_ambiguous /= 0 &
+                .or. boundary_outside /= 5200 .or. interior_outside /= 0 &
+                .or. count(hole_element) /= 148 .or. tail_point_count /= 16 &
+                .or. tail_edge_count /= 15) &
+            error stop 'insert-4 global-plane fixture changed'
+        call verify_insert4_maximum
+    else
+        select case (refinement)
     case (-8)
         if (source_covered /= 420684 .or. source_outside /= 349108 &
                 .or. neighbor_recovered /= 344324 .or. global_outside /= 4784 &
@@ -279,7 +301,8 @@ program test_jorek_global_plane_linearization
                 .or. ambiguous /= 338408 .or. boundary_outside /= 4 &
                 .or. interior_outside /= 0 .or. count(hole_element) /= 1) &
             error stop 'factor-16 global-plane fixture changed'
-    end select
+        end select
+    end if
     if (source_covered + source_outside /= 769792 &
             .or. source_covered + source_outside - global_outside &
                 /= sum(metric_counts) &
@@ -289,7 +312,7 @@ program test_jorek_global_plane_linearization
             .or. .not. all(ieee_is_finite(metrics)) &
             .or. .not. all(ieee_is_finite(recovered_relation_metrics))) &
         error stop 'global-plane sample partition failed'
-    if (refinement == 2) then
+    if (refinement == 2 .and. .not. inserted_mode) then
         if (sum(tail_edge_phase_counts) /= sum(recovered_high_counts) &
                 .or. tail_point_count /= 18 .or. tail_edge_count /= 16) &
             error stop 'factor-2 recovered chord partition changed'
@@ -298,6 +321,8 @@ program test_jorek_global_plane_linearization
         print '(A)', 'refinement=boundary8'
     else if (tail_mode) then
         print '(A)', 'refinement=tail4'
+    else if (inserted_mode) then
+        print '(A)', 'refinement=insert4'
     else
         print '(A, I0)', 'refinement=', refinement
     end if
@@ -548,6 +573,27 @@ contains
                     > tolerance) &
             error stop 'factor-2 recovered maximum changed'
     end subroutine verify_factor2_maximum
+
+    subroutine verify_insert4_maximum
+        real(dp), parameter :: tolerance = 1.0e-12_dp
+
+        if (maximum(1)%element /= 5987 .or. maximum(1)%triangle /= 48805 &
+                .or. maximum(1)%triangle_element /= 5987 &
+                .or. maximum(1)%relation /= 1 &
+                .or. abs(maximum(1)%error - 0.020434701685116553_dp) &
+                    > tolerance &
+                .or. maximum(2)%element /= 5175 &
+                .or. maximum(2)%triangle /= 48836 &
+                .or. maximum(2)%triangle_element /= 5987 &
+                .or. maximum(2)%element_distance /= 3 &
+                .or. maximum(2)%relation /= 4 &
+                .or. abs(maximum(2)%error - 0.043714707375519496_dp) &
+                    > tolerance &
+                .or. any(recovered_relation_counts &
+                    /= [4, 297216, 47088, 20]) &
+                .or. any(recovered_high_counts /= [0, 39, 12, 4])) &
+            error stop 'insert-4 field maximum changed'
+    end subroutine verify_insert4_maximum
 
     subroutine build_triangle_parents
         integer :: candidate, cell_i, cell_j, split, valid_triangle
