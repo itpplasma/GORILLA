@@ -3,7 +3,8 @@ program test_jorek_global_plane_linearization
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use jorek_bezier, only: jorek_locator_t, build_jorek_locator, &
         evaluate_jorek_geometry
-    use jorek_boundary_plane_mod, only: extract_boundary_refined_jorek_plane
+    use jorek_boundary_plane_mod, only: extract_boundary_refined_jorek_plane, &
+        extract_selected_refined_jorek_plane
     use jorek_field_backend_mod, only: evaluate_jorek_model303_gorilla, &
         evaluate_jorek_model303_gorilla_element
     use jorek_model303_field, only: evaluate_jorek_model303_b
@@ -46,7 +47,7 @@ program test_jorek_global_plane_linearization
     integer, allocatable :: element_vertex(:, :, :), triangles(:, :)
     integer, allocatable :: element_triangle_range(:, :)
     integer, allocatable :: triangle_parent(:), vertex_element(:)
-    logical, allocatable :: hole_element(:)
+    logical, allocatable :: hole_element(:), selected_side(:, :)
     real(dp) :: barycentric(3), corner_rz(2, 4), metrics(2, 2), rz(2)
     real(dp) :: recovered_relation_metrics(2, 4)
     real(dp) :: rz_st(2, 2), s, t
@@ -65,20 +66,24 @@ program test_jorek_global_plane_linearization
     integer :: tail_point_count, tail_point_element(max_tail_records)
     real(dp) :: tail_point_s(max_tail_records), tail_point_t(max_tail_records)
     integer :: output_unit, overlap_output_unit, tail_output_unit
-    logical :: boundary_mode, source_hit, write_output, write_overlap_output
-    logical :: write_tail_output
+    logical :: boundary_mode, custom_mode, source_hit, tail_mode, write_output
+    logical :: write_overlap_output, write_tail_output
 
     if (command_argument_count() < 2 .or. command_argument_count() > 7) &
         error stop 'restart path, refinement, and optional output paths are required'
     call get_command_argument(1, filename)
     call get_command_argument(2, argument)
     boundary_mode = trim(argument) == 'boundary8'
+    tail_mode = trim(argument) == 'tail4'
+    custom_mode = boundary_mode .or. tail_mode
     if (boundary_mode) then
         refinement = -8
+    else if (tail_mode) then
+        refinement = -4
     else
         read(argument, *, iostat=ierr) refinement
         if (ierr /= 0 .or. .not. any(refinement == [2, 4, 8, 16])) &
-            error stop 'refinement must be 2, 4, 8, 16, or boundary8'
+            error stop 'refinement must be 2, 4, 8, 16, boundary8, or tail4'
     end if
     call load_jorek_restart(trim(filename), data, ierr)
     if (ierr /= 0) error stop 'JOREK restart load failed'
@@ -87,13 +92,18 @@ program test_jorek_global_plane_linearization
     if (boundary_mode) then
         call extract_boundary_refined_jorek_plane(data, 8, plane_rz, psi, &
             triangles, vertex_element, vertex_st, element_triangle_range, ierr)
+    else if (tail_mode) then
+        call build_tail_side_mask
+        call extract_selected_refined_jorek_plane(data, 4, selected_side, &
+            plane_rz, psi, triangles, vertex_element, vertex_st, &
+            element_triangle_range, ierr)
     else
         call extract_refined_jorek_plane(data, refinement, plane_rz, psi, &
             triangles, vertex_element, vertex_st, ierr, element_vertex)
     end if
     if (ierr /= 0) error stop 'JOREK plane refinement failed'
     allocate(triangle_parent(size(triangles, 1)))
-    if (boundary_mode) then
+    if (custom_mode) then
         call build_boundary_triangle_parents
     else
         call build_triangle_parents
@@ -236,6 +246,13 @@ program test_jorek_global_plane_linearization
                 .or. boundary_outside /= 4784 .or. interior_outside /= 0 &
                 .or. count(hole_element) /= 148) &
             error stop 'boundary-8 global-plane fixture changed'
+    case (-4)
+        if (source_covered /= 420320 .or. source_outside /= 349472 &
+                .or. neighbor_recovered /= 344272 .or. global_outside /= 5200 &
+                .or. ambiguous /= 92 .or. strict_ambiguous /= 92 &
+                .or. boundary_outside /= 5200 .or. interior_outside /= 0 &
+                .or. count(hole_element) /= 148) &
+            error stop 'tail-4 global-plane fixture changed'
     case (2)
         if (source_covered /= 420264 .or. source_outside /= 349528 &
                 .or. neighbor_recovered /= 344328 .or. global_outside /= 5200 &
@@ -279,6 +296,8 @@ program test_jorek_global_plane_linearization
     end if
     if (boundary_mode) then
         print '(A)', 'refinement=boundary8'
+    else if (tail_mode) then
+        print '(A)', 'refinement=tail4'
     else
         print '(A, I0)', 'refinement=', refinement
     end if
@@ -311,6 +330,29 @@ program test_jorek_global_plane_linearization
     if (write_tail_output) close(tail_output_unit)
 
 contains
+
+    subroutine build_tail_side_mask
+        integer, parameter :: tail_element(10) = [ &
+            5061, 5062, 5063, 5174, 5175, 5175, 5986, 5986, 5987, 5988]
+        integer, parameter :: tail_side(10) = [2, 2, 2, 2, 3, 2, 2, 3, 2, 2]
+        integer :: index, neighbor, neighbor_side, side
+
+        allocate(selected_side(4, data%n_elements), source=.false.)
+        do index = 1, size(tail_element)
+            selected_side(tail_side(index), tail_element(index)) = .true.
+            neighbor = data%neighbours(tail_element(index), tail_side(index))
+            if (neighbor <= 0) error stop 'tail side is not an interior interface'
+            neighbor_side = 0
+            do side = 1, 4
+                if (data%neighbours(neighbor, side) == tail_element(index)) &
+                    neighbor_side = side
+            end do
+            if (neighbor_side == 0) error stop 'tail side is not reciprocal'
+            selected_side(neighbor_side, neighbor) = .true.
+        end do
+        if (count(selected_side) /= 20) &
+            error stop 'tail side closure changed'
+    end subroutine build_tail_side_mask
 
     subroutine element_corners(element, corners)
         integer, intent(in) :: element
@@ -353,7 +395,7 @@ contains
         real(dp) :: corners(2, 4), weight(3)
         integer :: cell_i, cell_j, grid_i(4), grid_j(4), ierr, node, trial
 
-        if (boundary_mode) then
+        if (custom_mode) then
             source_contains = .false.
             do trial = element_triangle_range(1, element), &
                     element_triangle_range(2, element)
