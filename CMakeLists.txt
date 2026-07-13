@@ -119,7 +119,9 @@ if(GORILLA_ENABLE_JOREK)
 				2
 				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_holes_factor2.csv"
 				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_overlaps_factor2.csv"
-				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_maxima_factor2.csv")
+				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_maxima_factor2.csv"
+				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_topology_factor2.csv"
+				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_tail_factor2.csv")
 		set_tests_properties(test_jorek_global_plane_linearization_factor2 PROPERTIES
 			DEPENDS test_jorek_poloidal_linearization LABELS "jorek;golden"
 			TIMEOUT 120)
