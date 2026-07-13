@@ -61,6 +61,20 @@ if(GORILLA_ENABLE_JOREK)
 		SRC/TESTS/test_jorek_field_backend.f90)
 	target_link_libraries(test_jorek_field_backend.x GORILLA LIBNEO::jorek)
 	add_test(NAME test_jorek_field_backend COMMAND test_jorek_field_backend.x)
+	set(GORILLA_JOREK_GOLDEN_RESTART "" CACHE FILEPATH
+		"JOREK restart with SHA256 ac152cd345cd233664b6fa659e1000200519158ba385c2acab09494929bc315c")
+	if(GORILLA_JOREK_GOLDEN_RESTART)
+		if(NOT EXISTS "${GORILLA_JOREK_GOLDEN_RESTART}")
+			message(FATAL_ERROR "GORILLA_JOREK_GOLDEN_RESTART does not exist")
+		endif()
+		add_executable(test_jorek_restart_backend.x
+			SRC/TESTS/test_jorek_restart_backend.f90)
+		target_link_libraries(test_jorek_restart_backend.x GORILLA LIBNEO::jorek)
+		add_test(NAME test_jorek_restart_backend
+			COMMAND test_jorek_restart_backend.x "${GORILLA_JOREK_GOLDEN_RESTART}")
+		set_tests_properties(test_jorek_restart_backend PROPERTIES
+			LABELS "jorek;golden")
+	endif()
 endif()
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
