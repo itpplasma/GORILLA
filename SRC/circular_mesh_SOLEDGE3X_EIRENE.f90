@@ -60,8 +60,8 @@ end subroutine create_points_SOLEDGE3X_EIRENE
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n_tetras, & 
-                     verts, neighbours, neighbour_faces, perbou_phi)
+subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n_tetras, &
+                     verts, neighbours, neighbour_faces, perbou_phi, triangles_in, a_phi_in)
 !
     use tetra_grid_settings_mod, only: triangles_SOLEDGE3X_EIRENE_filename
     use circular_mesh, only: wrap_idx_inplace
@@ -72,6 +72,8 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     integer, intent(out) :: n_tetras
     integer :: i,j,f
     integer, dimension(:, :), allocatable, intent(out) :: verts, neighbours, neighbour_faces, perbou_phi
+    integer, dimension(:, :), intent(in), optional :: triangles_in
+    double precision, dimension(:), intent(in), optional :: a_phi_in
 !
     double precision, dimension(verts_per_slice) :: A_phi_vec
 !
@@ -87,10 +89,23 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
                 free_index, base_a_index, base_b_index
     integer, dimension(:), allocatable :: count_connected, count_connected_repaired
 !         
-    !Compute A_phi (psif) for every vertex in 2d-plane
-    do i = 1,verts_per_slice
-        call vector_potential_rz(points_rphiz(1,i),points_rphiz(3,i),A_phi_vec(i))
-    enddo
+    if (present(triangles_in).neqv.present(a_phi_in)) &
+        error stop 'triangles_in and a_phi_in must be provided together'
+    if (present(triangles_in)) then
+        if (size(triangles_in, 2) /= 3 &
+                .or. size(a_phi_in) /= verts_per_slice) &
+            error stop 'invalid supplied triangular mesh shape'
+        if (any(triangles_in < 1) .or. any(triangles_in > verts_per_slice)) &
+            error stop 'supplied triangle vertex is out of range'
+        n_triangles = size(triangles_in, 1)
+        allocate(triangles_SOLEDGE3X_EIRENE(n_triangles, 3))
+        triangles_SOLEDGE3X_EIRENE = triangles_in
+        A_phi_vec = a_phi_in
+    else
+        !Compute A_phi (psif) for every vertex in 2d-plane
+        do i = 1,verts_per_slice
+            call vector_potential_rz(points_rphiz(1,i),points_rphiz(3,i),A_phi_vec(i))
+        enddo
 !
 if (diag_mesh_SOLEDGE3X_EIRENE) then
 open(newunit=iunit, file='./MESH_CHECK/poloidal_flux.dat')
@@ -100,19 +115,20 @@ enddo
 close(iunit)
 endif
 !
-    filename_triangles = triangles_SOLEDGE3X_EIRENE_filename
+        filename_triangles = triangles_SOLEDGE3X_EIRENE_filename
 !
     !Load triangles (triples of vertex indices)
-    open(newunit=file_id_triangles, file=filename_triangles, status='unknown')
-    read(file_id_triangles,*) shape_triangles
-    allocate(triangles_SOLEDGE3X_EIRENE(shape_triangles(1),shape_triangles(2)))
-    do i = 1,shape_triangles(1)
-        read(file_id_triangles,*) triangles_SOLEDGE3X_EIRENE(i,:)
-    enddo
-    close(file_id_triangles)
+        open(newunit=file_id_triangles, file=filename_triangles, status='unknown')
+        read(file_id_triangles,*) shape_triangles
+        allocate(triangles_SOLEDGE3X_EIRENE(shape_triangles(1),shape_triangles(2)))
+        do i = 1,shape_triangles(1)
+            read(file_id_triangles,*) triangles_SOLEDGE3X_EIRENE(i,:)
+        enddo
+        close(file_id_triangles)
 !
-    !Number of triagles in 2d-plane
-    n_triangles = shape_triangles(1)
+        !Number of triagles in 2d-plane
+        n_triangles = shape_triangles(1)
+    endif
 !  
     !Compute triangle types (top/bottom with respect to psi) and "stand-alone" vertex
     allocate(triangle_type(n_triangles,2))

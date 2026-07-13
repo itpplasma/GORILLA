@@ -61,6 +61,9 @@ if(GORILLA_ENABLE_JOREK)
 		SRC/TESTS/test_jorek_field_backend.f90)
 	target_link_libraries(test_jorek_field_backend.x GORILLA LIBNEO::jorek)
 	add_test(NAME test_jorek_field_backend COMMAND test_jorek_field_backend.x)
+	add_executable(test_jorek_mesh.x SRC/TESTS/test_jorek_mesh.f90)
+	target_link_libraries(test_jorek_mesh.x GORILLA LIBNEO::jorek netcdff netcdf lapack)
+	add_test(NAME test_jorek_mesh COMMAND test_jorek_mesh.x)
 	set(GORILLA_JOREK_GOLDEN_RESTART "" CACHE FILEPATH
 		"JOREK restart with SHA256 ac152cd345cd233664b6fa659e1000200519158ba385c2acab09494929bc315c")
 	if(GORILLA_JOREK_GOLDEN_RESTART)
@@ -74,6 +77,14 @@ if(GORILLA_ENABLE_JOREK)
 			COMMAND test_jorek_restart_backend.x "${GORILLA_JOREK_GOLDEN_RESTART}")
 		set_tests_properties(test_jorek_restart_backend PROPERTIES
 			LABELS "jorek;golden")
+		add_executable(test_jorek_restart_mesh.x
+			SRC/TESTS/test_jorek_restart_mesh.f90)
+		target_link_libraries(test_jorek_restart_mesh.x GORILLA LIBNEO::jorek
+			netcdff netcdf lapack)
+		add_test(NAME test_jorek_restart_mesh
+			COMMAND test_jorek_restart_mesh.x "${GORILLA_JOREK_GOLDEN_RESTART}")
+		set_tests_properties(test_jorek_restart_mesh PROPERTIES
+			DEPENDS test_jorek_restart_backend LABELS "jorek;golden")
 		set(JOREK_ORBIT_DIR "${CMAKE_CURRENT_BINARY_DIR}/jorek_snapshot_orbit")
 		file(MAKE_DIRECTORY "${JOREK_ORBIT_DIR}")
 		configure_file(SRC/TESTS/jorek_snapshot_orbit/gorilla.inp.in
@@ -92,6 +103,27 @@ if(GORILLA_ENABLE_JOREK)
 				-P ${CMAKE_CURRENT_SOURCE_DIR}/SRC/TESTS/run_jorek_snapshot_orbit.cmake)
 		set_tests_properties(test_jorek_snapshot_orbit PROPERTIES
 			DEPENDS test_jorek_restart_backend LABELS "jorek;golden")
+		set(JOREK_DERIVED_ORBIT_DIR
+			"${CMAKE_CURRENT_BINARY_DIR}/jorek_derived_orbit")
+		file(MAKE_DIRECTORY "${JOREK_DERIVED_ORBIT_DIR}")
+		configure_file(SRC/TESTS/jorek_snapshot_orbit/gorilla.inp.in
+			"${JOREK_DERIVED_ORBIT_DIR}/gorilla.inp" @ONLY)
+		configure_file(SRC/TESTS/jorek_derived_orbit/tetra_grid.inp
+			"${JOREK_DERIVED_ORBIT_DIR}/tetra_grid.inp" COPYONLY)
+		foreach(INPUT_FILE gorilla_plot.inp orbit_start_rphizlambda.dat)
+			configure_file("SRC/TESTS/jorek_snapshot_orbit/${INPUT_FILE}"
+				"${JOREK_DERIVED_ORBIT_DIR}/${INPUT_FILE}" COPYONLY)
+		endforeach()
+		add_test(NAME test_jorek_derived_mesh_orbit
+			COMMAND ${CMAKE_COMMAND}
+				-DGORILLA_MAIN=$<TARGET_FILE:test_gorilla_main.x>
+				-DORBIT_VALIDATOR=$<TARGET_FILE:test_jorek_orbit_output.x>
+				-DORBIT_DIR=${JOREK_DERIVED_ORBIT_DIR}
+				-DEXPECTED_RECORDS=6
+				-DMIN_PPHI_RESPONSE=1.0e-7
+				-P ${CMAKE_CURRENT_SOURCE_DIR}/SRC/TESTS/run_jorek_snapshot_orbit.cmake)
+		set_tests_properties(test_jorek_derived_mesh_orbit PROPERTIES
+			DEPENDS test_jorek_restart_mesh LABELS "jorek;golden;slow")
 	endif()
 endif()
 

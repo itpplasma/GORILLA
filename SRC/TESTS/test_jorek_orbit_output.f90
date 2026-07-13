@@ -6,7 +6,20 @@ program test_jorek_orbit_output
 
     real(dp) :: time, value, first_value, last_time, minimum, maximum
     real(dp) :: r, phi, z, first_pphi, last_pphi
-    integer :: iunit, status, count
+    real(dp) :: minimum_pphi_response
+    character(len=64) :: argument
+    integer :: iunit, status, count, expected_count
+
+    expected_count = 18
+    minimum_pphi_response = 1.0e-6_dp
+    if (command_argument_count() >= 1) then
+        call get_command_argument(1, argument)
+        read (argument, *) expected_count
+    end if
+    if (command_argument_count() >= 2) then
+        call get_command_argument(2, argument)
+        read (argument, *) minimum_pphi_response
+    end if
 
     open (newunit=iunit, file='e_tot.dat', status='old', action='read')
     count = 0
@@ -26,7 +39,7 @@ program test_jorek_orbit_output
         maximum = max(maximum, value)
     end do
     close (iunit)
-    if (count /= 18) error stop 'unexpected number of completed orbit steps'
+    if (count /= expected_count) error stop 'unexpected number of completed orbit steps'
     if (abs(last_time - 1.0e-5_dp) > 1.0e-14_dp) &
         error stop 'orbit did not reach the requested final time'
     if ((maximum - minimum)/abs(first_value) > 1.0e-12_dp) &
@@ -46,7 +59,7 @@ program test_jorek_orbit_output
         count = count + 1
     end do
     close (iunit)
-    if (count /= 18) error stop 'orbit position record is incomplete'
+    if (count /= expected_count) error stop 'orbit position record is incomplete'
 
     open (newunit=iunit, file='p_phi.dat', status='old', action='read')
     count = 0
@@ -58,13 +71,13 @@ program test_jorek_orbit_output
         last_pphi = value
     end do
     close (iunit)
-    if (count /= 18) error stop 'canonical-momentum record is incomplete'
+    if (count /= expected_count) error stop 'canonical-momentum record is incomplete'
     if (.not. ieee_is_finite(first_pphi) .or. &
             .not. ieee_is_finite(last_pphi)) &
         error stop 'non-finite canonical momentum'
     if (abs(first_pphi) <= tiny(first_pphi)) &
         error stop 'zero initial canonical momentum'
-    if (abs(last_pphi/first_pphi - 1.0_dp) < 1.0e-6_dp) &
+    if (abs(last_pphi/first_pphi - 1.0_dp) < minimum_pphi_response) &
         error stop 'non-axisymmetric snapshot response was not resolved'
 
     print '(A)', 'PASS: JOREK snapshot orbit completion and invariants'

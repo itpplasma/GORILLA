@@ -127,7 +127,7 @@
     subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in, boole_keep_phi_elec)
 !
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
-                                & set_verts_sthetaphi,verts_xyz
+                                & set_verts_sthetaphi,verts_xyz,Rmin,Rmax,Zmin,Zmax
       use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,R0_analytic_circ
       use constants, only: pi
       use field_mod, only: ipert
@@ -239,7 +239,8 @@
       ipert = ipert_in
 !
       !Set coord_system in module according to coord_system_in
-      if( ( (grid_kind.eq.1).or.(grid_kind.eq.4).or.(grid_kind.eq.5) ) .and.(coord_system_in.ne.1)) then
+      if( ( (grid_kind.eq.1).or.(grid_kind.eq.4).or.(grid_kind.eq.5).or.(grid_kind.eq.6) ) &
+          .and.(coord_system_in.ne.1)) then
         print *, 'Error: Wrong coordinate system - Only RPhiZ-coordinates allowed for &
                  &rectangular, SOLEDGE3X_EIRENE, or analytic circular tokamak grid.'
         stop
@@ -274,6 +275,10 @@
 !
       !Pre-processing for EFIT
 !
+      if (grid_kind.eq.6 .and. trim(adjustl(magnetic_field_source)).ne.'jorek') &
+        error stop 'JOREK-derived meshes require magnetic_field_source=jorek'
+      if (grid_kind.eq.6 .and. (eps_Phi.ne.0.d0 .or. boole_strong_electric_field)) &
+        error stop 'JOREK-derived meshes do not yet support electric potential'
       if (trim(adjustl(magnetic_field_source)).eq.'jorek') then
         if (coord_system.ne.1) error stop 'JOREK fields require cylindrical coordinates'
         if (ipert_in.ne.0) error stop 'JOREK fields cannot use the native ipert perturbation'
@@ -319,6 +324,9 @@
                 case(5)
                     mag_axis_R0 = R0_analytic_circ
                     mag_axis_Z0 = 0.0d0
+                case(6)
+                    mag_axis_R0 = 0.5d0*(Rmin + Rmax)
+                    mag_axis_Z0 = 0.5d0*(Zmin + Zmax)
             end select
 !
         case(2) !sthetaphi --> Symmetry flux coordinate system
@@ -543,10 +551,10 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
           if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_sthetaphi(3,iv) .eq. 0.d0)) then !if(tetra in last phi_slice & phi .eq. 0)
             p_x3(i) = 2.d0*pi/n_field_periods
           endif
-        case(4) !SOLEDGE3X_EIRENE grid
+        case(4,6) !SOLEDGE3X_EIRENE or JOREK-derived grid
                 !R,Phi,Z --> Cylindrical coordinate system
                 if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_rphiz(2,iv) .eq. 0.d0)) then
-                p_x2(i) = 2.d0*pi
+                p_x2(i) = 2.d0*pi/n_field_periods
                 endif  
 !
       end select

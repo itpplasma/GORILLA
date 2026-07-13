@@ -25,7 +25,8 @@
 
 !
     !Grid kind - Selection of grid kind
-    !(1 ... rectangular grid, 2 ... field-aligned grid EFIT, 3 ... field-aligned grid VMEC, 4 ... SOLEDGE3X-EIRENE grid, 5 ... analytic circular tokamak)
+    !(1 ... rectangular grid, 2 ... field-aligned grid EFIT, 3 ... field-aligned grid VMEC, 4 ... SOLEDGE3X-EIRENE grid,
+    !  5 ... analytic circular tokamak, 6 ... JOREK poloidal mesh)
     integer,public,protected :: grid_kind
 !
     !MHD equilibrium filename

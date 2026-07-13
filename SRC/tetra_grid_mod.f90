@@ -36,11 +36,22 @@
         use field_divB0_mod, only: field
         use field_mod, only: ianalytic_circ
         use field_analytic_circ_mod, only: set_field_analytic_circ
+#ifdef GORILLA_ENABLE_JOREK
+        use gorilla_settings_mod, only: jorek_restart_filename, jorek_length_scale
+        use jorek_mesh_mod, only: build_jorek_mesh_arrays
+        use jorek_restart, only: jorek_restart_t, load_jorek_restart, free_jorek_restart
+#endif
         !use make_grid_rect_mod, only: make_grid_rect
 !
         implicit none
 !
         integer :: efit_vmec,i,iunit
+#ifdef GORILLA_ENABLE_JOREK
+        type(jorek_restart_t) :: jorek_data
+        integer :: ierr
+        integer, allocatable :: jorek_verts(:, :), jorek_neighbours(:, :)
+        integer, allocatable :: jorek_neighbour_faces(:, :), jorek_perbou_phi(:, :)
+#endif
         double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                             ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
 !
@@ -57,7 +68,7 @@
         if(boole_n_field_periods) then !Automatically
             !Select number of field periods depending on input equilibrium
             select case(grid_kind)
-                case(1,2,4,5) !2D EFIT & WEST equilibria
+                case(1,2,4,5,6) !2D EFIT, WEST, analytic, and JOREK equilibria
                     call set_n_field_periods(1)
                 case(3) !3D VMEC equilibria
                     call set_n_field_periods(0) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
@@ -148,6 +159,37 @@
               allocate(tetra_grid(ntetr))
               allocate(verts_rphiz(3, nvert))
               call make_grid_rect(tetra_grid, verts_rphiz, grid_size, Rmin, Rmax, Zmin, Zmax)
+
+          case(6) !JOREK poloidal mesh extruded in the toroidal direction
+#ifdef GORILLA_ENABLE_JOREK
+            call load_jorek_restart(trim(jorek_restart_filename), jorek_data, ierr)
+            if (ierr /= 0) error stop 'failed to load JOREK mesh restart'
+            if (.not. boole_n_field_periods &
+                    .and. n_field_periods_manual /= jorek_data%n_period) &
+              error stop 'manual field periods disagree with JOREK restart'
+            call set_n_field_periods(jorek_data%n_period)
+            call build_jorek_mesh_arrays(jorek_data, grid_size(2), &
+              jorek_length_scale, verts_rphiz, jorek_verts, jorek_neighbours, &
+              jorek_neighbour_faces, jorek_perbou_phi, ierr)
+            if (ierr /= 0) error stop 'failed to construct JOREK-derived mesh'
+            nvert = size(verts_rphiz, 2)
+            ntetr = size(jorek_verts, 2)
+            allocate(tetra_grid(ntetr))
+            do i = 1, ntetr
+              tetra_grid(i)%ind_knot = jorek_verts(:, i)
+              tetra_grid(i)%neighbour_tetr = jorek_neighbours(:, i)
+              tetra_grid(i)%neighbour_face = jorek_neighbour_faces(:, i)
+              tetra_grid(i)%neighbour_perbou_phi = jorek_perbou_phi(:, i)
+              tetra_grid(i)%neighbour_perbou_theta = 0
+            end do
+            Rmin = minval(verts_rphiz(1, :))
+            Rmax = maxval(verts_rphiz(1, :))
+            Zmin = minval(verts_rphiz(3, :))
+            Zmax = maxval(verts_rphiz(3, :))
+            call free_jorek_restart(jorek_data)
+#else
+            error stop 'GORILLA was built without JOREK mesh support'
+#endif
 !
         end select
 !
@@ -748,4 +790,3 @@ b: do ind_tetr=1,ntetr
     end subroutine deallocate_tetra_grid
 !
 end module tetra_grid_mod
-

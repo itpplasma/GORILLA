@@ -15,12 +15,21 @@ if(NOT run_status EQUAL 0)
     message(FATAL_ERROR "JOREK snapshot orbit failed; see ${ORBIT_DIR}/run.log")
 endif()
 
-execute_process(
-    COMMAND "${ORBIT_VALIDATOR}"
-    WORKING_DIRECTORY "${ORBIT_DIR}"
-    RESULT_VARIABLE validation_status
-    OUTPUT_VARIABLE validation_stdout
-    ERROR_VARIABLE validation_stderr)
+if(DEFINED EXPECTED_RECORDS AND DEFINED MIN_PPHI_RESPONSE)
+    execute_process(
+        COMMAND "${ORBIT_VALIDATOR}" "${EXPECTED_RECORDS}" "${MIN_PPHI_RESPONSE}"
+        WORKING_DIRECTORY "${ORBIT_DIR}"
+        RESULT_VARIABLE validation_status
+        OUTPUT_VARIABLE validation_stdout
+        ERROR_VARIABLE validation_stderr)
+else()
+    execute_process(
+        COMMAND "${ORBIT_VALIDATOR}"
+        WORKING_DIRECTORY "${ORBIT_DIR}"
+        RESULT_VARIABLE validation_status
+        OUTPUT_VARIABLE validation_stdout
+        ERROR_VARIABLE validation_stderr)
+endif()
 if(NOT validation_status EQUAL 0)
     message(FATAL_ERROR
         "JOREK snapshot orbit validation failed: ${validation_stdout}${validation_stderr}")
