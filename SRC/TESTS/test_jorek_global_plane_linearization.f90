@@ -23,6 +23,8 @@ program test_jorek_global_plane_linearization
         reshape([1, 2, 3, 1, 3, 4], [3, 2])
     real(dp), parameter :: corner_s(4) = [0.0_dp, 1.0_dp, 1.0_dp, 0.0_dp]
     real(dp), parameter :: corner_t(4) = [0.0_dp, 0.0_dp, 1.0_dp, 1.0_dp]
+    character(len=11), parameter :: relation_names(4) = &
+        [character(len=11) :: 'same', 'face', 'vertex_only', 'remote']
     type :: field_maximum_t
         real(dp) :: error = 0.0_dp
         real(dp) :: s = 0.0_dp, t = 0.0_dp, phi = 0.0_dp
@@ -30,6 +32,7 @@ program test_jorek_global_plane_linearization
         real(dp) :: exact(3) = 0.0_dp, interpolated(3) = 0.0_dp
         real(dp) :: vertex_rz(2, 3) = 0.0_dp, vertex_st(2, 3) = 0.0_dp
         integer :: element = 0, triangle = 0, triangle_element = 0, matches = 0
+        integer :: relation = 0
         integer :: element_distance = -1
         integer :: nodes(3) = 0, owners(3) = 0, neighbors(4) = 0
         integer :: owner_neighbors(4, 3) = 0
@@ -41,22 +44,26 @@ program test_jorek_global_plane_linearization
     real(dp), allocatable :: plane_rz(:, :), psi(:), vertex_st(:, :)
     integer, allocatable :: element_vertex(:, :, :), triangles(:, :)
     integer, allocatable :: element_triangle_range(:, :)
-    integer, allocatable :: vertex_element(:)
+    integer, allocatable :: triangle_parent(:), vertex_element(:)
     logical, allocatable :: hole_element(:)
     real(dp) :: barycentric(3), corner_rz(2, 4), metrics(2, 2), rz(2)
+    real(dp) :: recovered_relation_metrics(2, 4)
     real(dp) :: rz_st(2, 2), s, t
     character(len=1024) :: argument, filename, output_filename
     character(len=1024) :: maximum_output_filename, overlap_output_filename
+    character(len=1024) :: tail_output_filename, topology_output_filename
     integer :: ambiguous, boundary_outside, element, global_outside, i, ierr, j
     integer :: interior_outside, located, refinement
     integer :: matches, neighbor_recovered
     integer :: phase, sample, source_covered, source_outside, triangle
     integer :: strict_ambiguous, unique_sample
-    integer :: metric_counts(2)
-    integer :: output_unit, overlap_output_unit
+    integer :: metric_counts(2), recovered_high_counts(4)
+    integer :: recovered_relation_counts(4)
+    integer :: output_unit, overlap_output_unit, tail_output_unit
     logical :: boundary_mode, source_hit, write_output, write_overlap_output
+    logical :: write_tail_output
 
-    if (command_argument_count() < 2 .or. command_argument_count() > 5) &
+    if (command_argument_count() < 2 .or. command_argument_count() > 7) &
         error stop 'restart path, refinement, and optional output paths are required'
     call get_command_argument(1, filename)
     call get_command_argument(2, argument)
@@ -80,13 +87,21 @@ program test_jorek_global_plane_linearization
             triangles, vertex_element, vertex_st, ierr, element_vertex)
     end if
     if (ierr /= 0) error stop 'JOREK plane refinement failed'
+    allocate(triangle_parent(size(triangles, 1)))
+    if (boundary_mode) then
+        call build_boundary_triangle_parents
+    else
+        call build_triangle_parents
+    end if
     call build_jorek_triangle_locator(plane_rz, triangles, plane_locator, ierr)
     if (ierr /= 0) error stop 'JOREK triangle locator build failed'
     allocate(hole_element(data%n_elements), source=.false.)
     output_unit = -1
     overlap_output_unit = -1
+    tail_output_unit = -1
     write_output = .false.
     write_overlap_output = .false.
+    write_tail_output = .false.
     if (command_argument_count() >= 3) then
         call get_command_argument(3, output_filename)
         open(newunit=output_unit, file=trim(output_filename), status='replace', &
@@ -106,6 +121,19 @@ program test_jorek_global_plane_linearization
             'element,s,t,r_m,z_m,first_min_weight,matches,' // &
             'source_hit,neighbor_1,neighbor_2,neighbor_3,neighbor_4'
     end if
+    if (command_argument_count() == 7) then
+        call get_command_argument(7, tail_output_filename)
+        open(newunit=tail_output_unit, file=trim(tail_output_filename), &
+            status='replace', action='write', iostat=ierr)
+        if (ierr /= 0) error stop 'cannot open recovered-tail output'
+        write_tail_output = .true.
+        write(tail_output_unit, '(A)') &
+            'relation,error,element,s,t,phi_rad,r_m,z_m,triangle,' // &
+            'triangle_element,element_distance,matches,w1,w2,w3,' // &
+            'node1,node2,node3,owner1,owner2,owner3,' // &
+            'exact_br_g,exact_bphi_g,exact_bz_g,' // &
+            'interpolated_br_g,interpolated_bphi_g,interpolated_bz_g'
+    end if
     global_outside = 0
     boundary_outside = 0
     interior_outside = 0
@@ -116,6 +144,9 @@ program test_jorek_global_plane_linearization
     strict_ambiguous = 0
     metrics = 0.0_dp
     metric_counts = 0
+    recovered_high_counts = 0
+    recovered_relation_counts = 0
+    recovered_relation_metrics = 0.0_dp
     unique_sample = 0
 
     do element = 1, data%n_elements
@@ -179,8 +210,6 @@ program test_jorek_global_plane_linearization
     end do
     if (.not. boundary_mode) then
         do i = 1, 2
-            maximum(i)%triangle_element = &
-                find_triangle_element(maximum(i)%triangle)
             maximum(i)%element_distance = neighbor_distance( &
                 maximum(i)%element, maximum(i)%triangle_element)
         end do
@@ -223,8 +252,11 @@ program test_jorek_global_plane_linearization
     if (source_covered + source_outside /= 769792 &
             .or. source_covered + source_outside - global_outside &
                 /= sum(metric_counts) &
+            .or. sum(recovered_relation_counts) /= neighbor_recovered &
+            .or. sum(recovered_high_counts) > neighbor_recovered &
             .or. boundary_outside + interior_outside /= global_outside &
-            .or. .not. all(ieee_is_finite(metrics))) &
+            .or. .not. all(ieee_is_finite(metrics)) &
+            .or. .not. all(ieee_is_finite(recovered_relation_metrics))) &
         error stop 'global-plane sample partition failed'
     if (boundary_mode) then
         print '(A)', 'refinement=boundary8'
@@ -243,13 +275,18 @@ program test_jorek_global_plane_linearization
         metrics(1, 1), sqrt(metrics(2, 1)/metric_counts(1))
     print '(A, 2(ES14.6, 1X))', 'neighbor-recovered max/rms B error: ', &
         metrics(1, 2), sqrt(metrics(2, 2)/neighbor_recovered)
-    if (command_argument_count() == 5) then
+    if (command_argument_count() >= 6) then
+        call get_command_argument(6, topology_output_filename)
+        call write_topology_output(trim(topology_output_filename))
+    end if
+    if (command_argument_count() >= 5) then
         call get_command_argument(5, maximum_output_filename)
         call write_maximum_output(trim(maximum_output_filename))
     end if
     print '(A)', 'PASS: global JOREK plane containment and interpolation'
     if (write_output) close(output_unit)
     if (write_overlap_output) close(overlap_output_unit)
+    if (write_tail_output) close(tail_output_unit)
 
 contains
 
@@ -372,6 +409,13 @@ contains
             /max(sqrt(sum(b_exact**2)), tiny(1.0_dp))
         if (error > metrics(1, group)) call record_maximum(element, s, t, phi, &
             rz, triangle, weight, matches, b_exact, b_interp, error, group)
+        if (group == 2) then
+            call record_recovered_relation(element, triangle_parent(triangle), &
+                error)
+            if (write_tail_output .and. error > 0.02_dp) &
+                call write_recovered_tail(element, s, t, phi, rz, triangle, &
+                    weight, matches, b_exact, b_interp, error)
+        end if
         metrics(1, group) = max(metrics(1, group), error)
         metrics(2, group) = metrics(2, group) + error**2
         metric_counts(group) = metric_counts(group) + 1
@@ -395,6 +439,9 @@ contains
         maximum(group)%interpolated = b_interp
         maximum(group)%element = element
         maximum(group)%triangle = triangle
+        maximum(group)%triangle_element = triangle_parent(triangle)
+        maximum(group)%relation = parent_relation(element, &
+            maximum(group)%triangle_element)
         maximum(group)%matches = matches
         maximum(group)%neighbors = data%neighbours(element, :)
         do corner = 1, 3
@@ -415,6 +462,7 @@ contains
         if (maximum(2)%element /= 5175 .or. maximum(2)%triangle /= 47661 &
                 .or. maximum(2)%triangle_element /= 5987 &
                 .or. maximum(2)%element_distance /= 3 &
+                .or. maximum(2)%relation /= 4 &
                 .or. maximum(2)%matches /= 1 &
                 .or. any(maximum(2)%nodes /= [16409, 5063, 16410]) &
                 .or. any(maximum(2)%owners /= [5987, 5061, 5987]) &
@@ -423,18 +471,22 @@ contains
                 .or. abs(maximum(2)%t - 2.0_dp/3.0_dp) > tolerance &
                 .or. abs(maximum(2)%phi) > tolerance &
                 .or. abs(maximum(2)%error - 0.041657092333006372_dp) &
+                    > tolerance &
+                .or. any(recovered_relation_counts &
+                    /= [4, 297216, 47088, 20]) &
+                .or. any(recovered_high_counts /= [0, 43, 12, 7]) &
+                .or. maxval(abs(recovered_relation_metrics(1, :) - [ &
+                    0.0051750424482673758_dp, 0.033642681741412578_dp, &
+                    0.028862752750893582_dp, 0.041657092333006372_dp])) &
                     > tolerance) &
             error stop 'factor-2 recovered maximum changed'
     end subroutine verify_factor2_maximum
 
-    integer function find_triangle_element(target_triangle) result(parent)
-        integer, intent(in) :: target_triangle
+    subroutine build_triangle_parents
+        integer :: candidate, cell_i, cell_j, split, valid_triangle
+        integer :: grid_node(4), trial_node(3)
 
-        integer :: candidate, cell_i, cell_j, corner, split
-        integer :: grid_node(4), target_node(3), trial_node(3)
-
-        parent = 0
-        target_node = triangles(target_triangle, :)
+        valid_triangle = 0
         do candidate = 1, data%n_elements
             do cell_j = 0, refinement - 1
                 do cell_i = 0, refinement - 1
@@ -445,17 +497,65 @@ contains
                         element_vertex(cell_i, cell_j + 1, candidate)]
                     do split = 1, 2
                         trial_node = grid_node(triangle_vertices(:, split))
-                        if (all([(any(trial_node == target_node(corner)), &
-                                corner = 1, 3)])) then
-                            parent = candidate
-                            return
-                        end if
+                        if (trial_node(1) == trial_node(2) &
+                                .or. trial_node(1) == trial_node(3) &
+                                .or. trial_node(2) == trial_node(3)) cycle
+                        valid_triangle = valid_triangle + 1
+                        triangle_parent(valid_triangle) = candidate
                     end do
                 end do
             end do
         end do
-        error stop 'global triangle parent not found'
-    end function find_triangle_element
+        if (valid_triangle /= size(triangles, 1)) &
+            error stop 'global triangle parent count changed'
+    end subroutine build_triangle_parents
+
+    subroutine build_boundary_triangle_parents
+        integer :: candidate
+
+        triangle_parent = 0
+        do candidate = 1, data%n_elements
+            triangle_parent(element_triangle_range(1, candidate): &
+                element_triangle_range(2, candidate)) = candidate
+        end do
+        if (any(triangle_parent == 0)) &
+            error stop 'boundary triangle parent map changed'
+    end subroutine build_boundary_triangle_parents
+
+    integer function parent_relation(source, parent) result(relation)
+        integer, intent(in) :: source, parent
+
+        integer :: corner
+
+        if (parent == source) then
+            relation = 1
+        else if (any(data%neighbours(source, :) == parent)) then
+            relation = 2
+        else
+            relation = 4
+            do corner = 1, 4
+                if (any(data%vertex(source, :) &
+                        == data%vertex(parent, corner))) relation = 3
+            end do
+        end if
+    end function parent_relation
+
+    subroutine record_recovered_relation(source, parent, error)
+        integer, intent(in) :: source, parent
+        real(dp), intent(in) :: error
+
+        integer :: relation
+
+        relation = parent_relation(source, parent)
+        recovered_relation_counts(relation) = &
+            recovered_relation_counts(relation) + 1
+        recovered_relation_metrics(1, relation) = &
+            max(recovered_relation_metrics(1, relation), error)
+        recovered_relation_metrics(2, relation) = &
+            recovered_relation_metrics(2, relation) + error**2
+        if (error > 0.02_dp) recovered_high_counts(relation) = &
+            recovered_high_counts(relation) + 1
+    end subroutine record_recovered_relation
 
     integer function neighbor_distance(source, target) result(distance)
         integer, intent(in) :: source, target
@@ -495,7 +595,7 @@ contains
             iostat=ierr)
         if (ierr /= 0) error stop 'cannot open field-maximum output'
         write(unit, '(A)') 'group,error,element,s,t,phi_rad,r_m,z_m,' // &
-            'triangle,triangle_element,element_distance,matches,' // &
+            'triangle,triangle_element,element_distance,relation,matches,' // &
             'w1,w2,w3,node1,node2,node3,owner1,owner2,owner3,' // &
             'v1_r_m,v1_z_m,v2_r_m,v2_z_m,v3_r_m,v3_z_m,' // &
             'v1_s,v1_t,v2_s,v2_t,v3_s,v3_t,' // &
@@ -512,7 +612,8 @@ contains
                 maximum(group)%s, maximum(group)%t, maximum(group)%phi, &
                 maximum(group)%rz, maximum(group)%triangle, &
                 maximum(group)%triangle_element, maximum(group)%element_distance, &
-                maximum(group)%matches, maximum(group)%weight, &
+                maximum(group)%relation, maximum(group)%matches, &
+                maximum(group)%weight, &
                 maximum(group)%nodes, maximum(group)%owners, &
                 maximum(group)%vertex_rz, maximum(group)%vertex_st, &
                 maximum(group)%neighbors, maximum(group)%owner_neighbors, &
@@ -520,6 +621,47 @@ contains
         end do
         close(unit)
     end subroutine write_maximum_output
+
+    subroutine write_topology_output(path)
+        character(len=*), intent(in) :: path
+
+        real(dp) :: rms
+        integer :: ierr, relation, unit
+
+        open(newunit=unit, file=path, status='replace', action='write', &
+            iostat=ierr)
+        if (ierr /= 0) error stop 'cannot open recovered-topology output'
+        write(unit, '(A)') 'relation,count,above_2pct,max_error,rms_error'
+        do relation = 1, 4
+            rms = 0.0_dp
+            if (recovered_relation_counts(relation) > 0) &
+                rms = sqrt(recovered_relation_metrics(2, relation) &
+                    /recovered_relation_counts(relation))
+            write(unit, '(*(g0,:,","))') trim(relation_names(relation)), &
+                recovered_relation_counts(relation), &
+                recovered_high_counts(relation), &
+                recovered_relation_metrics(1, relation), rms
+        end do
+        close(unit)
+    end subroutine write_topology_output
+
+    subroutine write_recovered_tail(element, s, t, phi, rz, triangle, weight, &
+            matches, b_exact, b_interp, error)
+        integer, intent(in) :: element, triangle, matches
+        real(dp), intent(in) :: s, t, phi, rz(2), weight(3)
+        real(dp), intent(in) :: b_exact(3), b_interp(3), error
+
+        integer :: distance, nodes(3), owners(3), parent, relation
+
+        parent = triangle_parent(triangle)
+        relation = parent_relation(element, parent)
+        distance = neighbor_distance(element, parent)
+        nodes = triangles(triangle, :)
+        owners = vertex_element(nodes)
+        write(tail_output_unit, '(*(g0,:,","))') trim(relation_names(relation)), &
+            error, element, s, t, phi, rz, triangle, parent, distance, matches, &
+            weight, nodes, owners, b_exact, b_interp
+    end subroutine write_recovered_tail
 
     logical function has_coincident_corners(corners)
         real(dp), intent(in) :: corners(2, 4)
