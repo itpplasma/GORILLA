@@ -25,7 +25,7 @@ if(GORILLA_ENABLE_JOREK)
 	set(LIBNEO_BUILD_JOREK ON CACHE BOOL "" FORCE)
 	FetchContent_Declare(libneo
 		GIT_REPOSITORY https://github.com/itpplasma/libneo.git
-		GIT_TAG 3ec46e07c6c2b6ea1725af0ac5189971880ff34b
+		GIT_TAG f899ed6812284240aa7c40f73ebd0d62b1b58749
 	)
 	FetchContent_MakeAvailable(libneo)
 endif()
