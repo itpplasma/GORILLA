@@ -29,18 +29,21 @@ program test_jorek_global_plane_linearization
     real(dp), allocatable :: plane_rz(:, :), psi(:), vertex_st(:, :)
     integer, allocatable :: element_vertex(:, :, :), triangles(:, :)
     integer, allocatable :: vertex_element(:)
+    logical, allocatable :: hole_element(:)
     real(dp) :: barycentric(3), corner_rz(2, 4), metrics(2, 2), rz(2)
     real(dp) :: rz_st(2, 2), s, t
-    character(len=1024) :: filename
+    character(len=1024) :: filename, output_filename
     integer :: ambiguous, boundary_outside, element, global_outside, i, ierr, j
     integer :: interior_outside, located
     integer :: matches, neighbor_recovered
     integer :: phase, sample, source_covered, source_outside, triangle
     integer :: unique_sample
     integer :: metric_counts(2)
-    logical :: source_hit
+    integer :: output_unit
+    logical :: source_hit, write_output
 
-    if (command_argument_count() /= 1) error stop 'restart path argument is required'
+    if (command_argument_count() < 1 .or. command_argument_count() > 2) &
+        error stop 'restart path and optional output path are required'
     call get_command_argument(1, filename)
     call load_jorek_restart(trim(filename), data, ierr)
     if (ierr /= 0) error stop 'JOREK restart load failed'
@@ -51,6 +54,18 @@ program test_jorek_global_plane_linearization
     if (ierr /= 0) error stop 'JOREK plane refinement failed'
     call build_jorek_triangle_locator(plane_rz, triangles, plane_locator, ierr)
     if (ierr /= 0) error stop 'JOREK triangle locator build failed'
+    allocate(hole_element(data%n_elements), source=.false.)
+    output_unit = -1
+    write_output = .false.
+    if (command_argument_count() == 2) then
+        call get_command_argument(2, output_filename)
+        open(newunit=output_unit, file=trim(output_filename), status='replace', &
+            action='write', iostat=ierr)
+        if (ierr /= 0) error stop 'cannot open global-hole output'
+        write_output = .true.
+        write(output_unit, '(A)') 'element,s,t,r_m,z_m,' // &
+            'neighbor_1,neighbor_2,neighbor_3,neighbor_4'
+    end if
     global_outside = 0
     boundary_outside = 0
     interior_outside = 0
@@ -90,8 +105,12 @@ program test_jorek_global_plane_linearization
                                 neighbor_recovered = neighbor_recovered + size(phases)
                         end if
                         if (ierr /= 0) then
+                            hole_element(element) = .true.
+                            if (write_output) write(output_unit, &
+                                '(I0,4(",",ES24.16E3),4(",",I0))') element, &
+                                s, t, rz, data%neighbours(element, :)
                             global_outside = global_outside + size(phases)
-                            if (any(data%neighbours(element, :) == -1)) then
+                            if (any(data%neighbours(element, :) <= 0)) then
                                 boundary_outside = boundary_outside + size(phases)
                             else
                                 interior_outside = interior_outside + size(phases)
@@ -121,11 +140,13 @@ program test_jorek_global_plane_linearization
     print '(A, I0)', 'multiple containing global triangles=', ambiguous
     print '(A, I0, A, I0)', 'global outside from boundary elements=', &
         boundary_outside, ' from interior elements=', interior_outside
+    print '(A, I0)', 'elements containing global holes=', count(hole_element)
     print '(A, 2(ES14.6, 1X))', 'source-contained max/rms B error: ', &
         metrics(1, 1), sqrt(metrics(2, 1)/metric_counts(1))
     print '(A, 2(ES14.6, 1X))', 'neighbor-recovered max/rms B error: ', &
         metrics(1, 2), sqrt(metrics(2, 2)/neighbor_recovered)
     print '(A)', 'PASS: global JOREK plane containment and interpolation'
+    if (write_output) close(output_unit)
 
 contains
 
