@@ -32,22 +32,23 @@ program test_jorek_global_plane_linearization
     real(dp) :: barycentric(3), corner_rz(2, 4), metrics(2, 2), rz(2)
     real(dp) :: rz_st(2, 2), s, t
     character(len=1024) :: argument, filename, output_filename
+    character(len=1024) :: overlap_output_filename
     integer :: ambiguous, boundary_outside, element, global_outside, i, ierr, j
     integer :: interior_outside, located, refinement
     integer :: matches, neighbor_recovered
     integer :: phase, sample, source_covered, source_outside, triangle
-    integer :: unique_sample
+    integer :: strict_ambiguous, unique_sample
     integer :: metric_counts(2)
-    integer :: output_unit
-    logical :: source_hit, write_output
+    integer :: output_unit, overlap_output_unit
+    logical :: source_hit, write_output, write_overlap_output
 
-    if (command_argument_count() < 2 .or. command_argument_count() > 3) &
-        error stop 'restart path, refinement, and optional output path are required'
+    if (command_argument_count() < 2 .or. command_argument_count() > 4) &
+        error stop 'restart path, refinement, and optional output paths are required'
     call get_command_argument(1, filename)
     call get_command_argument(2, argument)
     read(argument, *, iostat=ierr) refinement
-    if (ierr /= 0 .or. .not. any(refinement == [2, 8, 16])) &
-        error stop 'refinement must be 2, 8, or 16'
+    if (ierr /= 0 .or. .not. any(refinement == [2, 4, 8, 16])) &
+        error stop 'refinement must be 2, 4, 8, or 16'
     call load_jorek_restart(trim(filename), data, ierr)
     if (ierr /= 0) error stop 'JOREK restart load failed'
     call build_jorek_locator(data, field_locator, ierr)
@@ -59,8 +60,10 @@ program test_jorek_global_plane_linearization
     if (ierr /= 0) error stop 'JOREK triangle locator build failed'
     allocate(hole_element(data%n_elements), source=.false.)
     output_unit = -1
+    overlap_output_unit = -1
     write_output = .false.
-    if (command_argument_count() == 3) then
+    write_overlap_output = .false.
+    if (command_argument_count() >= 3) then
         call get_command_argument(3, output_filename)
         open(newunit=output_unit, file=trim(output_filename), status='replace', &
             action='write', iostat=ierr)
@@ -69,6 +72,16 @@ program test_jorek_global_plane_linearization
         write(output_unit, '(A)') 'element,s,t,r_m,z_m,' // &
             'neighbor_1,neighbor_2,neighbor_3,neighbor_4'
     end if
+    if (command_argument_count() == 4) then
+        call get_command_argument(4, overlap_output_filename)
+        open(newunit=overlap_output_unit, file=trim(overlap_output_filename), &
+            status='replace', action='write', iostat=ierr)
+        if (ierr /= 0) error stop 'cannot open global-overlap output'
+        write_overlap_output = .true.
+        write(overlap_output_unit, '(A)') &
+            'element,s,t,r_m,z_m,first_min_weight,matches,' // &
+            'source_hit,neighbor_1,neighbor_2,neighbor_3,neighbor_4'
+    end if
     global_outside = 0
     boundary_outside = 0
     interior_outside = 0
@@ -76,6 +89,7 @@ program test_jorek_global_plane_linearization
     neighbor_recovered = 0
     source_covered = 0
     source_outside = 0
+    strict_ambiguous = 0
     metrics = 0.0_dp
     metric_counts = 0
     unique_sample = 0
@@ -98,8 +112,17 @@ program test_jorek_global_plane_linearization
                         if (modulo(unique_sample, 12000) == 0) &
                             call verify_indexed_location(rz, located, &
                                 barycentric, matches, ierr)
-                        if (matches > 1) ambiguous = ambiguous + size(phases)
                         source_hit = source_contains(element, s, t, rz)
+                        if (matches > 1) then
+                            ambiguous = ambiguous + size(phases)
+                            if (minval(barycentric) > 1.0e-8_dp) &
+                                strict_ambiguous = strict_ambiguous + size(phases)
+                            if (write_overlap_output) write(overlap_output_unit, &
+                                '(I0,5(",",ES24.16E3),6(",",I0))') element, &
+                                s, t, rz, minval(barycentric), matches, &
+                                merge(1, 0, source_hit), &
+                                data%neighbours(element, :)
+                        end if
                         if (source_hit) then
                             source_covered = source_covered + size(phases)
                         else
@@ -136,6 +159,13 @@ program test_jorek_global_plane_linearization
                 .or. ambiguous /= 0 .or. boundary_outside /= 5200 &
                 .or. interior_outside /= 0 .or. count(hole_element) /= 148) &
             error stop 'factor-2 global-plane fixture changed'
+    case (4)
+        if (source_covered /= 432832 .or. source_outside /= 336960 &
+                .or. neighbor_recovered /= 332200 .or. global_outside /= 4760 &
+                .or. ambiguous /= 7628 .or. strict_ambiguous /= 7628 &
+                .or. boundary_outside /= 4760 &
+                .or. interior_outside /= 0 .or. count(hole_element) /= 148) &
+            error stop 'factor-4 global-plane fixture changed'
     case (8)
         if (source_covered /= 765124 .or. source_outside /= 4668 &
                 .or. neighbor_recovered /= 4372 .or. global_outside /= 296 &
@@ -160,6 +190,7 @@ program test_jorek_global_plane_linearization
         ' recovered by global plane=', neighbor_recovered, &
         ' global outside=', global_outside
     print '(A, I0)', 'multiple containing global triangles=', ambiguous
+    print '(A, I0)', 'strict first-triangle overlaps=', strict_ambiguous
     print '(A, I0, A, I0)', 'global outside from boundary elements=', &
         boundary_outside, ' from interior elements=', interior_outside
     print '(A, I0)', 'elements containing global holes=', count(hole_element)
@@ -169,6 +200,7 @@ program test_jorek_global_plane_linearization
         metrics(1, 2), sqrt(metrics(2, 2)/neighbor_recovered)
     print '(A)', 'PASS: global JOREK plane containment and interpolation'
     if (write_output) close(output_unit)
+    if (write_overlap_output) close(overlap_output_unit)
 
 contains
 
