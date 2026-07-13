@@ -113,13 +113,22 @@ if(GORILLA_ENABLE_JOREK)
 			SRC/TESTS/test_jorek_global_plane_linearization.f90)
 		target_link_libraries(test_jorek_global_plane_linearization.x
 			GORILLA LIBNEO::jorek netcdff netcdf lapack)
+		add_test(NAME test_jorek_global_plane_linearization_factor2
+			COMMAND test_jorek_global_plane_linearization.x
+				"${GORILLA_JOREK_GOLDEN_RESTART}"
+				2
+				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_holes_factor2.csv")
+		set_tests_properties(test_jorek_global_plane_linearization_factor2 PROPERTIES
+			DEPENDS test_jorek_poloidal_linearization LABELS "jorek;golden"
+			TIMEOUT 120)
 		add_test(NAME test_jorek_global_plane_linearization_factor8
 			COMMAND test_jorek_global_plane_linearization.x
 				"${GORILLA_JOREK_GOLDEN_RESTART}"
 				8
 				"${CMAKE_CURRENT_BINARY_DIR}/jorek_global_holes_factor8.csv")
 		set_tests_properties(test_jorek_global_plane_linearization_factor8 PROPERTIES
-			DEPENDS test_jorek_poloidal_linearization LABELS "jorek;golden"
+			DEPENDS test_jorek_global_plane_linearization_factor2
+			LABELS "jorek;golden"
 			TIMEOUT 120)
 		add_test(NAME test_jorek_global_plane_linearization_factor16
 			COMMAND test_jorek_global_plane_linearization.x
@@ -198,6 +207,15 @@ if(GORILLA_ENABLE_JOREK)
 				-P ${CMAKE_CURRENT_SOURCE_DIR}/SRC/TESTS/run_jorek_snapshot_orbit.cmake)
 		set_tests_properties(test_jorek_refined_mesh_orbit PROPERTIES
 			DEPENDS test_jorek_refined_plane LABELS "jorek;golden;slow")
+		add_executable(test_jorek_find_tetra_continuity.x
+			SRC/TESTS/test_jorek_find_tetra_continuity.f90)
+		target_link_libraries(test_jorek_find_tetra_continuity.x
+			GORILLA LIBNEO::jorek netcdff netcdf lapack)
+		add_test(NAME test_jorek_find_tetra_continuity
+			COMMAND test_jorek_find_tetra_continuity.x)
+		set_tests_properties(test_jorek_find_tetra_continuity PROPERTIES
+			DEPENDS test_jorek_refined_mesh_orbit LABELS "jorek;golden;slow"
+			TIMEOUT 120 WORKING_DIRECTORY "${JOREK_REFINED_ORBIT_DIR}")
 	endif()
 endif()
 

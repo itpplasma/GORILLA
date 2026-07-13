@@ -46,8 +46,8 @@ program test_jorek_global_plane_linearization
     call get_command_argument(1, filename)
     call get_command_argument(2, argument)
     read(argument, *, iostat=ierr) refinement
-    if (ierr /= 0 .or. .not. any(refinement == [8, 16])) &
-        error stop 'refinement must be 8 or 16'
+    if (ierr /= 0 .or. .not. any(refinement == [2, 8, 16])) &
+        error stop 'refinement must be 2, 8, or 16'
     call load_jorek_restart(trim(filename), data, ierr)
     if (ierr /= 0) error stop 'JOREK restart load failed'
     call build_jorek_locator(data, field_locator, ierr)
@@ -130,6 +130,12 @@ program test_jorek_global_plane_linearization
         end do
     end do
     select case (refinement)
+    case (2)
+        if (source_covered /= 420264 .or. source_outside /= 349528 &
+                .or. neighbor_recovered /= 344328 .or. global_outside /= 5200 &
+                .or. ambiguous /= 0 .or. boundary_outside /= 5200 &
+                .or. interior_outside /= 0 .or. count(hole_element) /= 148) &
+            error stop 'factor-2 global-plane fixture changed'
     case (8)
         if (source_covered /= 765124 .or. source_outside /= 4668 &
                 .or. neighbor_recovered /= 4372 .or. global_outside /= 296 &
