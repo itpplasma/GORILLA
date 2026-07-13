@@ -21,6 +21,7 @@ program test_jorek_global_plane_linearization
         0.2_dp, 0.6_dp, 0.2_dp, 0.2_dp, 0.2_dp, 0.6_dp], [3, 4])
     integer, parameter :: triangle_vertices(3, 2) = &
         reshape([1, 2, 3, 1, 3, 4], [3, 2])
+    integer, parameter :: max_tail_records = 100
     real(dp), parameter :: corner_s(4) = [0.0_dp, 1.0_dp, 1.0_dp, 0.0_dp]
     real(dp), parameter :: corner_t(4) = [0.0_dp, 0.0_dp, 1.0_dp, 1.0_dp]
     character(len=11), parameter :: relation_names(4) = &
@@ -59,6 +60,10 @@ program test_jorek_global_plane_linearization
     integer :: strict_ambiguous, unique_sample
     integer :: metric_counts(2), recovered_high_counts(4)
     integer :: recovered_relation_counts(4)
+    integer :: tail_edge_count, tail_edge_nodes(2, max_tail_records)
+    integer :: tail_edge_phase_counts(max_tail_records)
+    integer :: tail_point_count, tail_point_element(max_tail_records)
+    real(dp) :: tail_point_s(max_tail_records), tail_point_t(max_tail_records)
     integer :: output_unit, overlap_output_unit, tail_output_unit
     logical :: boundary_mode, source_hit, write_output, write_overlap_output
     logical :: write_tail_output
@@ -131,6 +136,8 @@ program test_jorek_global_plane_linearization
             'relation,error,element,s,t,phi_rad,r_m,z_m,triangle,' // &
             'triangle_element,element_distance,matches,w1,w2,w3,' // &
             'node1,node2,node3,owner1,owner2,owner3,' // &
+            'cell_i,cell_j,crossed_edge,edge_node1,edge_node2,' // &
+            'signed_chord_distance_m,element_side,side_neighbor,' // &
             'exact_br_g,exact_bphi_g,exact_bz_g,' // &
             'interpolated_br_g,interpolated_bphi_g,interpolated_bz_g'
     end if
@@ -147,6 +154,13 @@ program test_jorek_global_plane_linearization
     recovered_high_counts = 0
     recovered_relation_counts = 0
     recovered_relation_metrics = 0.0_dp
+    tail_edge_count = 0
+    tail_edge_nodes = 0
+    tail_edge_phase_counts = 0
+    tail_point_count = 0
+    tail_point_element = 0
+    tail_point_s = 0.0_dp
+    tail_point_t = 0.0_dp
     unique_sample = 0
 
     do element = 1, data%n_elements
@@ -258,6 +272,11 @@ program test_jorek_global_plane_linearization
             .or. .not. all(ieee_is_finite(metrics)) &
             .or. .not. all(ieee_is_finite(recovered_relation_metrics))) &
         error stop 'global-plane sample partition failed'
+    if (refinement == 2) then
+        if (sum(tail_edge_phase_counts) /= sum(recovered_high_counts) &
+                .or. tail_point_count /= 18 .or. tail_edge_count /= 16) &
+            error stop 'factor-2 recovered chord partition changed'
+    end if
     if (boundary_mode) then
         print '(A)', 'refinement=boundary8'
     else
@@ -275,6 +294,9 @@ program test_jorek_global_plane_linearization
         metrics(1, 1), sqrt(metrics(2, 1)/metric_counts(1))
     print '(A, 2(ES14.6, 1X))', 'neighbor-recovered max/rms B error: ', &
         metrics(1, 2), sqrt(metrics(2, 2)/neighbor_recovered)
+    if (refinement == 2) print '(A, I0, A, I0)', &
+        'above-gate unique points=', tail_point_count, &
+        ' crossed chords=', tail_edge_count
     if (command_argument_count() >= 6) then
         call get_command_argument(6, topology_output_filename)
         call write_topology_output(trim(topology_output_filename))
@@ -412,9 +434,12 @@ contains
         if (group == 2) then
             call record_recovered_relation(element, triangle_parent(triangle), &
                 error)
-            if (write_tail_output .and. error > 0.02_dp) &
-                call write_recovered_tail(element, s, t, phi, rz, triangle, &
-                    weight, matches, b_exact, b_interp, error)
+            if (error > 0.02_dp) then
+                if (refinement == 2) call record_tail_chord(element, s, t, rz)
+                if (write_tail_output) call write_recovered_tail(element, s, &
+                    t, phi, rz, triangle, weight, matches, b_exact, b_interp, &
+                    error)
+            end if
         end if
         metrics(1, group) = max(metrics(1, group), error)
         metrics(2, group) = metrics(2, group) + error**2
@@ -651,17 +676,124 @@ contains
         real(dp), intent(in) :: s, t, phi, rz(2), weight(3)
         real(dp), intent(in) :: b_exact(3), b_interp(3), error
 
-        integer :: distance, nodes(3), owners(3), parent, relation
+        real(dp) :: chord_distance
+        integer :: cell_i, cell_j, chord_nodes(2), crossed_edge, distance
+        integer :: element_side, nodes(3), owners(3), parent, relation
+        integer :: side_neighbor
 
         parent = triangle_parent(triangle)
         relation = parent_relation(element, parent)
         distance = neighbor_distance(element, parent)
         nodes = triangles(triangle, :)
         owners = vertex_element(nodes)
+        call source_crossed_chord(element, s, t, rz, cell_i, cell_j, &
+            crossed_edge, chord_nodes, chord_distance, element_side, &
+            side_neighbor)
         write(tail_output_unit, '(*(g0,:,","))') trim(relation_names(relation)), &
             error, element, s, t, phi, rz, triangle, parent, distance, matches, &
-            weight, nodes, owners, b_exact, b_interp
+            weight, nodes, owners, cell_i, cell_j, crossed_edge, chord_nodes, &
+            chord_distance, element_side, side_neighbor, b_exact, b_interp
     end subroutine write_recovered_tail
+
+    subroutine source_crossed_chord(element, s, t, point, cell_i, cell_j, &
+            crossed_edge, chord_nodes, distance, element_side, side_neighbor)
+        integer, intent(in) :: element
+        real(dp), intent(in) :: s, t, point(2)
+        integer, intent(out) :: cell_i, cell_j, crossed_edge, chord_nodes(2)
+        real(dp), intent(out) :: distance
+        integer, intent(out) :: element_side, side_neighbor
+
+        real(dp) :: area, chord_distance, corners(2, 4), edge_vector(2)
+        real(dp) :: orientation
+        integer :: corner, grid_i(4), grid_j(4), next_corner, nodes(4)
+
+        cell_i = min(refinement - 1, int(s*refinement))
+        cell_j = min(refinement - 1, int(t*refinement))
+        grid_i = [cell_i, cell_i + 1, cell_i + 1, cell_i]
+        grid_j = [cell_j, cell_j, cell_j + 1, cell_j + 1]
+        do corner = 1, 4
+            nodes(corner) = element_vertex(grid_i(corner), grid_j(corner), &
+                element)
+            corners(:, corner) = plane_rz(:, nodes(corner))
+        end do
+        area = 0.0_dp
+        do corner = 1, 4
+            next_corner = modulo(corner, 4) + 1
+            area = area + corners(1, corner)*corners(2, next_corner) &
+                - corners(1, next_corner)*corners(2, corner)
+        end do
+        orientation = merge(1.0_dp, -1.0_dp, area >= 0.0_dp)
+        distance = huge(1.0_dp)
+        crossed_edge = 0
+        do corner = 1, 4
+            next_corner = modulo(corner, 4) + 1
+            edge_vector = corners(:, next_corner) - corners(:, corner)
+            chord_distance = orientation*(edge_vector(1) &
+                *(point(2) - corners(2, corner)) - edge_vector(2) &
+                *(point(1) - corners(1, corner)))/sqrt(sum(edge_vector**2))
+            if (chord_distance < distance) then
+                distance = chord_distance
+                crossed_edge = corner
+            end if
+        end do
+        chord_nodes = [nodes(crossed_edge), &
+            nodes(modulo(crossed_edge, 4) + 1)]
+        call source_element_side(cell_i, cell_j, crossed_edge, element_side)
+        side_neighbor = 0
+        if (element_side > 0) side_neighbor = &
+            data%neighbours(element, element_side)
+    end subroutine source_crossed_chord
+
+    subroutine source_element_side(cell_i, cell_j, crossed_edge, element_side)
+        integer, intent(in) :: cell_i, cell_j, crossed_edge
+        integer, intent(out) :: element_side
+
+        element_side = 0
+        if (crossed_edge == 1 .and. cell_j == 0) element_side = 1
+        if (crossed_edge == 2 .and. cell_i == refinement - 1) element_side = 2
+        if (crossed_edge == 3 .and. cell_j == refinement - 1) element_side = 3
+        if (crossed_edge == 4 .and. cell_i == 0) element_side = 4
+    end subroutine source_element_side
+
+    subroutine record_tail_chord(element, s, t, point)
+        integer, intent(in) :: element
+        real(dp), intent(in) :: s, t, point(2)
+
+        real(dp) :: distance
+        integer :: cell_i, cell_j, chord_nodes(2), crossed_edge, edge_record
+        integer :: element_side, point_record, side_neighbor, sorted_nodes(2)
+
+        call source_crossed_chord(element, s, t, point, cell_i, cell_j, &
+            crossed_edge, chord_nodes, distance, element_side, side_neighbor)
+        if (distance >= 0.0_dp .or. element_side <= 0 .or. side_neighbor <= 0) &
+            error stop 'recovered tail does not cross an interior element side'
+        sorted_nodes = [minval(chord_nodes), maxval(chord_nodes)]
+        edge_record = 0
+        do point_record = 1, tail_edge_count
+            if (all(tail_edge_nodes(:, point_record) == sorted_nodes)) &
+                edge_record = point_record
+        end do
+        if (edge_record == 0) then
+            tail_edge_count = tail_edge_count + 1
+            if (tail_edge_count > max_tail_records) &
+                error stop 'too many recovered tail chords'
+            edge_record = tail_edge_count
+            tail_edge_nodes(:, edge_record) = sorted_nodes
+        end if
+        tail_edge_phase_counts(edge_record) = &
+            tail_edge_phase_counts(edge_record) + 1
+        do point_record = 1, tail_point_count
+            if (tail_point_element(point_record) == element &
+                    .and. tail_point_s(point_record) == s &
+                    .and. tail_point_t(point_record) == t) return
+        end do
+        tail_point_count = tail_point_count + 1
+        if (tail_point_count > max_tail_records) &
+            error stop 'too many recovered tail points'
+        tail_point_element(tail_point_count) = element
+        tail_point_s(tail_point_count) = s
+        tail_point_t(tail_point_count) = t
+    end subroutine record_tail_chord
 
     logical function has_coincident_corners(corners)
         real(dp), intent(in) :: corners(2, 4)
