@@ -29,7 +29,7 @@ program test_jorek_poloidal_linearization
     integer, allocatable :: element_covered(:), element_outside(:)
     real(dp), allocatable :: mesh_psi(:), mesh_rz(:, :), mesh_st(:, :)
     integer, allocatable :: mesh_nodes(:, :, :), mesh_owner(:), mesh_triangles(:, :)
-    real(dp) :: corner_rz(2, 4), metrics(6), phi, rz_st(2, 2)
+    real(dp) :: corner_rz(2, 4), metrics(6), phi, rz_st(2, 2), target_metrics(2)
     real(dp) :: outside_distance(2)
     real(dp) :: worst_b_exact(3), worst_b_interp(3), worst_rz(2)
     character(len=1024) :: filename, metrics_filename
@@ -48,7 +48,7 @@ program test_jorek_poloidal_linearization
     call build_jorek_locator(data, locator, ierr)
     if (ierr /= 0) error stop 'JOREK locator build failed'
     allocate(axis_mask(data%n_elements), uncovered_elements(data%n_elements))
-    allocate(element_metrics(4, data%n_elements))
+    allocate(element_metrics(6, data%n_elements))
     allocate(element_covered(data%n_elements), element_outside(data%n_elements))
     metrics_unit = -1
     write_metrics = .false.
@@ -59,12 +59,14 @@ program test_jorek_poloidal_linearization
         if (ierr /= 0) error stop 'cannot open JOREK metrics output'
         write_metrics = .true.
         write(metrics_unit, '(A)') 'refinement,element,axis,covered,outside,' // &
-            'b_max_relative,b_rms_relative,miss_max_cm,miss_rms_cm'
+            'b_max_relative,b_rms_relative,miss_max_cm,miss_rms_cm,' // &
+            'target_b_max_relative,target_b_rms_relative'
     end if
 
     do level = 1, size(refinements)
         refinement = refinements(level)
         metrics = 0.0_dp
+        target_metrics = 0.0_dp
         worst_case = 0
         axis_elements = 0
         outside = 0
@@ -112,6 +114,10 @@ program test_jorek_poloidal_linearization
         metrics(2) = sqrt(metrics(2)/samples)
         metrics(4) = sqrt(metrics(4)/samples)
         metrics(6) = sqrt(metrics(6)/samples)
+        target_metrics(2) = sqrt(target_metrics(2)/samples)
+        if (refinement == 1 &
+                .and. maxval(abs(target_metrics - metrics(1:2))) > 1.0e-14_dp) &
+            error stop 'factor-1 owner interpolation identity failed'
         if (samples + outside /= 769792) &
             error stop 'fixed poloidal sample count changed'
         if (sum(element_covered) /= samples &
@@ -124,6 +130,8 @@ program test_jorek_poloidal_linearization
             ' axis_elements=', axis_elements
         print '(A, 6(ES14.6, 1X))', &
             'max/rms B, A, |B| relative errors: ', metrics
+        print '(A, 2(ES14.6, 1X))', &
+            'target-owner max/rms B relative errors: ', target_metrics
         print '(A, I0)', 'uncovered elements=', count(uncovered_elements)
         if (outside > 0) then
             outside_distance(2) = sqrt(outside_distance(2)/outside)
@@ -178,73 +186,34 @@ contains
         integer, intent(inout) :: samples, uncovered
 
         real(dp) :: a_corner(3, 4), a_exact(3), a_interp(3), a_jorek(3)
+        real(dp) :: a_target_corner(3, 4), a_target_interp(3)
         real(dp) :: barycentric(3), b_exact(3), b_interp(3), b_jorek(3)
+        real(dp) :: b_target_interp(3)
         real(dp) :: b_error, miss_distance
-        real(dp) :: bmod_corner(4), bmod_exact, bmod_interp
-        real(dp) :: corner_rz(2, 4), h_corner(3, 4), h_exact(3), h_interp(3)
-        real(dp) :: rz(2), rz_st(2, 2), st(2), sub_s(4), sub_t(4)
-        integer :: cell_i, cell_j, corner_owner(4), found, grid_i(4), grid_j(4), ierr, index
-        integer :: mesh_node, owner, vertices(3)
+        real(dp) :: bmod_corner(4), bmod_exact, bmod_interp, bmod_target(4)
+        real(dp) :: bmod_target_interp
+        real(dp) :: corner_rz(2, 4), h_corner(3, 4), h_exact(3)
+        real(dp) :: h_target_corner(3, 4), rz(2), rz_st(2, 2), st(2)
+        integer :: cell_i, cell_j, corner_owner(4), found, ierr, vertices(3)
 
         cell_i = min(refinement - 1, int(target_s*refinement))
         cell_j = min(refinement - 1, int(target_t*refinement))
-        sub_s = real([cell_i, cell_i + 1, cell_i + 1, cell_i], dp)/refinement
-        sub_t = real([cell_j, cell_j, cell_j + 1, cell_j + 1], dp)/refinement
-        grid_i = [cell_i, cell_i + 1, cell_i + 1, cell_i]
-        grid_j = [cell_j, cell_j, cell_j + 1, cell_j + 1]
-        do index = 1, 4
-            if (refinement == 1) then
-                call evaluate_jorek_geometry(data, element, sub_s(index), &
-                    sub_t(index), corner_rz(:, index), rz_st, ierr)
-                if (ierr /= 0) error stop 'JOREK corner geometry failed'
-                owner = element
-                corner_owner(index) = owner
-                call evaluate_owner_corner(data, owner, sub_s(index), &
-                    sub_t(index), phi, corner_rz(:, index), &
-                    a_corner(:, index), h_corner(:, index), &
-                    bmod_corner(index))
-            else
-                mesh_node = mesh_nodes(grid_i(index), grid_j(index), element)
-                corner_rz(:, index) = mesh_rz(:, mesh_node)
-                owner = mesh_owner(mesh_node)
-                corner_owner(index) = owner
-                if (owner == 0) error stop 'non-axis sample uses axis owner'
-                call evaluate_owner_corner(data, owner, &
-                    mesh_st(1, mesh_node), mesh_st(2, mesh_node), phi, &
-                    corner_rz(:, index), a_corner(:, index), &
-                    h_corner(:, index), bmod_corner(index))
-            end if
-        end do
+        call prepare_sample_corners(data, phi, refinement, cell_i, cell_j, &
+            corner_rz, corner_owner, a_corner, h_corner, bmod_corner, &
+            a_target_corner, h_target_corner, bmod_target)
         call evaluate_jorek_geometry(data, element, target_s, target_t, rz, &
             rz_st, ierr)
         if (ierr /= 0) error stop 'JOREK fixed-point geometry failed'
-        if ((target_t*refinement - cell_j) &
-                <= (target_s*refinement - cell_i)) then
-            vertices = triangle_vertices(:, 1)
-        else
-            vertices = triangle_vertices(:, 2)
-        end if
-        call physical_barycentric(corner_rz(:, vertices), rz, barycentric, ierr)
-        if (ierr /= 0 .or. any(barycentric < -1.0e-10_dp) &
-                .or. any(barycentric > 1.0_dp + 1.0e-10_dp)) then
-            if (all(vertices == triangle_vertices(:, 1))) then
-                vertices = triangle_vertices(:, 2)
-            else
-                vertices = triangle_vertices(:, 1)
-            end if
-            call physical_barycentric(corner_rz(:, vertices), rz, &
-                barycentric, ierr)
-            if (ierr /= 0 .or. any(barycentric < -1.0e-10_dp) &
-                    .or. any(barycentric > 1.0_dp + 1.0e-10_dp)) then
-                uncovered = uncovered + 1
-                element_outside(element) = element_outside(element) + 1
-                uncovered_elements(element) = .true.
-                miss_distance = distance_to_triangles(corner_rz, rz)
-                call update_metrics(miss_distance, outside_distance)
-                call update_metrics(miss_distance, &
-                    element_metrics(3:4, element))
-                return
-            end if
+        call find_sample_triangle(corner_rz, rz, target_s, target_t, &
+            refinement, cell_i, cell_j, vertices, barycentric, ierr)
+        if (ierr /= 0) then
+            uncovered = uncovered + 1
+            element_outside(element) = element_outside(element) + 1
+            uncovered_elements(element) = .true.
+            miss_distance = distance_to_triangles(corner_rz, rz)
+            call update_metrics(miss_distance, outside_distance)
+            call update_metrics(miss_distance, element_metrics(3:4, element))
+            return
         end if
         call evaluate_jorek_model303_a(data, element, target_s, target_t, &
             phi, a_jorek, ierr)
@@ -255,19 +224,12 @@ contains
         st = [target_s, target_t]
         call convert_components(rz(1)*100.0_dp, a_jorek, b_jorek, a_exact, &
             h_exact, bmod_exact)
-        a_interp = 0.0_dp
-        h_interp = 0.0_dp
-        bmod_interp = 0.0_dp
-        do index = 1, 3
-            a_interp = a_interp + barycentric(index)*a_corner(:, vertices(index))
-            h_interp = h_interp + barycentric(index)*h_corner(:, vertices(index))
-            bmod_interp = bmod_interp &
-                + barycentric(index)*bmod_corner(vertices(index))
-        end do
-        a_interp = [a_interp(1), a_interp(2)/(rz(1)*100.0_dp), a_interp(3)]
+        call interpolate_corner_field(vertices, barycentric, rz(1), a_corner, &
+            h_corner, bmod_corner, a_interp, b_interp, bmod_interp)
+        call interpolate_corner_field(vertices, barycentric, rz(1), &
+            a_target_corner, h_target_corner, bmod_target, a_target_interp, &
+            b_target_interp, bmod_target_interp)
         a_exact = [a_exact(1), a_exact(2)/(rz(1)*100.0_dp), a_exact(3)]
-        b_interp = [h_interp(1)*bmod_interp, &
-            h_interp(2)*bmod_interp/(rz(1)*100.0_dp), h_interp(3)*bmod_interp]
         b_exact = [h_exact(1)*bmod_exact, &
             h_exact(2)*bmod_exact/(rz(1)*100.0_dp), h_exact(3)*bmod_exact]
         b_error = relative_error(b_interp, b_exact)
@@ -282,11 +244,123 @@ contains
         end if
         call update_metrics(b_error, metrics(1:2))
         call update_metrics(b_error, element_metrics(1:2, element))
+        call update_metrics(relative_error(b_target_interp, b_exact), &
+            target_metrics)
+        call update_metrics(relative_error(b_target_interp, b_exact), &
+            element_metrics(5:6, element))
         call update_metrics(relative_error(a_interp, a_exact), metrics(3:4))
         call update_metrics(abs(bmod_interp/bmod_exact - 1.0_dp), metrics(5:6))
         samples = samples + 1
         element_covered(element) = element_covered(element) + 1
     end subroutine compare_fixed_sample
+
+    subroutine prepare_sample_corners(data, phi, refinement, cell_i, cell_j, &
+            corner_rz, corner_owner, a_corner, h_corner, bmod_corner, &
+            a_target, h_target, bmod_target)
+        type(jorek_restart_t), intent(in) :: data
+        real(dp), intent(in) :: phi
+        integer, intent(in) :: refinement, cell_i, cell_j
+        real(dp), intent(out) :: corner_rz(2, 4), a_corner(3, 4), h_corner(3, 4)
+        real(dp), intent(out) :: bmod_corner(4), a_target(3, 4), h_target(3, 4)
+        real(dp), intent(out) :: bmod_target(4)
+        integer, intent(out) :: corner_owner(4)
+
+        real(dp) :: rz_st(2, 2), sub_s(4), sub_t(4)
+        integer :: grid_i(4), grid_j(4), ierr, index, mesh_node, owner
+
+        sub_s = real([cell_i, cell_i + 1, cell_i + 1, cell_i], dp)/refinement
+        sub_t = real([cell_j, cell_j, cell_j + 1, cell_j + 1], dp)/refinement
+        grid_i = [cell_i, cell_i + 1, cell_i + 1, cell_i]
+        grid_j = [cell_j, cell_j, cell_j + 1, cell_j + 1]
+        do index = 1, 4
+            if (refinement == 1) then
+                call evaluate_jorek_geometry(data, element, sub_s(index), &
+                    sub_t(index), corner_rz(:, index), rz_st, ierr)
+                if (ierr /= 0) error stop 'JOREK corner geometry failed'
+                owner = element
+            else
+                mesh_node = mesh_nodes(grid_i(index), grid_j(index), element)
+                corner_rz(:, index) = mesh_rz(:, mesh_node)
+                owner = mesh_owner(mesh_node)
+                if (owner == 0) error stop 'non-axis sample uses axis owner'
+            end if
+            corner_owner(index) = owner
+            if (refinement == 1) then
+                call evaluate_owner_corner(data, owner, sub_s(index), &
+                    sub_t(index), phi, corner_rz(:, index), a_corner(:, index), &
+                    h_corner(:, index), bmod_corner(index))
+            else
+                call evaluate_owner_corner(data, owner, mesh_st(1, mesh_node), &
+                    mesh_st(2, mesh_node), phi, corner_rz(:, index), &
+                    a_corner(:, index), h_corner(:, index), bmod_corner(index))
+            end if
+            if (owner == element) then
+                a_target(:, index) = a_corner(:, index)
+                h_target(:, index) = h_corner(:, index)
+                bmod_target(index) = bmod_corner(index)
+            else
+                call evaluate_owner_corner(data, element, sub_s(index), &
+                    sub_t(index), phi, corner_rz(:, index), a_target(:, index), &
+                    h_target(:, index), bmod_target(index))
+            end if
+        end do
+    end subroutine prepare_sample_corners
+
+    subroutine find_sample_triangle(corners, point, target_s, target_t, &
+            refinement, cell_i, cell_j, vertices, barycentric, ierr)
+        real(dp), intent(in) :: corners(2, 4), point(2), target_s, target_t
+        integer, intent(in) :: refinement, cell_i, cell_j
+        integer, intent(out) :: vertices(3), ierr
+        real(dp), intent(out) :: barycentric(3)
+
+        if ((target_t*refinement - cell_j) &
+                <= (target_s*refinement - cell_i)) then
+            vertices = triangle_vertices(:, 1)
+        else
+            vertices = triangle_vertices(:, 2)
+        end if
+        call physical_barycentric(corners(:, vertices), point, barycentric, ierr)
+        if (valid_barycentric(barycentric, ierr)) return
+        if (all(vertices == triangle_vertices(:, 1))) then
+            vertices = triangle_vertices(:, 2)
+        else
+            vertices = triangle_vertices(:, 1)
+        end if
+        call physical_barycentric(corners(:, vertices), point, barycentric, ierr)
+        if (.not. valid_barycentric(barycentric, ierr)) ierr = 1
+    end subroutine find_sample_triangle
+
+    logical function valid_barycentric(weight, ierr)
+        real(dp), intent(in) :: weight(3)
+        integer, intent(in) :: ierr
+
+        valid_barycentric = ierr == 0 .and. all(weight >= -1.0e-10_dp) &
+            .and. all(weight <= 1.0_dp + 1.0e-10_dp)
+    end function valid_barycentric
+
+    subroutine interpolate_corner_field(vertices, weight, r, a_corner, &
+            h_corner, bmod_corner, a_interp, b_interp, bmod_interp)
+        integer, intent(in) :: vertices(3)
+        real(dp), intent(in) :: weight(3), r, a_corner(3, 4), h_corner(3, 4)
+        real(dp), intent(in) :: bmod_corner(4)
+        real(dp), intent(out) :: a_interp(3), b_interp(3), bmod_interp
+
+        real(dp) :: h_interp(3), r_cm
+        integer :: index
+
+        a_interp = 0.0_dp
+        h_interp = 0.0_dp
+        bmod_interp = 0.0_dp
+        do index = 1, 3
+            a_interp = a_interp + weight(index)*a_corner(:, vertices(index))
+            h_interp = h_interp + weight(index)*h_corner(:, vertices(index))
+            bmod_interp = bmod_interp + weight(index)*bmod_corner(vertices(index))
+        end do
+        r_cm = 100.0_dp*r
+        a_interp = [a_interp(1), a_interp(2)/r_cm, a_interp(3)]
+        b_interp = [h_interp(1)*bmod_interp, &
+            h_interp(2)*bmod_interp/r_cm, h_interp(3)*bmod_interp]
+    end subroutine interpolate_corner_field
 
     subroutine write_element_metrics(unit, refinement, axis, covered, &
             outside, values)
@@ -294,20 +368,24 @@ contains
         logical, intent(in) :: axis(:)
         real(dp), intent(in) :: values(:, :)
 
-        real(dp) :: b_rms, miss_rms
+        real(dp) :: b_rms, miss_rms, target_b_rms
         integer :: element
 
         do element = 1, size(axis)
             b_rms = 0.0_dp
             miss_rms = 0.0_dp
+            target_b_rms = 0.0_dp
             if (covered(element) > 0) &
                 b_rms = sqrt(values(2, element)/covered(element))
             if (outside(element) > 0) &
                 miss_rms = 100.0_dp*sqrt(values(4, element)/outside(element))
-            write(unit, '(I0,",",I0,",",I0,",",I0,",",I0,4(",",ES24.16E3))') &
+            if (covered(element) > 0) &
+                target_b_rms = sqrt(values(6, element)/covered(element))
+            write(unit, '(I0,",",I0,",",I0,",",I0,",",I0,6(",",ES24.16E3))') &
                 refinement, element, merge(1, 0, axis(element)), &
                 covered(element), outside(element), values(1, element), &
-                b_rms, 100.0_dp*values(3, element), miss_rms
+                b_rms, 100.0_dp*values(3, element), miss_rms, &
+                values(5, element), target_b_rms
         end do
     end subroutine write_element_metrics
 
