@@ -1,4 +1,5 @@
 program test_jorek_poloidal_linearization
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use jorek_bezier, only: jorek_locator_t, build_jorek_locator, &
         evaluate_jorek_geometry
@@ -22,27 +23,44 @@ program test_jorek_poloidal_linearization
 
     type(jorek_restart_t) :: data
     type(jorek_locator_t) :: locator
-    logical, allocatable :: uncovered_elements(:)
+    logical, allocatable :: axis_mask(:), uncovered_elements(:)
+    logical :: write_metrics
+    real(dp), allocatable :: element_metrics(:, :)
+    integer, allocatable :: element_covered(:), element_outside(:)
     real(dp), allocatable :: mesh_psi(:), mesh_rz(:, :), mesh_st(:, :)
     integer, allocatable :: mesh_nodes(:, :, :), mesh_owner(:), mesh_triangles(:, :)
     real(dp) :: corner_rz(2, 4), metrics(6), phi, rz_st(2, 2)
     real(dp) :: outside_distance(2)
     real(dp) :: worst_b_exact(3), worst_b_interp(3), worst_rz(2)
-    character(len=1024) :: filename
-    integer :: axis_elements, element, i, ierr, j, level, outside, phase
+    character(len=1024) :: filename, metrics_filename
+    integer :: axis_elements, element, i, ierr, j, level, metrics_unit, outside, phase
     integer :: refinement, sample, samples, triangle, vertex
     real(dp) :: target_s, target_t
     integer :: worst_case(4), worst_found
     integer :: worst_corner_owner(4)
     real(dp) :: worst_st(2)
 
-    if (command_argument_count() /= 1) error stop 'restart path argument is required'
+    if (command_argument_count() < 1 .or. command_argument_count() > 2) &
+        error stop 'restart path and optional metrics path are required'
     call get_command_argument(1, filename)
     call load_jorek_restart(trim(filename), data, ierr)
     if (ierr /= 0) error stop 'JOREK restart load failed'
     call build_jorek_locator(data, locator, ierr)
     if (ierr /= 0) error stop 'JOREK locator build failed'
-    allocate (uncovered_elements(data%n_elements))
+    allocate(axis_mask(data%n_elements), uncovered_elements(data%n_elements))
+    allocate(element_metrics(4, data%n_elements))
+    allocate(element_covered(data%n_elements), element_outside(data%n_elements))
+    metrics_unit = -1
+    write_metrics = .false.
+    if (command_argument_count() == 2) then
+        call get_command_argument(2, metrics_filename)
+        open(newunit=metrics_unit, file=trim(metrics_filename), &
+            status='replace', action='write', iostat=ierr)
+        if (ierr /= 0) error stop 'cannot open JOREK metrics output'
+        write_metrics = .true.
+        write(metrics_unit, '(A)') 'refinement,element,axis,covered,outside,' // &
+            'b_max_relative,b_rms_relative,miss_max_cm,miss_rms_cm'
+    end if
 
     do level = 1, size(refinements)
         refinement = refinements(level)
@@ -52,6 +70,10 @@ program test_jorek_poloidal_linearization
         outside = 0
         outside_distance = 0.0_dp
         samples = 0
+        axis_mask = .false.
+        element_covered = 0
+        element_outside = 0
+        element_metrics = 0.0_dp
         uncovered_elements = .false.
         if (refinement > 1) then
             call extract_refined_jorek_plane(data, refinement, mesh_rz, &
@@ -66,6 +88,7 @@ program test_jorek_poloidal_linearization
             end do
             if (has_coincident_corners(corner_rz)) then
                 axis_elements = axis_elements + 1
+                axis_mask(element) = .true.
                 cycle
             end if
             do phase = 0, 3
@@ -91,6 +114,10 @@ program test_jorek_poloidal_linearization
         metrics(6) = sqrt(metrics(6)/samples)
         if (samples + outside /= 769792) &
             error stop 'fixed poloidal sample count changed'
+        if (sum(element_covered) /= samples &
+                .or. sum(element_outside) /= outside &
+                .or. .not. all(ieee_is_finite(element_metrics))) &
+            error stop 'per-element metric partition failed'
         if (outside == 0) error stop 'coverage-failure fixture changed'
         print '(A, I0, A, I0, A, I0, A, I0)', 'refinement=', refinement, &
             ' samples=', samples, ' outside=', outside, &
@@ -109,7 +136,11 @@ program test_jorek_poloidal_linearization
         print '(A, 3(ES14.6, 1X))', 'worst B exact ', worst_b_exact
         print '(A, 3(ES14.6, 1X))', 'worst B interpolated ', worst_b_interp
         print '(A, 4(I0, 1X))', 'worst corner owners ', worst_corner_owner
+        if (write_metrics) call write_element_metrics(metrics_unit, &
+            refinement, axis_mask, element_covered, element_outside, &
+            element_metrics)
     end do
+    if (write_metrics) close(metrics_unit)
     call print_axis_limit(data, 0.0_dp)
     call print_axis_limit(data, pi)
     call print_regularized_axis(data, locator, 0.0_dp)
@@ -148,6 +179,7 @@ contains
 
         real(dp) :: a_corner(3, 4), a_exact(3), a_interp(3), a_jorek(3)
         real(dp) :: barycentric(3), b_exact(3), b_interp(3), b_jorek(3)
+        real(dp) :: b_error, miss_distance
         real(dp) :: bmod_corner(4), bmod_exact, bmod_interp
         real(dp) :: corner_rz(2, 4), h_corner(3, 4), h_exact(3), h_interp(3)
         real(dp) :: rz(2), rz_st(2, 2), st(2), sub_s(4), sub_t(4)
@@ -205,9 +237,12 @@ contains
             if (ierr /= 0 .or. any(barycentric < -1.0e-10_dp) &
                     .or. any(barycentric > 1.0_dp + 1.0e-10_dp)) then
                 uncovered = uncovered + 1
+                element_outside(element) = element_outside(element) + 1
                 uncovered_elements(element) = .true.
-                call update_metrics(distance_to_triangles(corner_rz, rz), &
-                    outside_distance)
+                miss_distance = distance_to_triangles(corner_rz, rz)
+                call update_metrics(miss_distance, outside_distance)
+                call update_metrics(miss_distance, &
+                    element_metrics(3:4, element))
                 return
             end if
         end if
@@ -235,7 +270,8 @@ contains
             h_interp(2)*bmod_interp/(rz(1)*100.0_dp), h_interp(3)*bmod_interp]
         b_exact = [h_exact(1)*bmod_exact, &
             h_exact(2)*bmod_exact/(rz(1)*100.0_dp), h_exact(3)*bmod_exact]
-        if (relative_error(b_interp, b_exact) > metrics(1)) then
+        b_error = relative_error(b_interp, b_exact)
+        if (b_error > metrics(1)) then
             worst_case = [element, phase, cell_i, cell_j]
             worst_found = found
             worst_st = st
@@ -244,11 +280,36 @@ contains
             worst_b_interp = b_interp
             worst_corner_owner = corner_owner
         end if
-        call update_metrics(relative_error(b_interp, b_exact), metrics(1:2))
+        call update_metrics(b_error, metrics(1:2))
+        call update_metrics(b_error, element_metrics(1:2, element))
         call update_metrics(relative_error(a_interp, a_exact), metrics(3:4))
         call update_metrics(abs(bmod_interp/bmod_exact - 1.0_dp), metrics(5:6))
         samples = samples + 1
+        element_covered(element) = element_covered(element) + 1
     end subroutine compare_fixed_sample
+
+    subroutine write_element_metrics(unit, refinement, axis, covered, &
+            outside, values)
+        integer, intent(in) :: unit, refinement, covered(:), outside(:)
+        logical, intent(in) :: axis(:)
+        real(dp), intent(in) :: values(:, :)
+
+        real(dp) :: b_rms, miss_rms
+        integer :: element
+
+        do element = 1, size(axis)
+            b_rms = 0.0_dp
+            miss_rms = 0.0_dp
+            if (covered(element) > 0) &
+                b_rms = sqrt(values(2, element)/covered(element))
+            if (outside(element) > 0) &
+                miss_rms = 100.0_dp*sqrt(values(4, element)/outside(element))
+            write(unit, '(I0,",",I0,",",I0,",",I0,",",I0,4(",",ES24.16E3))') &
+                refinement, element, merge(1, 0, axis(element)), &
+                covered(element), outside(element), values(1, element), &
+                b_rms, 100.0_dp*values(3, element), miss_rms
+        end do
+    end subroutine write_element_metrics
 
     subroutine evaluate_owner_corner(data, element, s, t, phi, rz, a, h, bmod)
         type(jorek_restart_t), intent(in) :: data
