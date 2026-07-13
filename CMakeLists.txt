@@ -160,6 +160,17 @@ if(GORILLA_ENABLE_JOREK)
 		set_tests_properties(test_jorek_global_plane_linearization_factor16 PROPERTIES
 			DEPENDS test_jorek_global_plane_linearization_factor8
 			LABELS "jorek;golden" TIMEOUT 120)
+		add_executable(test_jorek_edge_sagitta.x
+			SRC/TESTS/test_jorek_edge_sagitta.f90)
+		target_link_libraries(test_jorek_edge_sagitta.x
+			GORILLA LIBNEO::jorek netcdff netcdf lapack)
+		add_test(NAME test_jorek_edge_sagitta
+			COMMAND test_jorek_edge_sagitta.x
+				"${GORILLA_JOREK_GOLDEN_RESTART}"
+				"${CMAKE_CURRENT_BINARY_DIR}/jorek_edge_sagitta.csv")
+		set_tests_properties(test_jorek_edge_sagitta PROPERTIES
+			DEPENDS test_jorek_global_plane_linearization_factor2
+			LABELS "jorek;golden" TIMEOUT 120)
 		add_executable(test_jorek_refined_plane.x
 			SRC/TESTS/test_jorek_refined_plane.f90)
 		target_link_libraries(test_jorek_refined_plane.x
