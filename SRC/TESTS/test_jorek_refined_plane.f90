@@ -80,10 +80,10 @@ program test_jorek_refined_plane
                     error stop 'JOREK refined vertex field is invalid'
                 max_bmod = max(max_bmod, bmod)
             end do
-            if (fallback_count /= 117 .or. max_bmod > 3.0e4_dp) &
-                error stop 'JOREK refined chart fallback did not bound the field'
             print '(A, I0, A, ES12.4)', 'chart fallbacks=', fallback_count, &
                 ' max |B| [G]=', max_bmod
+            if (fallback_count /= 0 .or. max_bmod > 3.0e4_dp) &
+                error stop 'JOREK refined chart fallback did not bound the field'
         end if
     end do
     print '(A)', 'PASS: owner-labelled JOREK poloidal refinement'

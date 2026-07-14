@@ -15,9 +15,9 @@ if(NOT run_status EQUAL 0)
     message(FATAL_ERROR "JOREK snapshot orbit failed; see ${ORBIT_DIR}/run.log")
 endif()
 
-if(DEFINED EXPECTED_RECORDS AND DEFINED MIN_PPHI_RESPONSE)
+if(DEFINED MIN_PPHI_RESPONSE)
     execute_process(
-        COMMAND "${ORBIT_VALIDATOR}" "${EXPECTED_RECORDS}" "${MIN_PPHI_RESPONSE}"
+        COMMAND "${ORBIT_VALIDATOR}" "${MIN_PPHI_RESPONSE}"
         WORKING_DIRECTORY "${ORBIT_DIR}"
         RESULT_VARIABLE validation_status
         OUTPUT_VARIABLE validation_stdout

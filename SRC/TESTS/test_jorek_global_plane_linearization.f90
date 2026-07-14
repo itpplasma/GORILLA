@@ -224,45 +224,18 @@ program test_jorek_global_plane_linearization
     end do
     if (.not. boundary_mode) then
         do i = 1, 2
-            maximum(i)%element_distance = neighbor_distance( &
-                maximum(i)%element, maximum(i)%triangle_element)
+            if (maximum(i)%element > 0 .and. &
+                    maximum(i)%triangle_element > 0) &
+                maximum(i)%element_distance = neighbor_distance( &
+                    maximum(i)%element, maximum(i)%triangle_element)
         end do
     end if
-    select case (refinement)
-    case (-8)
-        if (source_covered /= 420684 .or. source_outside /= 349108 &
-                .or. neighbor_recovered /= 344324 .or. global_outside /= 4784 &
-                .or. ambiguous /= 0 .or. strict_ambiguous /= 0 &
-                .or. boundary_outside /= 4784 .or. interior_outside /= 0 &
-                .or. count(hole_element) /= 148) &
-            error stop 'boundary-8 global-plane fixture changed'
-    case (2)
-        if (source_covered /= 420264 .or. source_outside /= 349528 &
-                .or. neighbor_recovered /= 344328 .or. global_outside /= 5200 &
-                .or. ambiguous /= 0 .or. boundary_outside /= 5200 &
-                .or. interior_outside /= 0 .or. count(hole_element) /= 148) &
-            error stop 'factor-2 global-plane fixture changed'
-        call verify_factor2_maximum
-    case (4)
-        if (source_covered /= 432832 .or. source_outside /= 336960 &
-                .or. neighbor_recovered /= 332200 .or. global_outside /= 4760 &
-                .or. ambiguous /= 7628 .or. strict_ambiguous /= 7628 &
-                .or. boundary_outside /= 4760 &
-                .or. interior_outside /= 0 .or. count(hole_element) /= 148) &
-            error stop 'factor-4 global-plane fixture changed'
-    case (8)
-        if (source_covered /= 765124 .or. source_outside /= 4668 &
-                .or. neighbor_recovered /= 4372 .or. global_outside /= 296 &
-                .or. ambiguous /= 334792 .or. boundary_outside /= 296 &
-                .or. interior_outside /= 0 .or. count(hole_element) /= 59) &
-            error stop 'factor-8 global-plane fixture changed'
-    case (16)
-        if (source_covered /= 769032 .or. source_outside /= 760 &
-                .or. neighbor_recovered /= 756 .or. global_outside /= 4 &
-                .or. ambiguous /= 338408 .or. boundary_outside /= 4 &
-                .or. interior_outside /= 0 .or. count(hole_element) /= 1) &
-            error stop 'factor-16 global-plane fixture changed'
-    end select
+    if (source_covered /= 769792 .or. source_outside /= 0 &
+            .or. neighbor_recovered /= 0 .or. global_outside /= 0 &
+            .or. ambiguous /= 0 .or. strict_ambiguous /= 0 &
+            .or. boundary_outside /= 0 .or. interior_outside /= 0 &
+            .or. count(hole_element) /= 0) &
+        error stop 'corrected JOREK plane does not provide unique coverage'
     if (source_covered + source_outside /= 769792 &
             .or. source_covered + source_outside - global_outside &
                 /= sum(metric_counts) &
@@ -272,9 +245,10 @@ program test_jorek_global_plane_linearization
             .or. .not. all(ieee_is_finite(metrics)) &
             .or. .not. all(ieee_is_finite(recovered_relation_metrics))) &
         error stop 'global-plane sample partition failed'
+    call verify_field_error(refinement, metrics(:, 1), metric_counts(1))
     if (refinement == 2) then
         if (sum(tail_edge_phase_counts) /= sum(recovered_high_counts) &
-                .or. tail_point_count /= 18 .or. tail_edge_count /= 16) &
+                .or. tail_point_count /= 0 .or. tail_edge_count /= 0) &
             error stop 'factor-2 recovered chord partition changed'
     end if
     if (boundary_mode) then
@@ -292,8 +266,12 @@ program test_jorek_global_plane_linearization
     print '(A, I0)', 'elements containing global holes=', count(hole_element)
     print '(A, 2(ES14.6, 1X))', 'source-contained max/rms B error: ', &
         metrics(1, 1), sqrt(metrics(2, 1)/metric_counts(1))
-    print '(A, 2(ES14.6, 1X))', 'neighbor-recovered max/rms B error: ', &
-        metrics(1, 2), sqrt(metrics(2, 2)/neighbor_recovered)
+    if (neighbor_recovered > 0) then
+        print '(A, 2(ES14.6, 1X))', 'neighbor-recovered max/rms B error: ', &
+            metrics(1, 2), sqrt(metrics(2, 2)/neighbor_recovered)
+    else
+        print '(A)', 'neighbor-recovered max/rms B error: none'
+    end if
     if (refinement == 2) print '(A, I0, A, I0)', &
         'above-gate unique points=', tail_point_count, &
         ' crossed chords=', tail_edge_count
@@ -311,6 +289,34 @@ program test_jorek_global_plane_linearization
     if (write_tail_output) close(tail_output_unit)
 
 contains
+
+    subroutine verify_field_error(level, field_metrics, count_samples)
+        integer, intent(in) :: level, count_samples
+        real(dp), intent(in) :: field_metrics(2)
+
+        real(dp) :: maximum_limit, rms, rms_limit
+
+        select case (level)
+        case (-8, 2)
+            maximum_limit = 1.6e-3_dp
+            rms_limit = 4.0e-5_dp
+        case (4)
+            maximum_limit = 1.6e-3_dp
+            rms_limit = 1.5e-5_dp
+        case (8)
+            maximum_limit = 6.5e-4_dp
+            rms_limit = 4.0e-6_dp
+        case (16)
+            maximum_limit = 5.0e-5_dp
+            rms_limit = 9.0e-7_dp
+        case default
+            error stop 'unsupported JOREK plane refinement'
+        end select
+        if (count_samples <= 0) error stop 'JOREK field screen has no samples'
+        rms = sqrt(field_metrics(2)/count_samples)
+        if (field_metrics(1) > maximum_limit .or. rms > rms_limit) &
+            error stop 'JOREK plane field interpolation error is too large'
+    end subroutine verify_field_error
 
     subroutine element_corners(element, corners)
         integer, intent(in) :: element
@@ -480,32 +486,6 @@ contains
                     data%neighbours(maximum(group)%owners(corner), :)
         end do
     end subroutine record_maximum
-
-    subroutine verify_factor2_maximum
-        real(dp), parameter :: tolerance = 1.0e-12_dp
-
-        if (maximum(2)%element /= 5175 .or. maximum(2)%triangle /= 47661 &
-                .or. maximum(2)%triangle_element /= 5987 &
-                .or. maximum(2)%element_distance /= 3 &
-                .or. maximum(2)%relation /= 4 &
-                .or. maximum(2)%matches /= 1 &
-                .or. any(maximum(2)%nodes /= [16404, 5062, 16403]) &
-                .or. any(maximum(2)%owners /= [5986, 5061, 5987]) &
-                .or. any(maximum(2)%neighbors <= 0) &
-                .or. abs(maximum(2)%s - 5.0_dp/6.0_dp) > tolerance &
-                .or. abs(maximum(2)%t - 2.0_dp/3.0_dp) > tolerance &
-                .or. abs(maximum(2)%phi) > tolerance &
-                .or. abs(maximum(2)%error - 0.043064226571950817_dp) &
-                    > tolerance &
-                .or. any(recovered_relation_counts &
-                    /= [4, 297216, 47088, 20]) &
-                .or. any(recovered_high_counts /= [0, 43, 12, 8]) &
-                .or. maxval(abs(recovered_relation_metrics(1, :) - [ &
-                    0.0051750424482673758_dp, 0.033642681741412578_dp, &
-                    0.028862752750893582_dp, 0.043064226571950817_dp])) &
-                    > tolerance) &
-            error stop 'factor-2 recovered maximum changed'
-    end subroutine verify_factor2_maximum
 
     subroutine build_triangle_parents
         integer :: candidate, cell_i, cell_j, split, valid_triangle

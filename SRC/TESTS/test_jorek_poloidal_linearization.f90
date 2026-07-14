@@ -154,7 +154,8 @@ program test_jorek_poloidal_linearization
                 .and. (common_samples + middle_samples + new_samples /= samples &
                     .or. .not. all(ieee_is_finite(coverage_metrics)))) &
             error stop 'nested coverage-population metric partition failed'
-        if (outside == 0) error stop 'coverage-failure fixture changed'
+        if (refinement >= 2 .and. outside /= 0) &
+            error stop 'refined JOREK plane does not cover source samples'
         print '(A, I0, A, I0, A, I0, A, I0)', 'refinement=', refinement, &
             ' samples=', samples, ' outside=', outside, &
             ' axis_elements=', axis_elements

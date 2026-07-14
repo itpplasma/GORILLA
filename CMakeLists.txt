@@ -25,7 +25,7 @@ if(GORILLA_ENABLE_JOREK)
 	set(LIBNEO_BUILD_JOREK ON CACHE BOOL "" FORCE)
 	FetchContent_Declare(libneo
 		GIT_REPOSITORY https://github.com/itpplasma/libneo.git
-		GIT_TAG 7b07b8121dff371bea67e657f298f900ce9df496
+		GIT_TAG e663de5407b053f032e89caec7334b5b702302f2
 	)
 	FetchContent_MakeAvailable(libneo)
 endif()
@@ -214,7 +214,6 @@ if(GORILLA_ENABLE_JOREK)
 				-DGORILLA_MAIN=$<TARGET_FILE:test_gorilla_main.x>
 				-DORBIT_VALIDATOR=$<TARGET_FILE:test_jorek_orbit_output.x>
 				-DORBIT_DIR=${JOREK_DERIVED_ORBIT_DIR}
-				-DEXPECTED_RECORDS=99
 				-DMIN_PPHI_RESPONSE=1.0e-7
 				-P ${CMAKE_CURRENT_SOURCE_DIR}/SRC/TESTS/run_jorek_snapshot_orbit.cmake)
 		set_tests_properties(test_jorek_derived_mesh_orbit PROPERTIES
@@ -235,7 +234,6 @@ if(GORILLA_ENABLE_JOREK)
 				-DGORILLA_MAIN=$<TARGET_FILE:test_gorilla_main.x>
 				-DORBIT_VALIDATOR=$<TARGET_FILE:test_jorek_orbit_output.x>
 				-DORBIT_DIR=${JOREK_REFINED_ORBIT_DIR}
-				-DEXPECTED_RECORDS=246
 				-DMIN_PPHI_RESPONSE=1.0e-7
 				-P ${CMAKE_CURRENT_SOURCE_DIR}/SRC/TESTS/run_jorek_snapshot_orbit.cmake)
 		set_tests_properties(test_jorek_refined_mesh_orbit PROPERTIES

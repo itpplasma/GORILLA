@@ -29,29 +29,29 @@ program test_jorek_restart_backend
     call evaluate_jorek_field_backend(171.047_dp, 0.0_dp, 3.863_dp, &
         a, b, bmod, ierr)
     call require_success(ierr)
-    call require_vector(a, [0.0_dp, 2.6376570704692677e7_dp, &
-        -1.5728327716843248e6_dp])
-    call require_vector(b, [-7.8091258771564851_dp, &
-        2.9301899972574934e6_dp, 7.3835745814089364e1_dp])
-    call require_close(bmod, 1.7131066423046243e4_dp, 2.0e-9_dp)
+    call require_vector(a, [0.0_dp, 2.6379834772598185e7_dp, &
+        -1.5728327712887882e6_dp])
+    call require_vector(b, [-3.9579526048319588e-2_dp, &
+        2.9301899976530299e6_dp, -1.8625597037654090e-1_dp])
+    call require_close(bmod, 1.7130905527919473e4_dp, 2.0e-9_dp)
 
     call evaluate_jorek_field_backend(171.047_dp, 1.0_dp, 3.863_dp, &
         a, b, bmod, ierr)
     call require_success(ierr)
-    call require_vector(a, [0.0_dp, 2.6376954320458438e7_dp, &
-        -1.5728327716843248e6_dp])
-    call require_vector(b, [-7.8191018919215480_dp, &
-        2.9301899972574934e6_dp, 7.3868651584250500e1_dp])
-    call require_close(bmod, 1.7131066569453778e4_dp, 2.0e-9_dp)
+    call require_vector(a, [0.0_dp, 2.6380218701328982e7_dp, &
+        -1.5728327712887882e6_dp])
+    call require_vector(b, [-5.2962610719154167e-2_dp, &
+        2.9301899976530299e6_dp, -1.6139042786267069e-1_dp])
+    call require_close(bmod, 1.7130905527703315e4_dp, 2.0e-9_dp)
 
     call evaluate_jorek_field_backend(190.0_dp, 1.0_dp, 0.0_dp, &
         a, b, bmod, ierr)
     call require_success(ierr)
-    call require_vector(a, [0.0_dp, 2.2037693420978863e7_dp, &
-        -1.8807538394451437e6_dp])
-    call require_vector(b, [-3.7080170447481675e2_dp, &
-        2.9301899954255959e6_dp, -2.3842691701895715e3_dp])
-    call require_close(bmod, 1.5609674564466492e4_dp, 2.0e-9_dp)
+    call require_vector(a, [0.0_dp, 2.2046295916477572e7_dp, &
+        -1.8807538368041692e6_dp])
+    call require_vector(b, [-3.6767339193728509e2_dp, &
+        2.9301899980665701e6_dp, -2.3250116147547578e3_dp])
+    call require_close(bmod, 1.5600659274184742e4_dp, 2.0e-9_dp)
 
     call evaluate_jorek_field_backend(300.0_dp, 0.0_dp, 0.0_dp, &
         a, b, bmod, ierr)
@@ -72,18 +72,23 @@ contains
 
     subroutine require_vector(actual, expected)
         real(dp), intent(in) :: actual(3), expected(3)
-        integer :: i
 
-        do i = 1, 3
-            call require_close(actual(i), expected(i), 2.0e-9_dp)
-        end do
+        if (maxval(abs(actual - expected) &
+                /max(1.0_dp, abs(expected))) > 2.0e-9_dp) then
+            write (*, '(A, 3(ES24.16E3, 1X))') 'actual:   ', actual
+            write (*, '(A, 3(ES24.16E3, 1X))') 'expected: ', expected
+            error stop 'restart-backed field vector mismatch'
+        end if
     end subroutine require_vector
 
     subroutine require_close(actual, expected, tolerance)
         real(dp), intent(in) :: actual, expected, tolerance
 
-        if (abs(actual - expected) > tolerance*max(1.0_dp, abs(expected))) &
+        if (abs(actual - expected) > tolerance*max(1.0_dp, abs(expected))) then
+            write (*, '(A, 2(ES24.16E3, 1X))') 'actual, expected: ', &
+                actual, expected
             error stop 'restart-backed field value mismatch'
+        end if
     end subroutine require_close
 
 end program test_jorek_restart_backend

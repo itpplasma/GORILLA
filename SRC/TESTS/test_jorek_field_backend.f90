@@ -40,6 +40,10 @@ program test_jorek_field_backend
     data%values = 0.0_dp
     data%vertex(1, :) = [1, 2, 3, 4]
     data%size = 1.0_dp
+    data%size(:, 2:3, 2) = -1.0_dp
+    data%size(:, 3:4, 3) = -1.0_dp
+    data%size(:, 2, 4) = -1.0_dp
+    data%size(:, 4, 4) = -1.0_dp
     do node = 1, 4
         data%x(node, 1, 1, 1) = r_node(node)
         data%x(node, 1, 1, 2) = z_node(node)
@@ -113,6 +117,10 @@ contains
         overlap%x = 0.0_dp
         overlap%values = 0.0_dp
         overlap%size = 1.0_dp
+        overlap%size(:, 2:3, 2) = -1.0_dp
+        overlap%size(:, 3:4, 3) = -1.0_dp
+        overlap%size(:, 2, 4) = -1.0_dp
+        overlap%size(:, 4, 4) = -1.0_dp
         do element = 1, 2
             factor = real(element, dp)
             do local_node = 1, 4
