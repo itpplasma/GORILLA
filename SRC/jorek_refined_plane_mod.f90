@@ -225,7 +225,10 @@ contains
 
         ierr = 0
         if (.not. allocated(data%neighbours)) return
-        if (any(shape(data%neighbours) /= [data%n_elements, 4])) return
+        if (any(shape(data%neighbours) /= [data%n_elements, 4])) then
+            ierr = 12
+            return
+        end if
         do element = 1, data%n_elements
             do side = 1, 4
                 neighbor = data%neighbours(element, side)

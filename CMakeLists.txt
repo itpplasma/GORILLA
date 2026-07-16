@@ -68,6 +68,12 @@ if(GORILLA_ENABLE_JOREK)
 		SRC/TESTS/test_jorek_triangle_locator.f90)
 	target_link_libraries(test_jorek_triangle_locator.x GORILLA)
 	add_test(NAME test_jorek_triangle_locator COMMAND test_jorek_triangle_locator.x)
+	add_executable(test_jorek_neighbour_validation.x
+		SRC/TESTS/test_jorek_neighbour_validation.f90)
+	target_link_libraries(test_jorek_neighbour_validation.x
+		GORILLA LIBNEO::jorek netcdff netcdf lapack)
+	add_test(NAME test_jorek_neighbour_validation
+		COMMAND test_jorek_neighbour_validation.x)
 	set(GORILLA_JOREK_GOLDEN_RESTART "" CACHE FILEPATH
 		"JOREK restart with SHA256 ac152cd345cd233664b6fa659e1000200519158ba385c2acab09494929bc315c")
 	if(GORILLA_JOREK_GOLDEN_RESTART)
