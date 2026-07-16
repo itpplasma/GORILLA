@@ -1,0 +1,69 @@
+name: JOREK
+
+# Builds and tests the opt-in JOREK model-303 backend (GORILLA_ENABLE_JOREK),
+# which no other workflow compiles. The pull_request base filters cover the
+# stacked JOREK series (base branches under feat/jorek-*, fix/jorek-*,
+# test/jorek-*, */flux-pumping/*, and fix/find-tetra-boundary-bin) in
+# addition to main. On refs that do not carry the backend (plain main today)
+# the job detects the missing option and passes as a no-op.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches:
+      - main
+      - 'feat/jorek-**'
+      - 'fix/jorek-**'
+      - 'test/jorek-**'
+      - 'feat/flux-pumping/**'
+      - 'fix/flux-pumping/**'
+      - 'test/flux-pumping/**'
+      - 'fix/find-tetra-boundary-bin'
+
+  workflow_dispatch:
+
+jobs:
+  jorek-build:
+    runs-on: ubuntu-24.04
+
+    env:
+      FC: gfortran
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Detect JOREK backend
+        id: jorek
+        run: |
+          if grep -q 'option(GORILLA_ENABLE_JOREK' CMakeLists.txt; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "GORILLA_ENABLE_JOREK is not defined on this ref;" \
+              "nothing to build."
+          fi
+
+      - name: Dependencies
+        if: steps.jorek.outputs.present == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install gfortran liblapack-dev libnetcdff-dev libhdf5-dev
+
+      - name: Configure
+        if: steps.jorek.outputs.present == 'true'
+        run: |
+          cmake -S . -B build-jorek -DCMAKE_BUILD_TYPE=Release \
+            -DGORILLA_ENABLE_JOREK=ON
+
+      - name: Build
+        if: steps.jorek.outputs.present == 'true'
+        run: |
+          cmake --build build-jorek -j 4
+
+      - name: Test
+        if: steps.jorek.outputs.present == 'true'
+        run: |
+          ctest --test-dir build-jorek -R '^test_jorek' \
+            --output-on-failure --no-tests=error
