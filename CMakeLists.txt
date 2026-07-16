@@ -55,6 +55,16 @@ add_executable(test_gorilla_main.x
 
 target_link_libraries(test_gorilla_main.x GORILLA netcdff netcdf lapack)
 
+enable_testing()
+add_executable(test_conservative_collisions.x
+	SRC/TESTS/test_conservative_collisions.f90)
+target_link_libraries(test_conservative_collisions.x GORILLA)
+add_test(NAME test_conservative_collisions
+	COMMAND test_conservative_collisions.x)
+add_executable(test_kinetic_sources.x SRC/TESTS/test_kinetic_sources.f90)
+target_link_libraries(test_kinetic_sources.x GORILLA)
+add_test(NAME test_kinetic_sources COMMAND test_kinetic_sources.x)
+
 if(GORILLA_ENABLE_JOREK)
 	enable_testing()
 	add_executable(test_jorek_field_backend.x
