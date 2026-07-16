@@ -66,7 +66,6 @@ target_link_libraries(test_kinetic_sources.x GORILLA)
 add_test(NAME test_kinetic_sources COMMAND test_kinetic_sources.x)
 
 if(GORILLA_ENABLE_JOREK)
-	enable_testing()
 	add_executable(test_jorek_field_backend.x
 		SRC/TESTS/test_jorek_field_backend.f90)
 	target_link_libraries(test_jorek_field_backend.x GORILLA LIBNEO::jorek)

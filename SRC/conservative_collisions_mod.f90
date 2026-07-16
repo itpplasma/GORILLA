@@ -19,6 +19,12 @@ module conservative_collisions_mod
     ! coefficient is D_EE = 2 T E nu_E and the BKP drift term makes the
     ! background Maxwellian the exact stationary state.
     !
+    ! Both hats are normalized to the inverse self-collision time
+    !     1/tau_aa = (4/(3 sqrt(pi))) * 4 pi n q^4 ln(Lambda)/(m^2 v_T^3)
+    ! (NEO-2 convention), returned by nu_ref_self, so that
+    ! nu_ref*nu_d_hat(v/v_T) is the physical deflection frequency
+    ! nu_D = nu_perp/2 (Trubnikov/NRL) on a Maxwellian background.
+    !
     ! Self-contained: no coupling to the orbit loop in this increment. All
     ! sampling weights must be positive; delta-f perturbation weights evolve
     ! separately and ride on top of the scattered markers.
@@ -31,10 +37,10 @@ module conservative_collisions_mod
     type, public :: collision_correction_t
         ! Diagnostics of one conservative step: raw test-particle drift of
         ! the conserved moments and the correction actually applied.
-        real(dp) :: momentum_defect = 0.0_dp ! change of sum(w v lam), cm/s
-        real(dp) :: energy_defect = 0.0_dp   ! change of sum(w v^2), cm^2/s^2
-        real(dp) :: vpar_shift = 0.0_dp      ! uniform parallel shift, cm/s
-        real(dp) :: speed_scale = 1.0_dp     ! thermal-frame rescale factor
+        real(dp) :: momentum_defect = 0.0_dp ! change of sum(w v lam), weight*cm/s
+        real(dp) :: energy_defect = 0.0_dp ! change of sum(w v^2), weight*cm^2/s^2
+        real(dp) :: vpar_shift = 0.0_dp ! uniform parallel shift, cm/s
+        real(dp) :: speed_scale = 1.0_dp ! thermal-frame rescale factor
     end type collision_correction_t
 
     public :: chandrasekhar_g, nu_d_hat, nu_e_hat, dln_nu_e_dxsq, nu_ref_self
@@ -117,17 +123,24 @@ contains
     end function d_chandrasekhar_g
 
     pure function nu_ref_self(dens, temp, mass, charge, coulomb_log) result(nu)
-        ! Reference like-particle collision frequency (CGS):
-        !     nu_ref = 4 pi n q^4 ln(Lambda)/(m^2 v_T^3), v_T = sqrt(2 T/m),
-        ! so that nu_D(v) = nu_ref*nu_d_hat(v/v_T) is the deflection
-        ! frequency on a Maxwellian background of the same species.
+        ! Reference like-particle collision frequency (CGS): the inverse
+        ! self-collision time
+        !     nu_ref = 1/tau_aa
+        !            = (4/(3 sqrt(pi))) * 4 pi n q^4 ln(Lambda)/(m^2 v_T^3),
+        ! v_T = sqrt(2 T/m), the normalization of nu_d_hat and nu_e_hat, so
+        ! that nu_D(v) = nu_ref*nu_d_hat(v/v_T) is the physical deflection
+        ! frequency on a Maxwellian background of the same species
+        ! (Helander & Sigmar nu_D = nu_hat (erf - G)/x^3 with
+        ! nu_hat = 4 pi n q^4 ln(Lambda)/(m^2 v_T^3), i.e. Trubnikov/NRL
+        ! nu_perp/2).
         real(dp), intent(in) :: dens, temp, mass, charge, coulomb_log
         real(dp) :: nu
 
         real(dp) :: v_thermal
 
         v_thermal = sqrt(2.0_dp*temp/mass)
-        nu = 4.0_dp*pi*dens*charge**4*coulomb_log/(mass**2*v_thermal**3)
+        nu = (4.0_dp/(3.0_dp*sqrt_pi))*4.0_dp*pi*dens*charge**4*coulomb_log &
+             /(mass**2*v_thermal**3)
     end function nu_ref_self
 
     pure subroutine scatter_pitch_bkp(lam, nu_d_dt, rand_sign)

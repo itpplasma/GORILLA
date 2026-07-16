@@ -104,10 +104,22 @@ contains
         ! Large-x scaling nu_D ~ 3 sqrt(pi)/4 x^-3 (1 percent at x = 8).
         call expect_close(nu_d_hat(8.0_dp)*8.0_dp**3, &
                           1.329340388179137_dp, 1.0e-2_dp, 'nu_d_hat tail')
-        ! Reference frequency, electrons at n = 1e13 cm^-3, T = 1 keV,
-        ! ln Lambda = 15, with GORILLA's CGS constants.
+        ! Reference frequency 1/tau_aa, electrons at n = 1e13 cm^-3,
+        ! T = 1 keV, ln Lambda = 15, with GORILLA's CGS constants.
         nu = nu_ref_self(1.0e13_dp, 1.0e3_dp*ev2erg, ame, echarge, 15.0_dp)
-        call expect_close(nu, 18325.62665053125_dp, 1.0e-12_dp, 'nu_ref')
+        call expect_close(nu, 13785.503557619853_dp, 1.0e-12_dp, 'nu_ref')
+        ! First-principles pairing check: nu_ref_self*nu_d_hat(x) must be
+        ! the physical deflection frequency nu_D = nu_perp/2 of Trubnikov/
+        ! NRL, references computed with 40-digit mpmath from the
+        ! numerically integrated Maxwell integral psi(u) -- independent of
+        ! the erf-G closed form inside nu_d_hat, so it pins the
+        ! normalization pairing, not just the formula.
+        call expect_close(nu*nu_d_hat(0.5_dp), 52526.040128903552_dp, &
+                          1.0e-12_dp, 'nu_D(0.5 v_T)')
+        call expect_close(nu*nu_d_hat(1.0_dp), 11525.062563634647_dp, &
+                          1.0e-12_dp, 'nu_D(v_T)')
+        call expect_close(nu*nu_d_hat(2.0_dp), 2006.8250077354892_dp, &
+                          1.0e-12_dp, 'nu_D(2 v_T)')
     end subroutine test_frequencies_analytic
 
     subroutine sample_maxwellian(rng, v_thermal, v, lam)
@@ -124,7 +136,11 @@ contains
             vy = sigma*rng_normal(rng)
             vz = sigma*rng_normal(rng)
             v(i) = sqrt(vx**2 + vy**2 + vz**2)
-            lam(i) = vz/v(i)
+            if (v(i) > 0.0_dp) then
+                lam(i) = vz/v(i)
+            else
+                lam(i) = 0.0_dp
+            end if
         end do
     end subroutine sample_maxwellian
 
