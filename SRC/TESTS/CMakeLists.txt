@@ -42,5 +42,10 @@ add_pfunit_ctest (test_orbit_timestep_gorilla
   TEST_SOURCES test_orbit_timestep_gorilla.f90
   LINK_LIBRARIES GORILLA lapack netcdf netcdff
   )
+
+add_pfunit_ctest (test_guiding_centre_step_mod
+  TEST_SOURCES test_guiding_centre_step_mod.f90
+  LINK_LIBRARIES GORILLA lapack netcdf netcdff
+  )
   
-file(COPY ../../INPUT/tetra_grid.inp ../../INPUT/gorilla.inp DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ../../INPUT/tetra_grid.inp ../../INPUT/gorilla.inp ../../INPUT/field_divB0.inp DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

@@ -46,6 +46,7 @@ add_library(GORILLA STATIC
 	find_tetra_mod.f90 
 	get_canonical_coordinates.f90 
 	orbit_timestep_gorilla.f90 
+	guiding_centre_step_mod.f90
 	gorilla_plot_mod.f90
 	)
 
