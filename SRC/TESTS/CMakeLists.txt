@@ -44,3 +44,8 @@ add_pfunit_ctest (test_orbit_timestep_gorilla
   )
   
 file(COPY ../../INPUT/tetra_grid.inp ../../INPUT/gorilla.inp DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+add_pfunit_ctest (test_fluid_characteristic_step_mod
+  TEST_SOURCES test_fluid_characteristic_step_mod.f90
+  LINK_LIBRARIES GORILLA
+  )
+  
