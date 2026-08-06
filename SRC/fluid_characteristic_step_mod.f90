@@ -325,9 +325,11 @@ module fluid_characteristic_step_mod
                     enddo
                 end block ndotv
 !
-                ! Caller stop event may shorten the flight (exact in the fast path)
-                if( boole_stop .and. t_stop_left.lt.min( t_remain, t_cross ) .and. &
-                    & t_stop_left.ge.0.0_dp ) then
+                ! Caller stop event may shorten the flight (exact in the fast path);
+                ! a zero stop time is an immediate collision at the entry point.
+                if( boole_stop .and. ( t_stop_left.eq.0.0_dp .or. &
+                    & ( t_stop_left.lt.min( t_remain, t_cross ) .and. &
+                    &   t_stop_left.ge.0.0_dp ) ) ) then
                     result%position(:) = x + v0*t_stop_left
                     result%time        = t_elapsed + t_stop_left
                     x                  = result%position
@@ -619,7 +621,7 @@ module fluid_characteristic_step_mod
         real(dp), dimension(:), allocatable, intent(out), optional :: marker_out
 !
         real(dp) :: lo, hi, mid, dlo, dhi, dmid
-        real(dp), dimension(3) :: xmid
+        real(dp), dimension(3) :: xmid, xsnap
         real(dp) :: errv
         integer :: f, iter
 !
@@ -655,7 +657,8 @@ module fluid_characteristic_step_mod
 !
         if( iface.ge.1 ) then
             ! snap the crossing point onto the plane for determinism
-            call project_onto_plane( xcross, anorm(:,iface), plane_d(iface), xcross )
+            call project_onto_plane( xcross, anorm(:,iface), plane_d(iface), xsnap )
+            xcross = xsnap
         endif
 !
     end subroutine find_crossing
