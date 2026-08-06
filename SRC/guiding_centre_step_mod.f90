@@ -180,6 +180,12 @@ contains
       iface_local = -1
     end if
 
+    ! t_remain defaults to the full requested step; GORILLA leaves its
+    ! optional output unset on its early-return paths (particle outside the
+    ! domain at start, or a zero time step), so this keeps result%time and
+    ! result%event%remaining well-defined on those valid inputs.
+    t_remain = t_step
+
     ! Advance the charged guiding centre with GORILLA's exact geometric
     ! stepping (locally linear dynamics).
     call orbit_timestep_gorilla(x, vpar, vperp, t_step, boole_init_local, &
