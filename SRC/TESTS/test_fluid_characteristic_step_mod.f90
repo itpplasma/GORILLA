@@ -289,4 +289,95 @@ contains
       @assertEqual(CHAR_ERR_INVALID, ierr)
    end subroutine test_reject_nonfinite_position
 
+   @test
+   subroutine test_reject_negative_rtol()
+      real(dp) :: x(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+
+      uconst = [0.d0, 0.d0, 1.d0]
+      x = [0.2d0, 0.2d0, 0.2d0]
+      call trace_fluid_characteristic(x, u_const, marker_state, 1.d0, .false., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr, rtol=-1.d-8)
+      @assertEqual(CHAR_ERR_INVALID, ierr)
+   end subroutine test_reject_negative_rtol
+
+   @test
+   subroutine test_reject_nonfinite_rtol()
+      use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
+      real(dp) :: x(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+
+      uconst = [0.d0, 0.d0, 1.d0]
+      x = [0.2d0, 0.2d0, 0.2d0]
+      call trace_fluid_characteristic(x, u_const, marker_state, 1.d0, .false., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr, &
+           rtol=ieee_value(1.0_dp, ieee_quiet_nan))
+      @assertEqual(CHAR_ERR_INVALID, ierr)
+   end subroutine test_reject_nonfinite_rtol
+
+   @test
+   subroutine test_reject_negative_atol()
+      real(dp) :: x(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+
+      uconst = [0.d0, 0.d0, 1.d0]
+      x = [0.2d0, 0.2d0, 0.2d0]
+      call trace_fluid_characteristic(x, u_const, marker_state, 1.d0, .false., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr, atol=-1.d-10)
+      @assertEqual(CHAR_ERR_INVALID, ierr)
+   end subroutine test_reject_negative_atol
+
+   @test
+   subroutine test_reject_nonfinite_atol()
+      use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
+      real(dp) :: x(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+
+      uconst = [0.d0, 0.d0, 1.d0]
+      x = [0.2d0, 0.2d0, 0.2d0]
+      call trace_fluid_characteristic(x, u_const, marker_state, 1.d0, .false., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr, &
+           atol=ieee_value(1.0_dp, ieee_quiet_nan))
+      @assertEqual(CHAR_ERR_INVALID, ierr)
+   end subroutine test_reject_nonfinite_atol
+!
+   !------ Marker state is committed only on accepted steps ----------------!
+   ! The callback increments `marker_state(1)` once per velocity evaluation.
+   ! Because evaluations of rejected trials and crossing bisections preserve
+   ! the committed caller state and only accepted steps commit the endpoint
+   ! carried state, the final marker must be a positive multiple of 7 (one
+   ! commit per accepted RK45 step's 7 stages), never a fragment from an
+   ! intermediate evaluation.
+   @test
+   subroutine test_marker_committed_only_on_accepted_steps()
+      real(dp) :: x(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+      real(dp) :: m
+
+      uconst = [0.d0, 0.d0, 1.d0]
+      x = [0.2d0, 0.2d0, 0.2d0]
+      marker_state = [0.d0, 0.d0]
+      call trace_fluid_characteristic(x, u_count, marker_state, 0.5d0, .false., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr)
+      @assertEqual(CHAR_OK, ierr)
+      m = marker_state(1)
+      ! a multiple of 7 from committed steps (and >0 since steps advanced)
+      @assertTrue( m.gt.0.d0 )
+      @assertEqual(0.d0, mod(m, 7.d0), tolerance=1.d-9)
+   end subroutine test_marker_committed_only_on_accepted_steps
+
+   ! Callback that counts velocity evaluations in the carried marker.
+   subroutine u_count(x, t, marker, v)
+      real(dp), intent(in)   :: x(3), t
+      real(dp), intent(inout):: marker(:)
+      real(dp), intent(out)  :: v(3)
+      marker(1) = marker(1) + 1.d0
+      v = uconst
+   end subroutine u_count
+
 end module test_fluid_characteristic_step_mod

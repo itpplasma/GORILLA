@@ -241,6 +241,16 @@ module fluid_characteristic_step_mod
         atol_local = def_atol
         if( present(atol) ) atol_local = atol
 !
+        !------------------ Tolerance validation ---------------------------!
+        ! Reject non-finite or invalid-sign tolerances before entering the
+        ! controlled integrator: a NaN or negative value could make the
+        ! step-size factor NaN or force pathological minimum-step iteration.
+        if( .not. ieee_is_finite(rtol_local) .or. rtol_local.le.0.0_dp .or. &
+            & .not. ieee_is_finite(atol_local) .or. atol_local.lt.0.0_dp ) then
+            ierr = CHAR_ERR_INVALID
+            return
+        endif
+!
         ! Reset the contract
         result = characteristic_result_t()
         result%position(:) = x
@@ -445,6 +455,7 @@ module fluid_characteristic_step_mod
 !
         real(dp) :: tau, h, hmin, avail, tol, err, fac, stop_due, tau_cross
         real(dp), dimension(3) :: xcur, xnew, x_enter, xcross
+        real(dp), dimension(:), allocatable :: marker_new
         real(dp) :: d_prev, d_new
         integer  :: if, guard
         logical  :: crossed
@@ -510,7 +521,8 @@ module fluid_characteristic_step_mod
             endif
 !
             !--------------- one controlled RK45 step ------------------------!
-            call rk45_step(xcur, marker, dummy_marker, t_elapsed + tau, h, velocity, xnew, err)
+            call rk45_step(xcur, marker, dummy_marker, t_elapsed + tau, h, velocity, xnew, err, &
+                 & marker_out=marker_new)
             tol = atol + rtol*max( norm(xnew), norm(xcur) )
             if( err.gt.tol .and. h.gt.hmin .and. guard.lt.60 ) then
                 fac   = 0.9_dp * ( tol / max( err, tiny(1.0_dp) ) )**0.2_dp
@@ -534,8 +546,10 @@ module fluid_characteristic_step_mod
             if( crossed ) then
                 call find_crossing(xcur, velocity, marker, dummy_marker, &
                      & t_elapsed + tau, h, anorm, plane_d, xnew, &
-                     & iface_out, tau_cross, xcross)
+                     & iface_out, tau_cross, xcross, marker_out=marker_new)
                 if( iface_out.ge.1 ) then
+                    ! commit the carried state at the accepted crossing time
+                    if( present(marker) ) marker = marker_new
                     ! snap onto the shared plane (deterministic ownership)
                     call project_onto_plane( xcross, anorm(:,iface_out), plane_d(iface_out), xcur )
                     int_seg = int_seg + ( xcur - x_enter )
@@ -561,6 +575,7 @@ module fluid_characteristic_step_mod
             endif
 !
             !------------------- accept the step -----------------------------!
+            if( present(marker) ) marker = marker_new   ! commit accepted update
             xcur = xnew
             tau  = tau + h
             if( err.gt.0.0_dp ) then
@@ -576,7 +591,7 @@ module fluid_characteristic_step_mod
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
     subroutine find_crossing(xcur, velocity, marker, dummy_marker, t0, h, &
-                    & anorm, plane_d, xnew, iface, tcross, xcross)
+                    & anorm, plane_d, xnew, iface, tcross, xcross, marker_out)
 !
         ! Locate the first time in (t0, t0+h] at which the trajectory crosses a
         ! tetrahedron face, and return the crossed face and crossing position.
@@ -584,6 +599,9 @@ module fluid_characteristic_step_mod
         ! crossing point is consistent with the accepted segment.  Only faces
         ! entered from the interior (d(t0)>0, d(t0+h)<0) are considered, which
         ! keeps the ownership deterministic.
+        ! `marker` is treated as committed state (preserved across evaluation);
+        ! the carried state at the crossing time is returned through the
+        ! optional `marker_out` for the caller to commit.
         !
         implicit none
         !
@@ -598,6 +616,7 @@ module fluid_characteristic_step_mod
         integer, intent(out) :: iface
         real(dp), intent(out) :: tcross
         real(dp), dimension(3), intent(out) :: xcross
+        real(dp), dimension(:), allocatable, intent(out), optional :: marker_out
 !
         real(dp) :: lo, hi, mid, dlo, dhi, dmid
         real(dp), dimension(3) :: xmid
@@ -629,7 +648,8 @@ module fluid_characteristic_step_mod
             if( mid.lt.tcross ) then
                 iface  = f
                 tcross = mid
-                call rk45_step(xcur, marker, dummy_marker, t0, tcross, velocity, xcross, errv)
+                call rk45_step(xcur, marker, dummy_marker, t0, tcross, velocity, xcross, errv, &
+                     & marker_out=marker_out)
             endif
         enddo
 !
@@ -660,14 +680,18 @@ module fluid_characteristic_step_mod
         real(dp), dimension(3), intent(inout) :: int_seg
         !
         real(dp), dimension(3) :: xn
+        real(dp), dimension(:), allocatable :: marker_new
         real(dp) :: errv
         real(dp) :: hsub
         integer  :: i
         !
+        if( present(marker) ) allocate( marker_new(size(marker)) )
         hsub = dt / real( n_stop_sub, dp )
         do i = 1, n_stop_sub
-            call rk45_step(xcur, marker, dummy_marker, t0 + (i-1)*hsub, hsub, velocity, xn, errv)
+            call rk45_step(xcur, marker, dummy_marker, t0 + (i-1)*hsub, hsub, velocity, xn, errv, &
+                 & marker_out=marker_new)
             xcur = xn
+            if( present(marker) ) marker = marker_new
         enddo
         int_seg = int_seg + ( xcur - x_enter )
 !
@@ -675,13 +699,19 @@ module fluid_characteristic_step_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine rk45_step(x, marker, dummy_marker, t, h, velocity, xnew, err)
+    subroutine rk45_step(x, marker, dummy_marker, t, h, velocity, xnew, err, marker_out)
 !
         ! One embedded Dormand-Prince 4(5) step:
         !   5th-order solution  xnew  with embedded 4th-order error estimate  err
         !   (Euclidean norm of the difference of the two orders).
         ! The velocity callback may update the carried marker; the marker value
         ! at the end of the step reflects the carried state at the endpoint.
+        ! The caller's `marker` is treated as committed state: it is preserved
+        ! across evaluation (save/restore) so rejected trials, stage evaluations
+        ! and crossing bisections can never corrupt it.  The candidate carried
+        ! state at the endpoint is returned through the optional `marker_out`;
+        ! the caller commits it to the caller marker only when a step is
+        ! actually accepted.
         !
         implicit none
         !
@@ -692,8 +722,17 @@ module fluid_characteristic_step_mod
         procedure(velocity_field_t) :: velocity
         real(dp), dimension(3), intent(out) :: xnew
         real(dp), intent(out) :: err
+        real(dp), dimension(:), allocatable, intent(out), optional :: marker_out
 !
         real(dp), dimension(3) :: k1, k2, k3, k4, k5, k6, k7, xish, e
+        real(dp), dimension(:), allocatable :: marker_save
+!
+        ! Preserve committed caller state before the stage evaluations mutate
+        ! the working marker copy across the RK stages.
+        if( present(marker) ) then
+            allocate( marker_save(size(marker)) )
+            marker_save = marker
+        endif
 !
         call k_eval(velocity, x, t, marker, dummy_marker, k1)
         xish = x + h*( 1.0_dp/5.0_dp )*k1
@@ -723,6 +762,14 @@ module fluid_characteristic_step_mod
             & + (187.0_dp/2100.0_dp - 11.0_dp/84.0_dp)*k6 &
             & - (1.0_dp/40.0_dp)*k7 )
         err = sqrt( dot_product(e,e) )
+!
+        ! Report the carried state at the step endpoint and restore the
+        ! committed caller marker so evaluations never leak into caller state.
+        if( present(marker_out) ) then
+            if( present(marker) ) marker_out = marker
+        endif
+        if( present(marker) ) marker = marker_save
+        if( allocated(marker_save) ) deallocate( marker_save )
 !
     end subroutine rk45_step
 !
