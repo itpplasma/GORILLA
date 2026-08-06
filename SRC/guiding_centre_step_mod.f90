@@ -121,6 +121,7 @@ contains
                                        boole_initialized, ind_tetr, iface)
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use orbit_timestep_gorilla_mod, only: orbit_timestep_gorilla
+    use tetra_physics_mod, only: tetra_physics
     real(dp), intent(inout) :: state(:)
     real(dp), intent(in) :: t_step
     type(characteristic_equations_t), intent(in) :: equations
@@ -132,6 +133,7 @@ contains
     real(dp) :: x(3), vpar, vperp, t_remain
     logical :: boole_init_local
     integer :: ind_tetr_local, iface_local
+    integer :: ind_tetr_wall, iface_wall
 
     ! Default: no event, nothing advanced.
     result = characteristic_result_t()
@@ -189,7 +191,8 @@ contains
     ! Advance the charged guiding centre with GORILLA's exact geometric
     ! stepping (locally linear dynamics).
     call orbit_timestep_gorilla(x, vpar, vperp, t_step, boole_init_local, &
-                                ind_tetr_local, iface_local, t_remain)
+                                ind_tetr_local, iface_local, t_remain, &
+                                ind_tetr_wall_out=ind_tetr_wall, iface_wall_out=iface_wall)
 
     ! Encode the final phase-space state back into the caller's buffer.
     state(1:3) = x
@@ -211,8 +214,19 @@ contains
     result%event%face = iface_local
 
     if (ind_tetr_local == -1) then
-      ! Particle reached / lost at the domain (material) boundary.
+      ! Particle reached / lost at the domain (material) boundary.  The
+      ! integrator reports the boundary (exit) tetrahedron/face through its
+      ! optional wall outputs; use them so callers can identify the wall hit
+      ! and its outward normal.
       result%event%kind = CHAR_EVENT_WALL
+      result%event%tetrahedron = ind_tetr_wall
+      result%event%face = iface_wall
+      if (ind_tetr_wall > 0 .and. iface_wall >= 1 .and. iface_wall <= 4) then
+        ! tetra_physics%anorm points inward; the outward boundary normal is
+        ! the opposite, normalized.
+        result%event%normal = -tetra_physics(ind_tetr_wall)%anorm(:, iface_wall)
+        result%event%normal = result%event%normal/norm2(result%event%normal)
+      end if
       result%finished = .false.
     else
       ! Requested time integrated within the containing cell.

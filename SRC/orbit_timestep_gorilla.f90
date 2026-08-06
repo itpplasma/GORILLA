@@ -16,7 +16,8 @@ module orbit_timestep_gorilla_mod
 !    
     contains
 !
-        subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface,t_remain_out)
+        subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface,t_remain_out, &
+            & ind_tetr_wall_out,iface_wall_out)
 !
             use supporting_functions_mod, only: bmod_func, vperp_func
             use pusher_tetra_rk_mod, only: pusher_tetra_rk,initialize_const_motion_rk
@@ -36,6 +37,7 @@ module orbit_timestep_gorilla_mod
             logical, intent(inout)                          :: boole_initialized
             integer, intent(inout)                          :: ind_tetr,iface
             double precision, intent(out), optional         :: t_remain_out
+            integer, intent(out), optional                  :: ind_tetr_wall_out,iface_wall_out
             double precision, dimension(3)                  :: z_save
             double precision                                :: vperp2,t_remain,t_pass,vpar_save
             logical                                         :: boole_t_finished
@@ -57,6 +59,8 @@ module orbit_timestep_gorilla_mod
 !               
                 !If particle doesn't lie inside any tetrahedron
                 if(ind_tetr.eq.-1) then
+                    if(present(ind_tetr_wall_out)) ind_tetr_wall_out = -1
+                    if(present(iface_wall_out)) iface_wall_out = -1
                     return
                 endif
 !
@@ -105,6 +109,10 @@ module orbit_timestep_gorilla_mod
                     if( present(t_remain_out)) then
                         t_remain_out = t_remain
                     endif
+                    !ind_tetr_save holds the last valid (exit) tetrahedron and,
+                    !thanks to pusher_handover2neighbour, iface is the exit face.
+                    if(present(ind_tetr_wall_out)) ind_tetr_wall_out = ind_tetr_save
+                    if(present(iface_wall_out)) iface_wall_out = iface
                     exit
                 endif
 !                

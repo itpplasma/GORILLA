@@ -30,6 +30,13 @@ contains
       iper_phi=tetra_grid(ind_tetr)%neighbour_perbou_phi(iface)
       iper_theta=tetra_grid(ind_tetr)%neighbour_perbou_theta(iface)
 !
+      !Material boundary (wall): there is no neighbouring tetrahedron across
+      !this face.  Keep the exit face index (instead of the meaningless -1 of
+      !neighbour_face) so callers can identify which wall was hit.
+      if(ind_tetr_out.eq.-1) then
+        iface_inout = iface
+      endif
+!
       !Position exchange in between tetrahedra
       !Distinguish in between different kinds of processing handling (handover_processing_kind)
       select case(handover_processing_kind)

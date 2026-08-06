@@ -192,6 +192,59 @@ contains
   end subroutine test_reproduces_legacy_guiding_centre_endpoint
 
   !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+  ! A wall (material-boundary) event must report the exit tetrahedron,
+  ! the crossed boundary face and its outward normal -- the contract the
+  ! facade promises for CHAR_EVENT_WALL.  A guiding centre launched near
+  ! the low-field side outer wall (R0+a = 250) drifts outward and leaves
+  ! the domain there.
+  !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+  @test
+  subroutine test_wall_event_reports_boundary_face_and_normal()
+    use tetra_grid_settings_mod, only: load_tetra_grid_inp
+    use gorilla_settings_mod, only: load_gorilla_inp
+    use orbit_timestep_gorilla_mod, only: initialize_gorilla
+
+    type(characteristic_equations_t) :: eq
+    type(characteristic_result_t) :: res
+    real(dp), parameter :: eps = 1.0d-6
+    real(dp) :: state(CHAR_STATE_DIM)
+    integer :: ierr_local
+    logical :: boole
+    integer :: ind_tetr, iface
+
+    ! setUp: analytic circular tokamak mesh (no netcdf required).
+    call write_analytic_input_files()
+    call load_tetra_grid_inp()
+    call load_gorilla_inp()
+    call initialize_gorilla()
+
+    ! Start near the outer wall (Rmax = R0 + a = 250) on the low-field side;
+    ! the drift carries the guiding centre across the outer boundary.
+    state = [220.0_dp, 3.0_dp, -70.0_dp, 1.0d8, 2.0d7]
+    eq%model = CHAR_MODEL_GUIDING_CENTRE
+    boole = .false.
+    ind_tetr = -1
+    iface = -1
+
+    call trace_characteristic_step(state, 1.0d-3, eq, res, ierr_local, &
+                                   boole_initialized=boole, ind_tetr=ind_tetr, iface=iface)
+
+    @assertEqual(CHAR_OK, ierr_local)
+    @assertEqual(CHAR_EVENT_WALL, res%event%kind)
+    @assertFalse(res%finished)
+    ! The boundary (exit) tetrahedron/face must be preserved (not -1).
+    @assertTrue(res%event%tetrahedron > 0)
+    @assertTrue(res%event%face >= 1 .and. res%event%face <= 4)
+    ! The particle ends on the outer wall and the outward normal points +R.
+    @assertEqual(250.0_dp, res%position(1), tolerance = eps)
+    @assertEqual(1.0_dp, res%event%normal(1), tolerance = eps)
+    @assertEqual(0.0_dp, res%event%normal(2), tolerance = eps)
+    @assertEqual(0.0_dp, res%event%normal(3), tolerance = eps)
+    @assertEqual(1.0_dp, norm2(res%event%normal), tolerance = eps)
+  end subroutine test_wall_event_reports_boundary_face_and_normal
+
+  !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   ! Write the grid_kind=5 analytic circular tokamak input files that
   ! initialize_gorilla needs in the working directory.
   !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
