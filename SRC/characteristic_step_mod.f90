@@ -180,9 +180,14 @@ module characteristic_step_mod
             iface_out = -1
             t_cross   = huge(1.0_dp)
             do iface = 1,4
-                if( ndotv(iface).lt.-eps_tol ) then
+                if( ndotv(iface).lt.0.0_dp ) then
+                    ! Crossing time from the current position to the face
+                    ! plane. Candidate exit faces are selected by geometry and
+                    ! time only (not by the physical normal speed): a slow but
+                    ! valid trajectory still reaches the face within the flight
+                    ! time, and faces crossed only in the past are dropped.
                     t_seg = -( dot_product(anorm(:,iface), x) + plane_d(iface) ) / ndotv(iface)
-                    if( t_seg.lt.t_cross ) then
+                    if( t_seg.ge.0.0_dp .and. t_seg.lt.t_cross ) then
                         t_cross   = t_seg
                         iface_out = iface
                     endif
@@ -205,9 +210,9 @@ module characteristic_step_mod
             ! edge/vertex -> reject as an ambiguous grazing intersection.
             do iface = 1,4
                 if( iface.eq.iface_out ) cycle
-                if( ndotv(iface).lt.-eps_tol ) then
+                if( ndotv(iface).lt.0.0_dp ) then
                     t_seg = -( dot_product(anorm(:,iface), x) + plane_d(iface) ) / ndotv(iface)
-                    if( abs( t_seg - t_cross ).lt. eps_tol ) then
+                    if( t_seg.ge.0.0_dp .and. abs( t_seg - t_cross ).lt. eps_tol ) then
                         ierr = CHAR_ERR_GRAZING
                         result%position(:) = x
                         result%time        = t_elapsed

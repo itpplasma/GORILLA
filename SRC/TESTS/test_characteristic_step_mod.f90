@@ -254,6 +254,32 @@ contains
       call trace_neutral_free_flight(x, v, mass, 2.d0, verts, ind_knot, &
            nb_tetr, nb_face, ntetr, res, ierr)
       @assertEqual(CHAR_ERR_GRAZING, ierr)
-   end subroutine test_grazing_rejected
+
+   !----- Slow crossing: |ndotv| < 1e-10 must still find the exit face --------!
+   ! Start in A at (0.5,0.5,0.5); the shared face x+y+z=2 is reached at t=2.5e11
+   ! with a normal speed (2e-12)/sqrt(3) ~ 1.15e-12, below any velocity
+   ! tolerance. The tracer must cross into B and later hit B's wall (face 3,
+   ! outward normal (2/3,2/3,1/3)) at t=3.75e11, ending at (0.875,0.875,0.5),
+   ! instead of silently finishing outside A like the previous velocity
+   ! threshold did.
+   @test
+   subroutine test_slow_face_crossing()
+      real(dp) :: x(3), v(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+
+      x = [0.5d0, 0.5d0, 0.5d0]
+      v = [1.d-12, 1.d-12, 0.d0]
+      call trace_neutral_free_flight(x, v, mass, 5.d11, verts, ind_knot, &
+           nb_tetr, nb_face, ntetr, res, ierr)
+      @assertEqual(CHAR_OK, ierr)
+      @assertFalse(res%finished)
+      @assertEqual(CHAR_EVENT_WALL, res%event%kind)
+      @assertEqual(2, res%event%tetrahedron)       ! crossed A->B despite tiny speed
+      @assertEqual(3, res%event%face)
+      @assertEqual(3.75d11, res%time, tolerance=1.d-2)
+      @assertEqual([0.875d0, 0.875d0, 0.5d0], res%position, tolerance=1.d-10)
+      @assertEqual([2.d0/3.d0, 2.d0/3.d0, 1.d0/3.d0], res%event%normal, tolerance=1.d-12)
+   end subroutine test_slow_face_crossing
 
 end module test_characteristic_step_mod
