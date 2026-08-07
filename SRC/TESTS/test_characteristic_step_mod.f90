@@ -144,6 +144,47 @@ contains
       @assertEqual([0.2d0, 0.2d0, 1.3d0], res%position, tolerance=1.d-12)
    end subroutine test_collision_shortens
 
+   !----- Collision scheduled after the first face crossing fires in the
+   !----- second tetrahedron, at the step-relative absolute time -----------!
+   @test
+   subroutine test_collision_after_face_crossing()
+      real(dp) :: x(3), v(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+
+      ! x=0.2,z=0.2 moving +z; crosses A->B at t=1.4 (plane x+y+z=2).
+      ! Collision at t=1.6 lies after the face, inside tetrahedron B.
+      x = [0.2d0, 0.2d0, 0.2d0]
+      v = [0.d0, 0.d0, 1.d0]
+      call trace_neutral_free_flight(x, v, mass, 5.d0, verts, ind_knot, &
+           nb_tetr, nb_face, ntetr, res, ierr, 1.6d0)
+      @assertEqual(CHAR_OK, ierr)
+      @assertTrue(res%finished)
+      @assertEqual(CHAR_EVENT_COLLISION, res%event%kind)
+      @assertEqual(2, res%event%tetrahedron)
+      @assertEqual(1.6d0, res%time, tolerance=1.d-12)
+      @assertEqual(1.6d0, res%event%time, tolerance=1.d-12)
+      @assertEqual([0.2d0, 0.2d0, 1.8d0], res%position, tolerance=1.d-12)
+      @assertEqual([0.2d0, 0.2d0, 1.8d0], x, tolerance=1.d-12)   ! intent(inout) updated
+      @assertEqual(5.d0 - 1.6d0, res%event%remaining, tolerance=1.d-12)
+   end subroutine test_collision_after_face_crossing
+
+   !----- Flight completing inside a tetrahedron updates intent(inout) x ---!
+   @test
+   subroutine test_x_updated_when_finished_inside()
+      real(dp) :: x(3), v(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+
+      x = [0.2d0, 0.2d0, 0.2d0]
+      v = [0.d0, 0.d0, 1.d0]
+      call trace_neutral_free_flight(x, v, mass, 0.5d0, verts, ind_knot, &
+           nb_tetr, nb_face, ntetr, res, ierr)
+      @assertEqual(CHAR_OK, ierr)
+      @assertTrue(res%finished)
+      @assertEqual([0.2d0, 0.2d0, 0.7d0], x, tolerance=1.d-12)
+   end subroutine test_x_updated_when_finished_inside
+
    !----- Collision later than the geometry event is ignored ----------------!
    @test
    subroutine test_collision_later_ignored()

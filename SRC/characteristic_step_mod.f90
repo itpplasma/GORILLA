@@ -196,6 +196,7 @@ module characteristic_step_mod
                 result%time        = t_elapsed + t_remain
                 result%finished    = .true.
                 result%event%kind  = CHAR_EVENT_NONE
+                x = result%position
                 return
             endif
 !
@@ -220,15 +221,19 @@ module characteristic_step_mod
                 endif
             enddo
 !
-            ! Application collision time may shorten the flight
-            if( boole_collision .and. t_coll.lt.min(t_remain,t_cross) ) then
-                result%position(:) = x + v*t_coll
-                result%time        = t_elapsed + t_coll
+            ! Application collision time may shorten the flight. t_collision is
+            ! relative to the start of the whole step, so subtract the time
+            ! already elapsed in earlier segments before comparing against the
+            ! remaining segment time.
+            if( boole_collision .and. (t_coll - t_elapsed).lt.min(t_remain,t_cross) ) then
+                t_seg = t_coll - t_elapsed
+                result%position(:) = x + v*t_seg
+                result%time        = t_elapsed + t_seg
                 result%event%kind        = CHAR_EVENT_COLLISION
                 result%event%tetrahedron = ind_tetr
                 result%event%time        = result%time
                 result%event%position    = result%position
-                result%event%remaining   = t_remain - t_coll
+                result%event%remaining   = t_remain - t_seg
                 result%finished          = .true.
                 x = result%position
                 return
@@ -240,6 +245,7 @@ module characteristic_step_mod
                 result%time        = t_elapsed + t_remain
                 result%finished    = .true.
                 result%event%kind  = CHAR_EVENT_NONE
+                x = result%position
                 return
             endif
 !
