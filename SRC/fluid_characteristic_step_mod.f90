@@ -335,6 +335,7 @@ module fluid_characteristic_step_mod
                     x                  = result%position
                     int_seg            = int_seg + v0*t_stop_left
                     result%event%kind  = CHAR_EVENT_COLLISION
+                    result%event%tetrahedron = ind_tetr
                     result%event%face  = 0
                     result%event%time  = result%time
                     result%event%position = result%position
@@ -351,6 +352,7 @@ module fluid_characteristic_step_mod
                     int_seg            = int_seg + v0*t_remain
                     result%finished    = .true.
                     result%event%kind  = CHAR_EVENT_NONE
+                    result%event%tetrahedron = ind_tetr
                     exit tetra_loop
                 endif
 !
@@ -482,6 +484,7 @@ module fluid_characteristic_step_mod
                 result%time        = t_elapsed + tau
                 result%finished    = .true.
                 result%event%kind  = CHAR_EVENT_NONE
+                result%event%tetrahedron = ind_tetr
                 x = xcur
                 int_seg = int_seg + ( xcur - x_enter )
                 return
@@ -498,6 +501,7 @@ module fluid_characteristic_step_mod
                     result%time        = t_elapsed + tau
                     result%finished    = .true.
                     result%event%kind  = CHAR_EVENT_COLLISION
+                    result%event%tetrahedron = ind_tetr
                     result%event%time  = result%time
                     result%event%position = xcur
                     result%event%remaining = t_remain - tau
@@ -514,6 +518,7 @@ module fluid_characteristic_step_mod
                     result%time        = t_stop_left
                     result%finished    = .true.
                     result%event%kind  = CHAR_EVENT_COLLISION
+                    result%event%tetrahedron = ind_tetr
                     result%event%time  = result%time
                     result%event%position = xcur
                     result%event%remaining = t_remain - tau
@@ -539,7 +544,12 @@ module fluid_characteristic_step_mod
             do if = 1,4
                 d_prev = dot_product( anorm(:,if), xcur ) + plane_d(if)
                 d_new  = dot_product( anorm(:,if), xnew ) + plane_d(if)
-                if( d_prev.gt.eps_tol .and. d_new.lt.-eps_tol ) then
+                ! Detect a face crossing from the signed distance change.  A
+                ! crossing is reported whenever the step ends clearly outside
+                ! (d_new < -eps_tol) a face the leg did not start clearly outside
+                ! (d_prev > -eps_tol), so trajectories that begin within eps_tol
+                ! of a face and head outward are still caught.
+                if( d_prev.gt.-eps_tol .and. d_new.lt.-eps_tol ) then
                     crossed = .true.
                     exit
                 endif
@@ -599,8 +609,9 @@ module fluid_characteristic_step_mod
         ! tetrahedron face, and return the crossed face and crossing position.
         ! The trajectory is re-evaluated with the same local RK45 step so the
         ! crossing point is consistent with the accepted segment.  Only faces
-        ! entered from the interior (d(t0)>0, d(t0+h)<0) are considered, which
-        ! keeps the ownership deterministic.
+        ! entered from the interior or from within eps_tol of the face
+        ! (d(t0)>-eps_tol, d(t0+h)<-eps_tol) are considered, which keeps the
+        ! ownership deterministic.
         ! `marker` is treated as committed state (preserved across evaluation);
         ! the carried state at the crossing time is returned through the
         ! optional `marker_out` for the caller to commit.
@@ -632,7 +643,7 @@ module fluid_characteristic_step_mod
         do f = 1,4
             dlo = dot_product( anorm(:,f), xcur ) + plane_d(f)
             dhi = dot_product( anorm(:,f), xnew ) + plane_d(f)
-            if( .not.( dlo.gt.eps_tol .and. dhi.lt.-eps_tol ) ) cycle
+            if( .not.( dlo.gt.-eps_tol .and. dhi.lt.-eps_tol ) ) cycle
             ! refine with bisection on the plane distance
             lo = 0.0_dp
             hi = h

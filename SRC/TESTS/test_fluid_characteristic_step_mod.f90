@@ -380,4 +380,62 @@ contains
       v = uconst
    end subroutine u_count
 
+   !--------------- Terminal event metadata (tetrahedron) ---------------------!
+   ! Every terminal event must report the containing tetrahedron.
+   @test
+   subroutine test_terminal_events_report_tetrahedron()
+      real(dp) :: x(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+
+      ! normal completion inside A (fast and integrator paths)
+      uconst = [0.d0, 0.d0, 1.d0]
+      x = [0.2d0, 0.2d0, 0.2d0]
+      call trace_fluid_characteristic(x, u_const, marker_state, 0.5d0, .true., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr)
+      @assertEqual(CHAR_EVENT_NONE, res%event%kind)
+      @assertEqual(1, res%event%tetrahedron)
+
+      x = [0.2d0, 0.2d0, 0.2d0]
+      call trace_fluid_characteristic(x, u_const, marker_state, 0.5d0, .false., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr)
+      @assertEqual(CHAR_EVENT_NONE, res%event%kind)
+      @assertEqual(1, res%event%tetrahedron)
+
+      ! collision (fast and integrator paths)
+      x = [0.2d0, 0.2d0, 0.2d0]
+      call trace_fluid_characteristic(x, u_const, marker_state, 30.d0, .true., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr, t_stop=0.5d0)
+      @assertEqual(CHAR_EVENT_COLLISION, res%event%kind)
+      @assertEqual(1, res%event%tetrahedron)
+
+      x = [0.2d0, 0.2d0, 0.2d0]
+      call trace_fluid_characteristic(x, u_const, marker_state, 30.d0, .false., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr, t_stop=0.5d0)
+      @assertEqual(CHAR_EVENT_COLLISION, res%event%kind)
+      @assertEqual(1, res%event%tetrahedron)
+   end subroutine test_terminal_events_report_tetrahedron
+
+   !-------------- Boundary-start face crossing (integrator) -------------------!
+   ! A trajectory beginning within eps_tol of an internal face, moving outward,
+   ! must be reported as a face crossing rather than accepted as an
+   ! out-of-tetrahedron point.
+   @test
+   subroutine test_boundary_start_face_crossing()
+      real(dp) :: x(3)
+      type(characteristic_result_t) :: res
+      integer :: ierr
+
+      uconst = [0.d0, 0.d0, 1.d0]
+      ! start very close to (and inside) A face 1, plane x+y+z=2, moving up
+      x = [0.2d0, 0.2d0, 1.6d0 - 1.d-11]
+      call trace_fluid_characteristic(x, u_const, marker_state, 30.d0, .false., &
+           verts, ind_knot, nb_tetr, nb_face, ntetr, res, ierr)
+      @assertEqual(CHAR_OK, ierr)
+      @assertEqual(CHAR_EVENT_FACE, res%event%kind)
+      @assertEqual(1, res%event%tetrahedron)
+      @assertEqual(1, res%event%face)
+      @assertTrue(res%event%time > 0.d0)
+   end subroutine test_boundary_start_face_crossing
+
 end module test_fluid_characteristic_step_mod
