@@ -254,6 +254,7 @@ contains
       call trace_neutral_free_flight(x, v, mass, 2.d0, verts, ind_knot, &
            nb_tetr, nb_face, ntetr, res, ierr)
       @assertEqual(CHAR_ERR_GRAZING, ierr)
+   end subroutine test_grazing_rejected
 
    !----- Slow crossing: |ndotv| < 1e-10 must still find the exit face --------!
    ! Start in A at (0.5,0.5,0.5); the shared face x+y+z=2 is reached at t=2.5e11
