@@ -141,6 +141,13 @@ module orbit_timestep_gorilla_mod
                     if( present(t_remain_out)) then
                         t_remain_out = t_remain
                     endif
+                    !The pusher can reach the material boundary exactly when the
+                    !flight time finishes; in that case ind_tetr is already -1 and
+                    !the wall outputs must be reported before returning.
+                    if(ind_tetr.eq.-1) then
+                        if(present(ind_tetr_wall_out)) ind_tetr_wall_out = ind_tetr_save
+                        if(present(iface_wall_out)) iface_wall_out = iface
+                    endif
                     exit
                 endif
 !
