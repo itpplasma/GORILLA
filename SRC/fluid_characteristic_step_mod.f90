@@ -132,7 +132,6 @@ module fluid_characteristic_step_mod
     real(dp), parameter :: eps_tol = 1.0e-10_dp     ! absolute geometric/time tolerance
     real(dp), parameter :: def_rtol = 1.0e-8_dp     ! default relative error (local integrator)
     real(dp), parameter :: def_atol = 1.0e-10_dp    ! default absolute error (local integrator)
-    integer,  parameter :: n_stop_sub = 8           ! substeps used to hit a stop time exactly
 !
     contains
 !
@@ -461,8 +460,8 @@ module fluid_characteristic_step_mod
         real(dp), dimension(3) :: xcur, xnew, x_enter, xcross
         real(dp), dimension(:), allocatable :: marker_new
         real(dp) :: d_prev, d_new
-        integer  :: if, guard
-        logical  :: crossed
+        integer  :: if, guard, if_tie
+        logical  :: crossed, stop_limited
 !
         ierr = CHAR_OK
         iface_out = -1
@@ -477,6 +476,7 @@ module fluid_characteristic_step_mod
         result = characteristic_result_t()
 !
         do
+            stop_limited = .false.
             avail = t_remain - tau
             if( avail.le.eps_tol ) then
                 ! requested end time reached inside this tetrahedron
@@ -510,20 +510,12 @@ module fluid_characteristic_step_mod
                     return
                 endif
                 if( stop_due.lt.h .and. stop_due.gt.eps_tol ) then
-                    ! stop time falls inside the coming step -> advance exactly
-                    call advance_to_time(xcur, velocity, marker, dummy_marker, &
-                         & stop_due, t_elapsed + tau, x_enter, int_seg)
-                    tau = t_stop_left
-                    result%position(:) = xcur
-                    result%time        = t_stop_left
-                    result%finished    = .true.
-                    result%event%kind  = CHAR_EVENT_COLLISION
-                    result%event%tetrahedron = ind_tetr
-                    result%event%time  = result%time
-                    result%event%position = xcur
-                    result%event%remaining = t_remain - tau
-                    x = xcur
-                    return
+                    ! stop time falls inside the coming step -> limit the candidate
+                    ! step to the stop time and run the normal crossing logic, so a
+                    ! face crossing within the interval is still reported as the
+                    ! earliest event.
+                    h = stop_due
+                    stop_limited = .true.
                 endif
             endif
 !
@@ -584,6 +576,44 @@ module fluid_characteristic_step_mod
                     return
                 endif
                 ! no clean single-face crossing -> grazing; fall through
+            endif
+!
+            !--- stop-limited leg ending exactly on a face plane (tie) ---------!
+            ! When the caller stop time coincides with a face crossing, the
+            ! fast path reports the face as the earliest event.  Match that
+            ! tie-break here: a stop-limited step that ends on a plane the leg
+            ! began strictly inside of is reported as that face crossing.
+            if( .not. crossed .and. stop_limited ) then
+                if_tie = 0
+                do if = 1,4
+                    d_prev = dot_product( anorm(:,if), xcur ) + plane_d(if)
+                    d_new  = dot_product( anorm(:,if), xnew ) + plane_d(if)
+                    if( d_prev.gt.eps_tol .and. abs( d_new ).le.eps_tol ) then
+                        if_tie = if
+                        exit
+                    endif
+                enddo
+                if( if_tie.ge.1 ) then
+                    if( present(marker) ) marker = marker_new
+                    call project_onto_plane( xnew, anorm(:,if_tie), plane_d(if_tie), xcur )
+                    int_seg = int_seg + ( xcur - x_enter )
+                    tau     = tau + h
+                    result%position(:) = xcur
+                    result%time        = t_elapsed + tau
+                    result%event%kind  = CHAR_EVENT_FACE
+                    result%event%tetrahedron = ind_tetr
+                    result%event%face        = if_tie
+                    result%event%time        = result%time
+                    result%event%position    = xcur
+                    result%event%remaining   = max( 0.0_dp, t_remain - tau )
+                    result%event%normal      = anorm(:,if_tie)   ! inward unit normal
+                    x = xcur
+                    if( neighbour_tetr(if_tie, ind_tetr).lt.1 ) then
+                        result%event%kind   = CHAR_EVENT_WALL
+                        result%event%normal = -anorm(:,if_tie)   ! outward unit normal
+                    endif
+                    return
+                endif
             endif
 !
             !------------------- accept the step -----------------------------!
@@ -675,41 +705,6 @@ module fluid_characteristic_step_mod
     end subroutine find_crossing
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-    subroutine advance_to_time(xcur, velocity, marker, dummy_marker, dt, t0, x_enter, int_seg)
-!
-        ! Advance the point by a fixed (small) time  dt  using n_stop_sub
-        ! embedded-RK45 substeps, accumulating the segment integral.  Used to
-        ! reach a caller stop time exactly (the interval is short and contained
-        ! inside the current tetrahedron, so no face events occur within it).
-        !
-        implicit none
-        !
-        real(dp), dimension(3), intent(inout) :: xcur
-        procedure(velocity_field_t) :: velocity
-        real(dp), dimension(:), intent(inout), optional :: marker
-        real(dp), dimension(1), intent(inout) :: dummy_marker
-        real(dp), intent(in) :: dt, t0
-        real(dp), dimension(3), intent(in) :: x_enter
-        real(dp), dimension(3), intent(inout) :: int_seg
-        !
-        real(dp), dimension(3) :: xn
-        real(dp), dimension(:), allocatable :: marker_new
-        real(dp) :: errv
-        real(dp) :: hsub
-        integer  :: i
-        !
-        if( present(marker) ) allocate( marker_new(size(marker)) )
-        hsub = dt / real( n_stop_sub, dp )
-        do i = 1, n_stop_sub
-            call rk45_step(xcur, marker, dummy_marker, t0 + (i-1)*hsub, hsub, velocity, xn, errv, &
-                 & marker_out=marker_new)
-            xcur = xn
-            if( present(marker) ) marker = marker_new
-        enddo
-        int_seg = int_seg + ( xcur - x_enter )
-!
-    end subroutine advance_to_time
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
