@@ -25,7 +25,7 @@ The code is free to use and modify under the MIT License and links to Runge-Kutt
 `SRC/contrib/rkf45.f90` from https://people.sc.fsu.edu/~jburkardt/f_src/rkf45/rkf45.html under the GNU LGPL License.
 
 ### Magnetic field input
-The magnetic field can be provided by magnetohydrodynamics (MHD) equilibria with nested magnetic flux surfaces either in 2D (e.g. EFIT) or in 3D (e.g. VMEC). Supported equilibria are in the g-file or NetCDF format, respectively.
+The magnetic field can be provided by magnetohydrodynamics (MHD) equilibria with nested magnetic flux surfaces either in 2D (e.g. EFIT) or in 3D (e.g. VMEC). Supported equilibria are in the g-file or NetCDF format, respectively. Extended Boozer chartmap NetCDF files can be selected with `grid_kind = 6`. This format contains `rho`, `s`, `theta`, `zeta`, Cartesian geometry, `A_phi`, `B_theta`, `B_phi`, `Bmod`, `num_field_periods`, and the global `torflux` attribute in the established SIMPLE chartmap units.
 For both equilibria formats, test files for the limited purpose of computing guiding-center orbits are provided.
 The g-file test equilibrium (`g_file_for_test`) was provided by the ASDEX Upgrade Team for testing purposes and corresponds to the axisymmetric tokamak field configuration of ASDEX Upgrade (shot 26884 at 4300 ms) described in Ref. [3].
 The VMEC NetCDF test equlibrium (`netcdf_file_for_test.nc`) was provided by Michael Drevlak for testing purposes and corresponds to the stellarator field configuration described in Ref. [4], namely, a quasi-isodynamic reactor-scale device with five toroidal field periods and a major radius of 25 m.
