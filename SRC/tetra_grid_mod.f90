@@ -30,9 +30,11 @@
         use tetra_grid_settings_mod, only: boole_n_field_periods,n_field_periods_manual,grid_size,n1,n2,n3,grid_kind, &
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
+                                         & netcdf_filename, &
                                          & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ
         use new_vmec_stuff_mod, only: nper
         use spline_vmec_data_mod, only: spline_vmec_data
+        use boozer_chartmap_mod, only: load_boozer_chartmap, chartmap_nfp
         use field_divB0_mod, only: field
         use field_mod, only: ianalytic_circ
         use field_analytic_circ_mod, only: set_field_analytic_circ
@@ -59,7 +61,7 @@
             select case(grid_kind)
                 case(1,2,4,5) !2D EFIT & WEST equilibria
                     call set_n_field_periods(1)
-                case(3) !3D VMEC equilibria
+                case(3,6) !3D VMEC or Boozer chartmap equilibria
                     call set_n_field_periods(0) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
             end select
 !
@@ -121,6 +123,13 @@
                 call set_n_field_periods(nper) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
             endif
 !
+            call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
+!
+          case(6) !field-aligned grid in direct Boozer chartmap coordinates
+!
+            efit_vmec = 3
+            call load_boozer_chartmap(netcdf_filename)
+            if(boole_n_field_periods) call set_n_field_periods(chartmap_nfp)
             call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
 !            
           case(4) !SOLEDGE3X_EIRENE-grid               
@@ -184,7 +193,7 @@
             close(iunit)
     !
             ![s,theta,phi]: Write Mesh to File
-            if ((grid_kind .eq. 2).or.(grid_kind .eq. 3)) then
+            if ((grid_kind .eq. 2).or.(grid_kind .eq. 3).or.(grid_kind .eq. 6)) then
     !
                 open(newunit=iunit, file=filename_mesh_sthetaphi)
                 do i=1, (nvert / grid_size(2)) * 2
@@ -256,6 +265,12 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
             call create_points(verts_per_ring, nphi, verts_rphiz, verts_sthetaphi, efit_vmec,n_field_periods,nvert, &
                        verts_theta_vmec,r_scaling_func = scaling_r, theta_scaling_func = scaling_theta, &
                        repeat_center_point = .true.)
+        case(3) !direct Boozer chartmap
+            call create_points(verts_per_ring, nphi, verts_rphiz, verts_sthetaphi, &
+                               efit_vmec, n_field_periods, nvert, &
+                               r_scaling_func=scaling_r, &
+                               theta_scaling_func=scaling_theta, &
+                               repeat_center_point=.true.)
     end select
 !    
     call calc_mesh(verts_per_ring, nphi, verts_rphiz(:, :nvert / nphi), ntetr, &
@@ -748,4 +763,3 @@ b: do ind_tetr=1,ntetr
     end subroutine deallocate_tetra_grid
 !
 end module tetra_grid_mod
-

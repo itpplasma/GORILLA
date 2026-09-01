@@ -364,7 +364,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                 ntetr_searched = 6
                 use_grid = .false.
 !
-            case(2,3,4) !EFIT field-aligned grid or VMEC field_aligned grid or SOLEDGE3X_EIRENE
+            case(2,3,4,6) !field-aligned grids or SOLEDGE3X-EIRENE
 !
                 ind_b = 2 !(phi in cylindrical and flux coordinates)
                 if (coord_system.eq.2) ind_b = 3
