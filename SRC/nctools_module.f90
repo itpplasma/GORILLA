@@ -19,6 +19,15 @@ module nctools_module
   
 contains
 
+  logical function nc_has_var(ncid, name)
+    integer, intent(in) :: ncid
+    character(len=*), intent(in) :: name
+    integer :: status, varid
+
+    status = nf90_inq_varid(ncid, name, varid)
+    nc_has_var = status == nf90_noerr
+  end function nc_has_var
+
   subroutine nc_get_int_0(ncid, name, var)
     integer :: ncid
     character(len=*) :: name
