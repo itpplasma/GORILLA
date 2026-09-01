@@ -12,6 +12,7 @@ subroutine create_points(verts_per_ring, n_slices, points_rphiz, points_sthetaph
                          verts_theta_vmec,r_scaling_func, theta_scaling_func,repeat_center_point)
     use points_2d, only: create_points_2d, create_points_2d_vmec, scaling_func
     use splint_vmec_data_mod, only: splint_vmec_data
+    use boozer_chartmap_mod, only: evaluate_chartmap_geometry
 
     integer, intent(in) :: n_slices,efit_vmec,n_field_periods_in
     integer, dimension(:), intent(in) :: verts_per_ring ! without center vert; e.g. (/6, 8, 10/)
@@ -90,6 +91,23 @@ subroutine create_points(verts_per_ring, n_slices, points_rphiz, points_sthetaph
             points_rphiz(3,i) = Z
 !          
         enddo
+!
+      case(3) !direct Boozer chartmap
+        call create_points_2d_vmec(verts_per_ring, &
+                                  points_sthetaphi(:, :verts_per_slice), &
+                                  r_scaling_func, theta_scaling_func, &
+                                  repeat_center_point)
+        phi_position = 3
+        call extrude_points(verts_per_slice, n_slices, phi_position, &
+                            points_sthetaphi)
+        do i = 1, n_verts
+            s = points_sthetaphi(1, i)
+            theta = points_sthetaphi(2, i)
+            varphi = points_sthetaphi(3, i)
+            call evaluate_chartmap_geometry(s, theta, varphi, R, alam, Z, &
+                                            dR_ds, dZ_ds)
+            points_rphiz(:, i) = [R, alam, Z]
+        end do
 !
     end select    
         

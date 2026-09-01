@@ -22,6 +22,11 @@ add_pfunit_ctest (test_scaling_r_theta
   TEST_SOURCES test_scaling_r_theta.f90
   LINK_LIBRARIES GORILLA
   )
+
+add_pfunit_ctest (test_boozer_chartmap
+  TEST_SOURCES test_boozer_chartmap.f90
+  LINK_LIBRARIES GORILLA netcdf netcdff
+  )
   
 add_pfunit_ctest (test_supporting_functions_mod
   TEST_SOURCES test_supporting_functions_mod.f90
