@@ -124,6 +124,25 @@
 !   
   contains
 !
+    pure real(dp) function radial_electric_projection_flux( &
+        dphi_ds, delta_r, delta_z, dr_ds, dz_ds) result(e_radial)
+      real(dp), intent(in) :: dphi_ds, delta_r, delta_z, dr_ds, dz_ds
+      real(dp) :: denominator, denominator_scale, minor_radius
+
+      e_radial = 0.0_dp
+      if (dphi_ds == 0.0_dp) return
+
+      minor_radius = sqrt(delta_r**2 + delta_z**2)
+      if (minor_radius == 0.0_dp) return
+
+      denominator = delta_r*dr_ds + delta_z*dz_ds
+      denominator_scale = max(abs(delta_r*dr_ds), abs(delta_z*dz_ds))
+      if (denominator_scale == 0.0_dp) return
+      if (abs(denominator) <= epsilon(denominator)*denominator_scale) return
+
+      e_radial = dphi_ds*minor_radius/denominator
+    end function radial_electric_projection_flux
+!
     subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in, boole_keep_phi_elec)
 !
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
@@ -921,10 +940,11 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
             case(2) !s,theta,phi --> Symmetry flux coordinate system 
                 do j = 1,4
                     iv=tetra_grid(ind_tetr)%ind_knot(j)
-                    tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_ds * ds_dr
-                                    & tetra_physics(ind_tetr)%gPhi(1) * &
-                                    & sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2) &
-                                    & /((avec(j,9)-mag_axis_R0)*dR_ds(iv) + (avec(j,10)-mag_axis_Z0)*dZ_ds(iv))  
+                    tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + &
+                        radial_electric_projection_flux( &
+                            tetra_physics(ind_tetr)%gPhi(1), &
+                            avec(j,9) - mag_axis_R0, avec(j,10) - mag_axis_Z0, &
+                            dR_ds(iv), dZ_ds(iv))
                 enddo
         end select
         tetra_physics(ind_tetr)%Er_mod = abs(tetra_physics(ind_tetr)%Er_mod/4.d0)

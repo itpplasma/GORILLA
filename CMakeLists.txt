@@ -48,4 +48,12 @@ add_executable(test_boozer_chartmap_driver.x
 target_link_libraries(test_boozer_chartmap_driver.x GORILLA netcdff netcdf lapack)
 add_test(NAME boozer_chartmap_oracle COMMAND test_boozer_chartmap_driver.x)
 
+add_executable(test_radial_electric_projection_driver.x
+  SRC/TESTS/test_radial_electric_projection_driver.f90
+)
+target_link_libraries(test_radial_electric_projection_driver.x
+  GORILLA netcdff netcdf lapack)
+add_test(NAME radial_electric_projection_oracle
+  COMMAND test_radial_electric_projection_driver.x)
+
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})

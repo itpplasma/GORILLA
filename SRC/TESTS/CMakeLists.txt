@@ -17,6 +17,11 @@ add_pfunit_ctest (test_tetra_grid_settings_mod
   TEST_SOURCES test_tetra_grid_settings_mod.f90
   LINK_LIBRARIES GORILLA
   )
+
+add_pfunit_ctest (test_tetra_physics_mod
+  TEST_SOURCES test_tetra_physics_mod.f90
+  LINK_LIBRARIES GORILLA
+  )
   
 add_pfunit_ctest (test_scaling_r_theta
   TEST_SOURCES test_scaling_r_theta.f90
