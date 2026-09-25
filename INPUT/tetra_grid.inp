@@ -18,6 +18,9 @@
  !4 ... SOLEDGE3X_EIRENE grid
  grid_kind = 3 ,
 !
+ !For VMEC input, retain only n=0 Fourier harmonics
+ boole_axisymmetric_only = .false. ,
+!
  !MHD equilibrium filename
  g_file_filename = 'MHD_EQUILIBRIA/g_file_for_test' ,
  convex_wall_filename = 'MHD_EQUILIBRIA/convex_wall_for_test.dat' ,
@@ -62,5 +65,4 @@
 !------------------------------------------------------------------------------------------------------------!
 !    
 /
-
 

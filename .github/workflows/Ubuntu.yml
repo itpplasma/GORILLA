@@ -80,6 +80,7 @@ jobs:
         uses: matlab-actions/run-command@v3
         with:
           command: |
+            setenv('LD_PRELOAD','/usr/lib/x86_64-linux-gnu/libcurl.so.4')
             cd MATLAB
             example_1
             example_2
@@ -94,6 +95,7 @@ jobs:
         uses: matlab-actions/run-command@v3
         with:
           command: |
+            setenv('LD_PRELOAD','/usr/lib/x86_64-linux-gnu/libcurl.so.4')
             cd MATLAB
             plotting_tutorial
 

@@ -28,6 +28,9 @@
     !(1 ... rectangular grid, 2 ... field-aligned grid EFIT, 3 ... field-aligned grid VMEC, 4 ... SOLEDGE3X-EIRENE grid, 5 ... analytic circular tokamak)
     integer,public,protected :: grid_kind
 !
+    !For VMEC input, retain only harmonics with toroidal mode number n=0.
+    logical,public,protected :: boole_axisymmetric_only = .false.
+!
     !MHD equilibrium filename
     character*64,public,protected :: g_file_filename
     character*64,public,protected :: convex_wall_filename
@@ -69,6 +72,7 @@
     !Namelist for Tetrahedronal Grid input
     NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual,sfc_s_min, &
                             & i_radial_spacing, &
+                            & boole_axisymmetric_only, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
                             & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename, &
