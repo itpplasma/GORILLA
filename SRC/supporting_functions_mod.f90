@@ -12,6 +12,7 @@
       use tetra_physics_mod, only: coord_system
       use tetra_grid_settings_mod, only: grid_kind
       use splint_vmec_data_mod, only: splint_vmec_data
+      use boozer_chartmap_mod, only: evaluate_chartmap_geometry
       use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
 !
       implicit none
@@ -28,6 +29,7 @@
       double precision :: Z, dZ_ds, dZ_dtheta,B_s,B_theta,B_theta1
       double precision :: theta_vmec,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,       &
                           alam,dR_dt,dR_dp,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp
+      double precision :: phi_cyl
 !
       !This subroutine is designed for maximum three additional columns
       if( (n_additional_col.lt.0).or.(n_additional_col.gt.3) ) then
@@ -79,6 +81,7 @@
             read(iunit_in,*) x1,x2,x3,add1,add2,add3
         end select
 !
+        phi_cyl = x3
         select case(grid_kind)
           case(2) !EFIT field-aligned grid
             inp_label = 1
@@ -92,18 +95,20 @@
 !            
             call splint_vmec_data(x1,x2,x3,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota,       &
                                   R,Z,alam,dR_ds,dR_dt,dR_dp,dZ_ds,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp)
+          case(6) !direct Boozer chartmap
+            call evaluate_chartmap_geometry(x1,x2,x3,R,phi_cyl,Z,dR_ds,dZ_ds)
 !
         end select !grid_kind
 !        
         select case(n_additional_col)
           case(0)
-            write(iunit_out,*) R,x3,Z
+            write(iunit_out,*) R,phi_cyl,Z
           case(1)
-            write(iunit_out,*) R,x3,Z,add1
+            write(iunit_out,*) R,phi_cyl,Z,add1
           case(2)
-            write(iunit_out,*) R,x3,Z,add1,add2
+            write(iunit_out,*) R,phi_cyl,Z,add1,add2
           case(3)
-            write(iunit_out,*) R,x3,Z,add1,add2,add3
+            write(iunit_out,*) R,phi_cyl,Z,add1,add2,add3
         end select
 !
       enddo
