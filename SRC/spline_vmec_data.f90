@@ -10,6 +10,7 @@ module spline_vmec_data_mod
   use vector_potential_mod, only : ns,hs,torflux,sA_phi
   use spl_three_to_five_mod
   use vmecin_mod, only: vmecin
+  use tetra_grid_settings_mod, only: boole_axisymmetric_only
   use new_vmec_allocation_stuff_mod, only: new_allocate_vmec_stuff, new_deallocate_vmec_stuff
 !
   implicit none
@@ -19,14 +20,15 @@ module spline_vmec_data_mod
   double precision :: twopi,cosphase,sinphase
   complex(8)   :: base_exp_imt,base_exp_inp,base_exp_inp_inv,expphase
   double precision, dimension(:,:), allocatable :: splcoe
-  double precision, dimension(:,:), allocatable :: almn_rho,rmn_rho,zmn_rho
+  double precision, dimension(:,:), allocatable :: almnc_rho,rmnc_rho,zmnc_rho
+  double precision, dimension(:,:), allocatable :: almns_rho,rmns_rho,zmns_rho
   complex(8),   dimension(:),   allocatable :: exp_imt,exp_inp
 !
   print *,'Splining VMEC data: ns_A = ',ns_A,'  ns_s = ',ns_s,'  ns_tp = ',ns_tp
 !
   call new_allocate_vmec_stuff
 !
-  call vmecin(rmn,zmn,almn,aiota,phi,sps,axm,axn,s,    &
+  call vmecin(rmnc,zmns,almns,rmns,zmnc,almnc,aiota,phi,sps,axm,axn,s, &
               nsurfm,nstrm,kpar,torflux)
 !
   ns=kpar+1
@@ -34,7 +36,8 @@ module spline_vmec_data_mod
   hs=s(2)-s(1)
 !
   nrho=ns
-  allocate(almn_rho(nstrm,0:nrho-1),rmn_rho(nstrm,0:nrho-1),zmn_rho(nstrm,0:nrho-1))
+  allocate(almnc_rho(nstrm,0:nrho-1),rmnc_rho(nstrm,0:nrho-1),zmnc_rho(nstrm,0:nrho-1))
+  allocate(almns_rho(nstrm,0:nrho-1),rmns_rho(nstrm,0:nrho-1),zmns_rho(nstrm,0:nrho-1))
 !
   do i=1,nstrm
 !
@@ -42,11 +45,17 @@ module spline_vmec_data_mod
 !
     nheal=min(m,10)
 !
-    call s_to_rho_healaxis(m,ns,nrho,nheal,rmn(i,:),rmn_rho(i,:))
+    call s_to_rho_healaxis(m,ns,nrho,nheal,rmnc(i,:),rmnc_rho(i,:))
 !
-    call s_to_rho_healaxis(m,ns,nrho,nheal,zmn(i,:),zmn_rho(i,:))
+    call s_to_rho_healaxis(m,ns,nrho,nheal,zmnc(i,:),zmnc_rho(i,:))
 !
-    call s_to_rho_healaxis(m,ns,nrho,nheal,almn(i,:),almn_rho(i,:))
+    call s_to_rho_healaxis(m,ns,nrho,nheal,almnc(i,:),almnc_rho(i,:))
+!
+    call s_to_rho_healaxis(m,ns,nrho,nheal,rmns(i,:),rmns_rho(i,:))
+!
+    call s_to_rho_healaxis(m,ns,nrho,nheal,zmns(i,:),zmns_rho(i,:))
+!
+    call s_to_rho_healaxis(m,ns,nrho,nheal,almns(i,:),almns_rho(i,:))
 !
   enddo
 !
@@ -131,18 +140,20 @@ module spline_vmec_data_mod
       do i=1,nstrm
         m=nint(axm(i))
         n=nint(axn(i))
+        if (.not.vmec_mode_is_selected(n,boole_axisymmetric_only)) cycle
         iexpt=m*(i_theta-1)
         iexpp=n*(i_phi-1)
         expphase=exp_imt(iexpt)*exp_inp(-iexpp)
         cosphase=dble(expphase)
         sinphase=aimag(expphase)
         do is=1,ns
-          sR(1,1,1,is,i_theta,i_phi) = sR(1,1,1,is,i_theta,i_phi)      &
-                                     + rmn_rho(i,is-1)*cosphase
-          sZ(1,1,1,is,i_theta,i_phi) = sZ(1,1,1,is,i_theta,i_phi)      &
-                                     + zmn_rho(i,is-1)*sinphase
-          slam(1,1,1,is,i_theta,i_phi) = slam(1,1,1,is,i_theta,i_phi)  &
-                                       + almn_rho(i,is-1)*sinphase
+          call add_vmec_fourier_mode(cosphase,sinphase,                &
+                                     rmnc_rho(i,is-1),rmns_rho(i,is-1),&
+                                     zmnc_rho(i,is-1),zmns_rho(i,is-1),&
+                                     almnc_rho(i,is-1),almns_rho(i,is-1), &
+                                     sR(1,1,1,is,i_theta,i_phi),       &
+                                     sZ(1,1,1,is,i_theta,i_phi),       &
+                                     slam(1,1,1,is,i_theta,i_phi))
         enddo
       enddo
     enddo
@@ -275,8 +286,41 @@ module spline_vmec_data_mod
   deallocate(splcoe)
 !$omp end parallel
   deallocate(exp_imt,exp_inp)
+  deallocate(almnc_rho,rmnc_rho,zmnc_rho,almns_rho,rmns_rho,zmns_rho)
 !
   end subroutine spline_vmec_data
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+  pure logical function vmec_mode_is_selected(n,axisymmetric_only)
+!
+  implicit none
+!
+  integer, intent(in) :: n
+  logical, intent(in) :: axisymmetric_only
+!
+  vmec_mode_is_selected = (.not.axisymmetric_only).or.(n.eq.0)
+!
+  end function vmec_mode_is_selected
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+  pure subroutine add_vmec_fourier_mode(cosphase,sinphase,rmnc_mode,rmns_mode, &
+                                        zmnc_mode,zmns_mode,almnc_mode,almns_mode, &
+                                        R,Z,alam)
+!
+  implicit none
+!
+  double precision, intent(in) :: cosphase,sinphase
+  double precision, intent(in) :: rmnc_mode,rmns_mode,zmnc_mode,zmns_mode
+  double precision, intent(in) :: almnc_mode,almns_mode
+  double precision, intent(inout) :: R,Z,alam
+!
+  R = R + rmnc_mode*cosphase + rmns_mode*sinphase
+  Z = Z + zmnc_mode*cosphase + zmns_mode*sinphase
+  alam = alam + almnc_mode*cosphase + almns_mode*sinphase
+!
+  end subroutine add_vmec_fourier_mode
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
