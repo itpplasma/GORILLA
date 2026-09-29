@@ -67,7 +67,9 @@ contains
     double precision :: row(5)
     open(newunit=iu, file=fname, status='old', action='read', iostat=ios)
     if (ios /= 0) then
-      print *, 'ERROR field_analytic_circ: cannot open helical_pert_file: ', trim(fname); stop
+      print *, 'ERROR field_analytic_circ: cannot open helical_pert_file: ', &
+               trim(fname)
+      stop
     end if
     nhp = 0
     do
@@ -104,7 +106,8 @@ contains
 
   subroutine eval_helical_pert_circ(R, phi, Z, dA_phi, dPhi)
     ! dA_phi = amp Re[psihat(rho) e^{i alpha}], dPhi = amp Re[Phihat(rho) e^{i alpha}],
-    ! alpha = m theta* + n phi with the exact straight-field-line angle of B_phi = B0 R0/R.
+    ! alpha = m theta* + n phi with the exact straight-field-line angle of
+    ! B_phi = B0 R0/R.
     ! Zero outside the tabulated rho range.
     double precision, intent(in)  :: R, phi, Z
     double precision, intent(out) :: dA_phi, dPhi

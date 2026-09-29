@@ -423,8 +423,8 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                         if (jr_ac.lt.1 .or. jr_ac.gt.nr) cycle
                         do k6_ac = 0, 5
                             n_ok_ac = n_ok_ac + 1
-                            cand_ac(n_ok_ac) = 6*((iphi-1)*nr*nz + (jr_ac-1)*nz + jz_ac-1) &
-                                               + k6_ac + 1
+                            cand_ac(n_ok_ac) = 6*((iphi-1)*nr*nz + (jr_ac-1)*nz &
+                                               + jz_ac-1) + k6_ac + 1
                         end do
                     end do
                 end do

@@ -82,7 +82,8 @@
                             & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename, &
                             & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
                             & q_exp_analytic_circ, q_profile_file_analytic_circ, &
-                            & helical_pert_file_analytic_circ, helical_pert_amp_analytic_circ, &
+                            & helical_pert_file_analytic_circ, &
+                            & helical_pert_amp_analytic_circ, &
                             & helical_pert_m_analytic_circ, helical_pert_n_analytic_circ
 !
     public :: load_tetra_grid_inp,set_grid_size,set_n_field_periods,set_n2,set_n3

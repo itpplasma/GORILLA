@@ -31,15 +31,16 @@
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
                                          & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
-                                         & q_exp_analytic_circ, q_profile_file_analytic_circ, sfc_s_min, sfc_s_max, &
-                                         & helical_pert_file_analytic_circ, helical_pert_amp_analytic_circ, &
-                                         & helical_pert_m_analytic_circ, helical_pert_n_analytic_circ
+                                         & q_exp_analytic_circ, q_profile_file_analytic_circ, sfc_s_min, sfc_s_max
+        use tetra_grid_settings_mod, only: helical_pert_file_analytic_circ, &
+            helical_pert_amp_analytic_circ, helical_pert_m_analytic_circ, &
+            helical_pert_n_analytic_circ
         use new_vmec_stuff_mod, only: nper
         use spline_vmec_data_mod, only: spline_vmec_data
         use field_divB0_mod, only: field
         use field_mod, only: ianalytic_circ
-        use field_analytic_circ_mod, only: set_field_analytic_circ, write_flux_functions_analytic_circ, &
-                                           load_helical_pert_circ
+        use field_analytic_circ_mod, only: set_field_analytic_circ, write_flux_functions_analytic_circ
+        use field_analytic_circ_mod, only: load_helical_pert_circ
         !use make_grid_rect_mod, only: make_grid_rect
 !
         implicit none
