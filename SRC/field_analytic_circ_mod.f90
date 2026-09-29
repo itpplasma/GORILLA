@@ -33,6 +33,11 @@ module field_analytic_circ_mod
   double precision, allocatable :: pt_ac(:)    ! psi_pol on the grid
   double precision, allocatable :: py2_ac(:)   ! psi spline 2nd derivs
 
+  ! --- prescribed static helical perturbation (see tetra_grid_settings_mod) ---
+  logical                       :: helpert_loaded = .false.
+  integer                       :: nhp = 0, hp_m = 0, hp_n = 0
+  double precision              :: hp_amp = 0.d0
+  double precision, allocatable :: hp_r(:), hp_c(:,:), hp_c2(:,:)
 contains
 
   subroutine set_field_analytic_circ(R0, a, B0, q0, q1, q_exp, q_file)
@@ -51,6 +56,78 @@ contains
     end if
   end subroutine set_field_analytic_circ
 
+
+  subroutine load_helical_pert_circ(fname, amp, m, n)
+    ! Read rho, Re/Im psihat, Re/Im Phihat and spline each column in rho.
+    character(len=*), intent(in) :: fname
+    double precision, intent(in) :: amp
+    integer,          intent(in) :: m, n
+    integer :: iu, ios, i, k
+    character(len=512) :: line
+    double precision :: row(5)
+    open(newunit=iu, file=fname, status='old', action='read', iostat=ios)
+    if (ios /= 0) then
+      print *, 'ERROR field_analytic_circ: cannot open helical_pert_file: ', &
+               trim(fname)
+      stop
+    end if
+    nhp = 0
+    do
+      read(iu,'(A)',iostat=ios) line
+      if (ios /= 0) exit
+      line = adjustl(line)
+      if (len_trim(line) == 0 .or. line(1:1) == '#') cycle
+      nhp = nhp + 1
+    end do
+    rewind(iu)
+    allocate(hp_r(nhp), hp_c(nhp,4), hp_c2(nhp,4))
+    i = 0
+    do
+      read(iu,'(A)',iostat=ios) line
+      if (ios /= 0) exit
+      line = adjustl(line)
+      if (len_trim(line) == 0 .or. line(1:1) == '#') cycle
+      i = i + 1
+      read(line,*) row
+      hp_r(i) = row(1)
+      hp_c(i,:) = row(2:5)
+    end do
+    close(iu)
+    do k = 1, 4
+      call spline_setup(hp_r, hp_c(:,k), nhp, hp_c2(:,k))
+    end do
+    hp_amp = amp
+    hp_m = m
+    hp_n = n
+    helpert_loaded = .true.
+    print *, '[field_analytic_circ] helical perturbation loaded: ', trim(fname), &
+             '  npts=', nhp, ' amp=', amp, ' m=', m, ' n=', n
+  end subroutine load_helical_pert_circ
+
+  subroutine eval_helical_pert_circ(R, phi, Z, dA_phi, dPhi)
+    ! dA_phi = amp Re[psihat(rho) e^{i alpha}], dPhi = amp Re[Phihat(rho) e^{i alpha}],
+    ! alpha = m theta* + n phi with the exact straight-field-line angle of
+    ! B_phi = B0 R0/R.
+    ! Zero outside the tabulated rho range.
+    double precision, intent(in)  :: R, phi, Z
+    double precision, intent(out) :: dA_phi, dPhi
+    double precision :: rho, th, eps, ths, al, c(4)
+    integer :: k
+    dA_phi = 0.d0
+    dPhi = 0.d0
+    if (.not. helpert_loaded) return
+    rho = sqrt((R - R0_ac)**2 + Z**2)
+    if (rho < hp_r(1) .or. rho > hp_r(nhp)) return
+    th  = atan2(Z, R - R0_ac)
+    eps = rho / R0_ac
+    ths = 2.d0*atan2(sqrt(1.d0-eps)*sin(0.5d0*th), sqrt(1.d0+eps)*cos(0.5d0*th))
+    al  = dble(hp_m)*ths + dble(hp_n)*phi
+    do k = 1, 4
+      c(k) = splint_val(hp_r, hp_c(:,k), hp_c2(:,k), nhp, rho)
+    end do
+    dA_phi = hp_amp*(c(1)*cos(al) - c(2)*sin(al))
+    dPhi   = hp_amp*(c(3)*cos(al) - c(4)*sin(al))
+  end subroutine eval_helical_pert_circ
 
   subroutine load_q_table(fname)
     ! Read (r[cm], q) table, spline q(r), integrate psi_pol = B0*int_0^r r'/q dr'

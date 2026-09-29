@@ -1115,6 +1115,7 @@ enddo
         use tetra_grid_settings_mod, only: grid_kind, &
             R0_analytic_circ, a_analytic_circ, B0_analytic_circ, &
             q0_analytic_circ, q1_analytic_circ
+        use field_analytic_circ_mod, only: helpert_loaded, eval_helical_pert_circ
 
 !
         implicit none
@@ -1136,6 +1137,8 @@ enddo
         double precision :: dBpkdR, dBpkdp, dBpkdZ
         double precision :: dBzkdR, dBzkdp, dBzkdZ
         double precision :: rho_ac, q_loc
+        double precision :: dA_hp, dP_hp, dA_p, dA_m
+        double precision, parameter :: h_hp = 1.d-3
 !
         call field(r,phi,z,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ  &
                   ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
@@ -1163,6 +1166,21 @@ enddo
                      dBzkdR, dBzkdp, dBzkdZ)
           A_z = A_z - B_pk * dR_int
         end do
+!
+        ! Prescribed helical perturbation (grid_kind = 5): A_phi += dA_phi and the
+        ! matching dB_R = -d_Z dA_phi/R, dB_Z = d_R dA_phi/R (dB_phi = 0), so h and
+        ! |B| at the vertices are consistent with curl A.
+        if (grid_kind .eq. 5 .and. helpert_loaded) then
+          call eval_helical_pert_circ(r, phi, z, dA_hp, dP_hp)
+          A_phi = A_phi + dA_hp
+          call eval_helical_pert_circ(r, phi, z + h_hp, dA_p, dP_hp)
+          call eval_helical_pert_circ(r, phi, z - h_hp, dA_m, dP_hp)
+          B_r = B_r - (dA_p - dA_m)/(2.d0*h_hp)/r
+          call eval_helical_pert_circ(r + h_hp, phi, z, dA_p, dP_hp)
+          call eval_helical_pert_circ(r - h_hp, phi, z, dA_m, dP_hp)
+          B_z = B_z + (dA_p - dA_m)/(2.d0*h_hp)/r
+          bmod = sqrt(B_r**2 + B_p**2 + B_z**2)*bmod_multiplier
+        endif
 !
         B_phi=B_p*R
 !

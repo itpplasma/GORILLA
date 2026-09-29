@@ -32,11 +32,15 @@
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
                                          & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
                                          & q_exp_analytic_circ, q_profile_file_analytic_circ, sfc_s_min, sfc_s_max
+        use tetra_grid_settings_mod, only: helical_pert_file_analytic_circ, &
+            helical_pert_amp_analytic_circ, helical_pert_m_analytic_circ, &
+            helical_pert_n_analytic_circ
         use new_vmec_stuff_mod, only: nper
         use spline_vmec_data_mod, only: spline_vmec_data
         use field_divB0_mod, only: field
         use field_mod, only: ianalytic_circ
         use field_analytic_circ_mod, only: set_field_analytic_circ, write_flux_functions_analytic_circ
+        use field_analytic_circ_mod, only: load_helical_pert_circ
         !use make_grid_rect_mod, only: make_grid_rect
 !
         implicit none
@@ -146,6 +150,10 @@
             ! grid_kind=5 is analytic: generate its own self-consistent equil-mapping
             ! (psi_pol == tetra_physics%Aphi1) so no external flux_functions.dat is needed.
             call write_flux_functions_analytic_circ()
+            if (len_trim(helical_pert_file_analytic_circ) > 0) &
+                call load_helical_pert_circ(trim(helical_pert_file_analytic_circ), &
+                    helical_pert_amp_analytic_circ, helical_pert_m_analytic_circ, &
+                    helical_pert_n_analytic_circ)
               twopi_ac  = 8.d0*atan(1.d0)
               s_edge_ac = R0_analytic_circ - sqrt(R0_analytic_circ**2 - a_analytic_circ**2)
               !

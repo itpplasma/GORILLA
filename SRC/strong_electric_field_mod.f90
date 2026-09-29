@@ -99,6 +99,8 @@ contains
         use field_eq_mod,                 only : psif
         use gorilla_settings_mod,         only: eps_Phi, er_profile_file, er_equil_mapping_file
         use field_divB0_mod, only: field
+        use tetra_grid_settings_mod, only: grid_kind
+        use field_analytic_circ_mod, only: helpert_loaded, eval_helical_pert_circ
 !
         implicit none
 !
@@ -106,6 +108,7 @@ contains
         double precision, intent(out)            :: electric_potential
 !
         double precision                         :: d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12 !Dummy variables for field() to set psif
+        double precision                         :: dA_hp, dP_hp
 !
         ! Always evaluate the field to set psif at (R,phi,Z) -- needed by both branches.
         call field(R,phi,Z,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12)
@@ -117,6 +120,11 @@ contains
                 call load_phi0_from_er(trim(er_profile_file), trim(er_equil_mapping_file))
             end if
             electric_potential = eval_phi0(psif) * eps_Phi
+            ! Prescribed helical perturbation (grid_kind = 5): add dPhi.
+            if (grid_kind .eq. 5 .and. helpert_loaded) then
+                call eval_helical_pert_circ(R, phi, Z, dA_hp, dP_hp)
+                electric_potential = electric_potential + dP_hp
+            end if
         else
             ! Case (2): synthetic potential as a rescaled poloidal flux (contours align with flux surfaces).
             electric_potential = psif*eps_Phi
