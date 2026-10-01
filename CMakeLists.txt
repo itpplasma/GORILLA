@@ -61,3 +61,15 @@ if(BUILD_TESTING)
         ${CMAKE_CURRENT_BINARY_DIR}/poloidal_test_modules)
     add_test(NAME analytic_poloidal_flux COMMAND test_analytic_poloidal_flux.x)
 endif()
+
+if(BUILD_TESTING)
+    add_executable(test_hamiltonian_time.x
+        SRC/hamiltonian_time_coefficients_mod.f90
+        TESTS/test_hamiltonian_time.f90)
+    set_target_properties(test_hamiltonian_time.x PROPERTIES
+        Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/time_test_modules)
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/time_test_modules)
+    target_include_directories(test_hamiltonian_time.x PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/time_test_modules)
+    add_test(NAME hamiltonian_time COMMAND test_hamiltonian_time.x)
+endif()

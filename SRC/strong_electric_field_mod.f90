@@ -23,7 +23,7 @@ module strong_electric_field_mod
     integer                                      :: n_phi0 = 0
     double precision, allocatable                :: psi_pol_phi0(:), phi0_vals(:), phi0_dd(:)
 !
-    public :: get_electric_field, save_electric_field, get_v_E, save_v_E
+    public :: get_electric_potential, get_electric_field, save_electric_field, get_v_E, save_v_E
 !
 contains
 !
