@@ -42,3 +42,10 @@ add_executable(test_gorilla_main.x
 target_link_libraries(test_gorilla_main.x GORILLA netcdff netcdf lapack)
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(test_analytic_circular_flux.x TESTS/test_analytic_circular_flux.f90)
+    target_link_libraries(test_analytic_circular_flux.x GORILLA netcdff netcdf lapack)
+    add_test(NAME analytic_circular_flux COMMAND test_analytic_circular_flux.x)
+endif()
