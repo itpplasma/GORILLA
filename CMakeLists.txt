@@ -49,3 +49,15 @@ if(BUILD_TESTING)
     target_link_libraries(test_analytic_circular_flux.x GORILLA netcdff netcdf lapack)
     add_test(NAME analytic_circular_flux COMMAND test_analytic_circular_flux.x)
 endif()
+
+if(BUILD_TESTING)
+    add_executable(test_analytic_poloidal_flux.x
+        SRC/field_analytic_circ_mod.f90
+        TESTS/test_analytic_poloidal_flux.f90)
+    set_target_properties(test_analytic_poloidal_flux.x PROPERTIES
+        Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/poloidal_test_modules)
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/poloidal_test_modules)
+    target_include_directories(test_analytic_poloidal_flux.x PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/poloidal_test_modules)
+    add_test(NAME analytic_poloidal_flux COMMAND test_analytic_poloidal_flux.x)
+endif()
