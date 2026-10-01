@@ -231,21 +231,21 @@ contains
   !   s       : geometric flux label (R0-sqrt(R0^2-r^2))/s_edge, encoded in psi_tor
   !             so s_grid = psi_tor/psi_tor(edge) == the mesh eval_s_local s
   !   psi_pol : = psi_pol_analytic_circ(r) == field_divB0 psif == tetra_physics%Aphi1
-  !   q       : field q(r)
+  !   q       : field-line winding dpsi_tor/dpsi_pol at finite aspect ratio
   subroutine write_flux_functions_analytic_circ()
     integer, parameter :: nf = 1001
     integer :: iu, i
-    double precision :: r, s_edge, s_geom, psi_tor_scale
-    s_edge = R0_ac - sqrt(R0_ac**2 - a_ac**2)
-    psi_tor_scale = B0_ac * a_ac**2 / 2.d0
+    double precision :: r, psi_tor, q_winding
     open(newunit=iu, file='flux_functions.dat', status='replace', action='write')
     write(iu,'(A)') ' # R_beg, r,  q, psi_pol, psi_tor'
     do i = 1, nf
       r = dble(i-1)/dble(nf-1) * a_ac
       if (i .eq. 1) r = 1.d-6
-      s_geom = (R0_ac - sqrt(R0_ac**2 - r**2)) / s_edge
-      write(iu,'(5(1x,ES23.16))') R0_ac + r, r, q_analytic_circ(r), &
-            psi_pol_analytic_circ(r), psi_tor_scale * s_geom
+      ! Exact toroidal flux of B_phi=B0*R0/R; stable near the axis.
+        psi_tor = B0_ac*R0_ac*r**2/(R0_ac + sqrt(R0_ac**2 - r**2))
+        q_winding = q_analytic_circ(r)*R0_ac/sqrt(R0_ac**2 - r**2)
+        write(iu, '(5(1x,ES23.16))') R0_ac + r, r, q_winding, &
+            psi_pol_analytic_circ(r), psi_tor
     end do
     close(iu)
     print *, '[field_analytic_circ] wrote self-consistent flux_functions.dat, nf=', nf
