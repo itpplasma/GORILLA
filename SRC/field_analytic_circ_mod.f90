@@ -209,6 +209,8 @@ contains
     double precision :: q_loc
     if (tabulated_ac) then
       psi = psi_tabulated(rho)
+    else if (q1_ac .eq. 0.d0) then
+      psi = B0_ac * rho**2 / (2.d0*q0_ac)
     else if (p_ac .eq. 2) then
       q_loc = q0_ac + q1_ac*(rho/a_ac)**2
       if (q1_ac .ne. 0.d0 .and. abs(q0_ac) .gt. 1.d-10 .and. q_loc/q0_ac .gt. 0.d0) then
@@ -217,7 +219,8 @@ contains
         psi = 0.d0
       end if
     else
-      psi = B0_ac * a_ac**2 / (2.d0*sqrt(q0_ac*q1_ac)) &
+      psi = sign(1.d0, q0_ac) * B0_ac * a_ac**2 &
+            / (2.d0*sqrt(q0_ac*q1_ac)) &
             * atan( (rho/a_ac)**2 * sqrt(q1_ac/q0_ac) )
     end if
   end function psi_pol_analytic_circ
