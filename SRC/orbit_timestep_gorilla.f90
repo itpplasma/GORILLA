@@ -166,25 +166,15 @@ module orbit_timestep_gorilla_mod
             logical                                 :: boole_grid,boole_physics,boole_bmod_multiplier
             double precision,intent(in),optional    :: bmod_multiplier
 !
+            boole_grid = .true.
+            boole_physics = .true.
             if(present(i_option)) then
                 select case(i_option)
                     case(1)
-                        boole_grid = .true.
                         boole_physics = .false.
                     case(2)
                         boole_grid = .false.
-                        boole_physics = .true.
-                    case(3)
-                        boole_grid = .true.
-                        boole_physics = .true.
                 end select
-                if (i_option.ge.10) then
-                    boole_grid = .true.
-                    boole_physics = .true.
-                endif
-            else
-                boole_grid = .true.
-                boole_physics = .true.
             endif
 !
             if(present(ipert_in)) then
