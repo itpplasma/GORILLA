@@ -213,6 +213,10 @@ endif
             integer                                               :: i_step_root
             double precision                                      :: t_remain_new, normal_velocity_function
 !
+            ! Failed root searches return the unchanged input x/vpar. Until a
+            ! trajectory is committed, no physical time has been traversed.
+            ! Define this OUT value even on the early particle-loss returns.
+            t_pass = 0.d0
             call initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
             !In case of first call of orbit integration -> initialize the intermediate_steps_array
             if (.not.(allocated(tau_steps_list).OR.allocated(intermediate_z0_list))) call manage_intermediate_steps_arrays(0)
@@ -431,6 +435,7 @@ if(diag_pusher_tetry_poly) print*, 'Called Troubleshooting'
                         print *, 'Error: Trouble shooting failed. Remove particle.'
                         ind_tetr_inout = -1
                         iface = -1
+                        t_pass = 0.d0
                         call manage_intermediate_steps_arrays(1)
                         return
                     endif
@@ -606,6 +611,9 @@ endif
                         print *, 'Error: Trouble shooting failed. Remove particle.'
                         ind_tetr_inout = -1
                         iface = -1
+                        ! The candidate t_pass above belongs to an uncommitted
+                        ! trial z; x/vpar still describe the input point.
+                        t_pass = 0.d0
                         call manage_intermediate_steps_arrays(1)
                         return
                     endif

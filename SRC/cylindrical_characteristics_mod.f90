@@ -8,7 +8,7 @@ module cylindrical_characteristics_mod
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
     private
-    public :: cylindrical_ou_resolvent
+    public :: cylindrical_ou_resolvent, restore_ou_energy
 contains
     subroutine cylindrical_ou_resolvent(x1, x2, moments, info, refinement)
         real(real64), intent(in) :: x1, x2
@@ -92,6 +92,41 @@ contains
         end if
         if (all(ieee_is_finite(real(moments))) .and. &
             all(ieee_is_finite(aimag(moments)))) info=0
+    end subroutine
+
+    subroutine restore_ou_energy(moments,info)
+        ! C_E = C_OU + nu*(u^2-1)*<(u^2-1)g>. This cancels damping of
+        ! normalized Hermite l=2; all other OU eigenvalues are unchanged.
+        ! Sherman-Morrison correction of the dimensionless bare resolvent.
+        ! Output/source indices stay distinct, also without using reciprocity.
+        complex(real64),intent(inout) :: moments(0:3,0:3)
+        integer,intent(out) :: info
+        complex(real64) :: left(0:3),right(0:3),denom
+        integer :: m,n
+        info=1
+        left=moments(:,2)-moments(:,0)
+        right=moments(2,:)-moments(0,:)
+        denom=1.0_real64-moments(2,2)+moments(2,0)+moments(0,2)-moments(0,0)
+        if(abs(denom)<=tiny(1.0_real64)) then
+            info=2
+            return
+        end if
+        ! Loss of relative precision in the cancellation 1-<p R0 p>:
+        ! the caller must evaluate the same conserving operator directly.
+        ! Conservative arithmetic budget relative to the 1e-12 evaluation
+        ! target; this is an accuracy switch, not a collision regularization.
+        if(abs(denom)<64.0_real64*epsilon(1.0_real64)/1.0e-12_real64* &
+            (1.0_real64+abs(moments(2,2))+abs(moments(2,0))+ &
+            abs(moments(0,2))+abs(moments(0,0)))) then
+            info=2
+            return
+        end if
+        do n=0,3
+            do m=0,3
+                moments(m,n)=moments(m,n)+left(m)*right(n)/denom
+            end do
+        end do
+        if(all(ieee_is_finite(real(moments))).and.all(ieee_is_finite(aimag(moments)))) info=0
     end subroutine
 
     pure subroutine gaussian_polynomials(mu,cov,polys)
