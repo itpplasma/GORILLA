@@ -79,6 +79,10 @@
     !Including additional terms in case of strong electric fields (cylindrical coordinates only)
     logical, public, protected :: boole_strong_electric_field
 !
+    !Diagnostic switch: .false. removes curvature and grad-B drifts and the curl(h)
+    !part of B* from the equations of motion; E x B and strong-field terms remain.
+    logical, public, protected :: boole_magnetic_drift = .true.
+!
     logical, public, protected :: boole_save_electric
     character*64,public,protected :: filename_electric_field
     character*64,public,protected :: filename_electric_drift
@@ -112,7 +116,7 @@
                         & i_time_tracing_option, &
                         & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift, &
                         & er_profile_file, er_equil_mapping_file, &
-                        & boole_pert_from_mephit
+                        & boole_pert_from_mephit, boole_magnetic_drift
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type
 !
@@ -148,6 +152,18 @@
                 print *, 'ERROR: When strong electric fields are included, set coord_system=1 and ipusher=2 in gorilla.inp.'
                 print *, '       Also have i_precomp=0 and boole_newton_precalc=.false. in gorilla.inp!'
                 stop
+            endif
+!
+            !The drift-free diagnostic is implemented for the polynomial pusher without
+            !precomputation, vertex-average clock and fixed steps only.
+            if (.not.boole_magnetic_drift) then
+                if ((ipusher.ne.2).or.(i_precomp.ne.0).or.(i_time_tracing_option.ne.1).or.boole_newton_precalc &
+                    & .or.boole_time_Hamiltonian.or.boole_adaptive_time_steps) then
+                    print *, 'ERROR: boole_magnetic_drift=.false. requires ipusher=2, i_precomp=0, i_time_tracing_option=1,'
+                    print *, '       and no Newton precalculation, Hamiltonian time or adaptive steps.'
+                    stop
+                endif
+                print *, 'GORILLA: magnetic drifts disabled (diagnostic drift-free equations of motion)'
             endif
 !
             !The explicite electric field and drift due to it can only be given in case of using the strong electric field mode

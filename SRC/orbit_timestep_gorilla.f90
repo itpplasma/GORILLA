@@ -42,6 +42,9 @@ module orbit_timestep_gorilla_mod
             integer                                         :: ind_tetr_save,iper,k
             double precision                                :: perpinv,perpinv2
             integer                                         :: sign_t_step
+            integer                                         :: stagnant_handovers
+            integer,parameter                               :: max_stagnant_handovers=128
+            double precision                                :: previous_t_remain
 !
             !If orbit_timestep is called for the first time without grid position
             if(.not.boole_initialized) then
@@ -95,6 +98,7 @@ module orbit_timestep_gorilla_mod
 !
             !Logical for handling time integration
             boole_t_finished = .false.
+            stagnant_handovers=0
 !
             !Loop for tetrahedron pushings until t_step is reached
             do
@@ -126,7 +130,34 @@ module orbit_timestep_gorilla_mod
                                                          & t_pass,boole_t_finished,iper)
                 end select
 !
+                previous_t_remain=t_remain
                 t_remain = t_remain - t_pass
+                ! Incident-edge transfers may use zero physical time. Bound
+                ! non-progress through neighbouring cells rather than allow a
+                ! numerical cycle; the caller can retain the failed state.
+                if(.not.boole_t_finished.and.ind_tetr.ne.-1) then
+                    if(t_remain.eq.previous_t_remain) then
+                        stagnant_handovers=stagnant_handovers+1
+                    else
+                        stagnant_handovers=0
+                    endif
+                    if(stagnant_handovers.ge.max_stagnant_handovers) then
+                        print *, 'Error: repeated handovers without physical-time progress',ind_tetr,x
+                        ind_tetr=-1
+                        iface=-1
+                        if(present(t_remain_out)) t_remain_out=t_remain
+                        exit
+                    endif
+                endif
+                ! A cell passage longer than the remaining time would reverse
+                ! the integration direction; abort and let the caller keep it.
+                if(ind_tetr.ne.-1.and.t_remain*t_step.lt.0.d0) then
+                    print *, 'Error: cell passage exceeded remaining time',ind_tetr,previous_t_remain,t_pass
+                    ind_tetr=-1
+                    iface=-1
+                    if(present(t_remain_out)) t_remain_out=t_remain
+                    exit
+                endif
 !
                 !Orbit stops within cell, because "flight"-time t_step has finished
                 if(boole_t_finished) then

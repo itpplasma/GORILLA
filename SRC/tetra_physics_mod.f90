@@ -135,7 +135,7 @@
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, &
             & axi_noise_eps_A, axi_noise_eps_Phi, non_axi_noise_eps_A, &
-            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
+            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit, boole_magnetic_drift
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
       use differentiate_mod, only: differentiate
       use splint_vmec_data_mod, only: splint_vmec_data
@@ -1037,6 +1037,31 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
 !
 enddo
 !$OMP END PARALLEL DO
+!
+    ! Applied after the parallel loop so the default drift-on code is unchanged.
+    if(.not.boole_magnetic_drift) then
+      do ind_tetr = 1,ntetr
+          ! Drift-free diagnostic. The curvature drift (m c/e) v_par^2 curl(h) enters
+          ! through the energy substitution for v_par^2: curlh*k1, 2*k3*curlh and the
+          ! 2*curlh x grad(B), grad(Phi), grad(v_E^2) parts of alpmat/betmat/gammat.
+          ! The grad-B drift is gBxh1 plus the remaining alpmat part. The traces are the
+          ! curl(h) part of B* in dv_par/dtau. E x B (gPhixh1, grad(Phi) x grad(h)),
+          ! streaming curl(A), parallel forces and strong-field terms without curl(h) remain.
+          do i = 1,3
+              tetra_physics(ind_tetr)%betmat(i,:) = tetra_physics(ind_tetr)%betmat(i,:) &
+                  & - 2.d0*tetra_physics(ind_tetr)%curlh(i)*tetra_physics(ind_tetr)%gPhi
+              if(boole_strong_electric_field) tetra_physics(ind_tetr)%gammat(i,:) = tetra_physics(ind_tetr)%gammat(i,:) &
+                  & - 2.d0*tetra_physics(ind_tetr)%curlh(i)*tetra_physics(ind_tetr)%gv2Emod
+          enddo
+          tetra_physics(ind_tetr)%alpmat = 0.d0
+          tetra_physics(ind_tetr)%spalpmat = 0.d0
+          tetra_physics(ind_tetr)%spbetmat = 0.d0
+          if(boole_strong_electric_field) tetra_physics(ind_tetr)%spgammat = 0.d0
+          tetra_physics(ind_tetr)%gBxh1 = 0.d0
+          tetra_physics(ind_tetr)%curlh = 0.d0
+      enddo
+    endif
+!
 !
         !Save sign of sqrt g - Load value from tetrahedral cell with index 1
         sign_sqg = int(sign(1.d0,metric_determinant(1,tetra_physics(1)%x1)))

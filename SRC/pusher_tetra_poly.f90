@@ -572,9 +572,12 @@ if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
                 iface = 0
 !
                 boole_face_correct = .true.
-                !Particle must be inside the tetrahedron
+                !Particle must be inside the tetrahedron, up to the same
+                !coordinate-roundoff bound used for three-plane acceptance.
+                !A strict test rejected a marker resting on its entry face
+                !and let trouble shooting commit a crossing longer than t_remain.
                 do i = 1,4
-                    if(normal_distance_func(z(1:3),i).lt.0.d0) then
+                    if(normal_distance_func(z(1:3),i).lt.-face_distance_roundoff(z(1:3),i)) then
                         boole_face_correct = .false.
                     endif
                 enddo
@@ -683,17 +686,20 @@ endif
         subroutine check_three_planes(z,iface_new,boole_face_correct)
 
             use gorilla_diag_mod,only: diag_pusher_tetry_poly
+            use tetra_physics_mod,only: tetra_physics
 
             implicit none
             double precision, dimension(4), intent(in)         :: z
             integer, intent(in)                                :: iface_new
             logical                                            :: boole_face_correct
             integer                                            :: j,k
+            double precision                                   :: distance_roundoff
 
             !Validation loop ('3-planes'-control)
             do j=1,3    !Just consider the planes without the "exit-plane"
             k=modulo(iface_new+j-1,4)+1
-                if(normal_distance_func(z(1:3),k).lt.0.d0) then     !If distance is negative, exitpoint of the considered plane is outside the tetrahedron
+                distance_roundoff=face_distance_roundoff(z(1:3),k)
+                if(normal_distance_func(z(1:3),k).lt.-distance_roundoff) then
                     boole_face_correct = .false.
 if(diag_pusher_tetry_poly) print *, 'Error: three planes'
 if(diag_pusher_tetry_poly) print *, 'face', k,'normal_distance',normal_distance_func(z(1:3),k)
@@ -701,6 +707,25 @@ if(diag_pusher_tetry_poly) print *, 'face', k,'normal_distance',normal_distance_
             enddo
 
         end subroutine check_three_planes
+
+        function face_distance_roundoff(z123,iface) result(tolerance)
+            use tetra_physics_mod,only: tetra_physics
+            implicit none
+            double precision,intent(in) :: z123(3)
+            integer,intent(in) :: iface
+            double precision :: tolerance,coordinate_scale(3)
+            ! Handover forms absolute x=x1+z, then the neighbour forms x-x1.
+            ! Include translation and dot-product roundoff in unnormalised face units.
+            coordinate_scale=abs(x_init)+abs(tetra_physics(ind_tetr)%x1)+abs(z123)
+            tolerance=sum(abs(tetra_physics(ind_tetr)%anorm(:,iface))*coordinate_scale)
+            if(iface.eq.1) tolerance=tolerance+abs(tetra_physics(ind_tetr)%dist_ref)
+            ! A polynomial face root also carries cell-scale cancellation error.
+            ! Absolute-coordinate terms alone vanish on a coordinate-zero plane.
+            ! dist_ref_vec is face altitude times its unnormalised normal modulus:
+            ! epsilon*altitude gives a geometric, rather than fixed absolute, bound.
+            tolerance=tolerance+abs(tetra_physics(ind_tetr)%dist_ref_vec(iface))
+            tolerance=8.d0*epsilon(1.d0)*tolerance
+        end function face_distance_roundoff
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -1273,7 +1298,7 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_facto
         logical,intent(out)                                 :: boole_approx
         integer                                             :: i,iface,i_scaling
         double precision, dimension(4)                      :: dtau_vec
-        logical, dimension(4)                               :: boole_valid_dtau
+        logical, dimension(4)                               :: boole_valid_dtau,zero_time_exit
         double precision, dimension(4,poly_order+1)         :: coef_mat
 !
         !Additional quantities for coefs = 0
@@ -1294,10 +1319,29 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_facto
         iface = iface_inout   
 !
         dtau_vec = huge(0.d0) !Only results with positive times smaller than 'huge' will be evaluated
+        zero_time_exit=.false.
 !
         !loop over faces
         faces_loop: do i = 1,4
             if(.not.boole_faces(i)) cycle
+            ! At a shared edge, absolute-coordinate rounding can put the point
+            ! just outside a second face. Its root is then slightly negative.
+            ! Transfer outward through that incident face without advancing time
+            ! or changing position; never immediately return through the entry face.
+            if(i.ne.iface.and.abs(coef_mat(i,1)).le.face_distance_roundoff(z(1:3),i)) then
+                if(coef_mat(i,2).lt.0.d0) then
+                    zero_time_exit(i)=.true.
+                    dtau_vec(i)=0.d0
+                    cycle
+                elseif(coef_mat(i,1).lt.0.d0.and.coef_mat(i,2).gt.0.d0) then
+                    ! The point is outside only by coordinate roundoff and is
+                    ! moving inward. Its tiny positive root is an entrance, not
+                    ! an exit. Deflate that incident root like an entry face.
+                    ! This changes only the local root polynomial: the marker
+                    ! coordinates, trajectory and elapsed time are not changed.
+                    coef_mat(i,1)=0.d0
+                endif
+            endif
 !
             !Initialization of poly_order_solver
             poly_order_solver = 0
@@ -1470,7 +1514,7 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_facto
 !
         enddo faces_loop
 !
-        boole_valid_dtau = (dtau_vec.lt.huge(0.d0)).and.(dtau_vec.gt.0.d0) !dtau_max
+        boole_valid_dtau = ((dtau_vec.lt.huge(0.d0)).and.(dtau_vec.gt.0.d0)).or.zero_time_exit
 if(diag_pusher_tetry_poly) print *, 'boole_valid_dtau',boole_valid_dtau
         if( any( boole_valid_dtau) ) then
             boole_approx = .true.
