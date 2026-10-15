@@ -1,4 +1,5 @@
 add_library(GORILLA STATIC
+    cylindrical_characteristics_mod.f90
 	SetWorkingPrecision.f90
 	contrib/Polynomial234RootSolvers.f90 
 	constants_mod.f90 
