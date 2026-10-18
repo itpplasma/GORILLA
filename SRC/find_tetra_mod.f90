@@ -43,7 +43,10 @@ module find_tetra_mod
         real(dp), dimension(:,:), allocatable  :: verts_abc
 !
 print*, 'grid_for_find_tetra started'
-        boole_reduce_entries = .true.
+        !Free any pre-existing find-tetra arrays so a fresh build can proceed without external bookkeeping.
+        call deallocate_find_tetra_arrays
+!
+        boole_reduce_entries = .false.
         boole_axi_symmetry = .false.
 !
         if (coord_system.eq.1) allocate(verts_abc(size(verts_rphiz(:,1)),size(verts_rphiz(1,:))))
@@ -308,6 +311,11 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
         real(dp) :: perpinv
         real(dp) ::hr,hphi,hz,vnorm,vperp2
         real(dp) :: rho_ac_local, theta_ac_local   ! for grid_kind=5 flux-aligned mesh
+        ! grid_kind=5 (coord_system=1): candidate tetrahedra of the estimated cell
+        ! and of its radial/poloidal neighbours (straight chords vs. circles)
+        integer, parameter :: n_cand_ac = 6*5*3
+        integer :: cand_ac(n_cand_ac), jr_ac, jz_ac, kr_ac, kz_ac, n_ok_ac, k6_ac
+        logical :: use_cand_ac
         real(dp), dimension(4):: cur_dist_value, z
         real(dp), dimension(3) :: x_save
         real(dp), dimension(4)   :: dzdtau
@@ -326,6 +334,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
         ! Initialize numerical correction
         numerical_corr_plus = 0
         numerical_corr_minus = 0
+        use_cand_ac = .false.
 !
         !Calculation of search domain depending on grid_kind
         select case(grid_kind)
@@ -342,6 +351,21 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                 ir=int((x(1)-Rmin)/hr) +1
                 iphi=int(x(2)/hphi) +1
                 iz=int((x(3)-Zmin)/hz) +1
+!
+                !Diagnostic to check, if out of domain
+                if(ir.lt.1.or.ir.gt.nr.or.iphi.lt.1.or.iphi.gt.nphi.or.iz.lt.1.or.iz.gt.nz) then
+                    ind_tetr_out=-1
+                    iface=-1
+                    print *, 'Error in start_tetra_rect: Particle is outside of the domain!'
+                    stop
+                endif
+!
+                !Starting tetrahedron of hexahedron (ir,iphi,iz), 0-based formula + 1
+                !(like istarttetr in make_grid_rect)
+                indtetr_start = int((dble(iz)-1.d0)*6.d0 + 6.d0*dble(nz)*(dble(ir)-1.d0) &
+                & + 6.d0*(dble(iphi)-1.d0)*dble(nr)*dble(nz) +1.d0)
+                ntetr_searched = 6
+                use_grid = .false.
 !
             case(5) !analytic circular tokamak - flux-aligned (rho,phi,theta) mesh
               ! coord_system==1: x is physical (R,phi,Z); convert to (rho,phi,theta) for lookup.
@@ -402,15 +426,33 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                     !This calculates the starting tetrahedron index as a function of (ir,iphi,iz)
                     !+1, since formula is 0-based (like istarttetr in make_grid_rect)
 
-                ! Once incorporating corrections when particle sits close to any hexahedron wall, consider corrections for all 6 walls
-                ! if () numerical_corr_minus = 1
-                ! if () numerical_corr_plus = 1
-                ntetr_searched = 6
+                ! The cells are bounded by straight chords between vertices on the
+                ! circles rho_i, so a point with rho in [rho_i, rho_i+1] can lie in a
+                ! radial neighbour cell (sagitta rho*hz**2/8 can exceed hr), or, at
+                ! a theta boundary, in a poloidal neighbour. Search the estimated
+                ! cell first, then radial offsets 0,-1,+1,-2,+2 times poloidal
+                ! offsets 0,-1,+1 (theta periodic).
+                n_ok_ac = 0
+                do kz_ac = 0, 2
+                    jz_ac = iz + merge(0, merge(-1, 1, kz_ac.eq.1), kz_ac.eq.0)
+                    jz_ac = modulo(jz_ac - 1, nz) + 1
+                    do kr_ac = 0, 4
+                        jr_ac = ir + (kr_ac + 1)/2 * merge(-1, 1, modulo(kr_ac, 2).eq.1)
+                        if (jr_ac.lt.1 .or. jr_ac.gt.nr) cycle
+                        do k6_ac = 0, 5
+                            n_ok_ac = n_ok_ac + 1
+                            cand_ac(n_ok_ac) = 6*((iphi-1)*nr*nz + (jr_ac-1)*nz &
+                                               + jz_ac-1) + k6_ac + 1
+                        end do
+                    end do
+                end do
+                use_cand_ac = .true.
+                ntetr_searched = n_ok_ac
                 use_grid = .false.
 !
               endif  ! coord_system==1 vs coord_system==2 for grid_kind=5
 !
-            case(2,3,4) !EFIT field-aligned grid or VMEC field_aligned grid or SOLEDGE3X_EIRENE
+            case(2,3,4,6) !field-aligned grids or SOLEDGE3X-EIRENE
 !
                 ind_b = 2 !(phi in cylindrical and flux coordinates)
                 if (coord_system.eq.2) ind_b = 3
@@ -490,6 +532,8 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                 if (boole_axi_symmetry) then
                     ind_search_tetra = ind_search_tetra + int(((b-1)/b_factor))*ntetr_in_plane
                 endif
+            else if (use_cand_ac) then
+                ind_search_tetra = cand_ac(i)
             else
                 ind_search_tetra = indtetr_start + i - 1 - numerical_corr_minus*ntetr/nphi
             endif

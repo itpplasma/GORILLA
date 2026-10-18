@@ -124,6 +124,25 @@
 !   
   contains
 !
+    pure real(dp) function radial_electric_projection_flux( &
+        dphi_ds, delta_r, delta_z, dr_ds, dz_ds) result(e_radial)
+      real(dp), intent(in) :: dphi_ds, delta_r, delta_z, dr_ds, dz_ds
+      real(dp) :: denominator, denominator_scale, minor_radius
+
+      e_radial = 0.0_dp
+      if (dphi_ds == 0.0_dp) return
+
+      minor_radius = sqrt(delta_r**2 + delta_z**2)
+      if (minor_radius == 0.0_dp) return
+
+      denominator = delta_r*dr_ds + delta_z*dz_ds
+      denominator_scale = max(abs(delta_r*dr_ds), abs(delta_z*dz_ds))
+      if (denominator_scale == 0.0_dp) return
+      if (abs(denominator) <= epsilon(denominator)*denominator_scale) return
+
+      e_radial = dphi_ds*minor_radius/denominator
+    end function radial_electric_projection_flux
+!
     subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in, boole_keep_phi_elec)
 !
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
@@ -141,6 +160,7 @@
       use splint_vmec_data_mod, only: splint_vmec_data
       use, intrinsic :: ieee_arithmetic, only: ieee_set_flag, ieee_invalid, ieee_overflow, &
                                               & ieee_divide_by_zero, ieee_get_flag
+      use boozer_chartmap_mod, only: chartmap_rmajor, chartmap_zaxis
       use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
       use field_divB0_mod, only: field
 !
@@ -177,41 +197,53 @@
       integer          :: triangle, n_fourier_modes
       complex, dimension(:,:), allocatable :: A_x1_mat, A_x2_mat, A_x3_mat, b_x1_mat, b_x2_mat, b_x3_mat
 !
+      !Deallocate any pre-existing module arrays so a fresh grid can be built without external bookkeeping.
+      !phi_elec is preserved when the caller asks for it (self-consistent electric field workflow),
+      !in which case the caller is responsible for it being correctly sized for the current nvert.
+      if (allocated(tetra_physics))    deallocate(tetra_physics)
+      if (allocated(tetra_skew_coord)) deallocate(tetra_skew_coord)
+      if (allocated(hamiltonian_time)) deallocate(hamiltonian_time)
+      if (present(boole_keep_phi_elec)) then
+        if (.not.boole_keep_phi_elec) then
+          if (allocated(phi_elec)) deallocate(phi_elec)
+        endif
+      else
+        if (allocated(phi_elec)) deallocate(phi_elec)
+      endif
+!
       !Allocation of quantities dependent on number of vertices
-      if (.not.allocated(tetra_physics)) allocate(tetra_physics(ntetr))
+      allocate(tetra_physics(ntetr))
       allocate(A_x1(nvert),A_x2(nvert),A_x3(nvert))
       allocate(bmod(nvert),h_x1(nvert),h_x2(nvert),h_x3(nvert))
       if (.not.allocated(phi_elec)) allocate(phi_elec(nvert))
 !
       !Hamiltonian time quantities
-      if (.not.allocated(hamiltonian_time)) allocate(hamiltonian_time(ntetr))
+      allocate(hamiltonian_time(ntetr))
 !
-      if (.not.allocated(tetra_skew_coord)) then
-        !Distinguish the Processing of particle handover to tetrahedron neighbour
-        select case(handover_processing_kind)
-            case(1) !Processing with special treatment of periodic boundaries and manipulation of periodic position values
-                allocate(tetra_skew_coord(1)) !Dummy value for parallelization
-            case(2) !Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included below
-                allocate(tetra_skew_coord(ntetr))
-        end select
-      endif
+      !Distinguish the Processing of particle handover to tetrahedron neighbour
+      select case(handover_processing_kind)
+          case(1) !Processing with special treatment of periodic boundaries and manipulation of periodic position values
+              allocate(tetra_skew_coord(1)) !Dummy value for parallelization
+          case(2) !Position exchange via Cartesian variables (skew_coordinates) - Necessary precomputation is included below
+              allocate(tetra_skew_coord(ntetr))
+      end select
 !
       !Distinguish, in between EFIT and VMEC
-      if(grid_kind.eq.3) then !VMEC
+      if(grid_kind.eq.3 .or. grid_kind.eq.6) then !direct flux-coordinate grids
         allocate(sqg(nvert))
         navec = 11
       else !EFIT
         navec = 10
       endif
 !
-      !Strong electric fields and grid_kind=3 are mutually exclusive
+      !Strong electric fields and direct flux-coordinate grids are mutually exclusive
       if(boole_strong_electric_field) then
-        if(grid_kind.ne.3) then
+        if(grid_kind.ne.3 .and. grid_kind.ne.6) then
             allocate(E_x1(nvert),E_x2(nvert),E_x3(nvert))
             allocate(v_E_x1(nvert),v_E_x2(nvert),v_E_x3(nvert),v2_E_mod(nvert))
             navec = navec + 4 !Adding v_E (3 components) and v2_E_mod to the quantities to be stored in the tetrahedrons
-        else !if grid_kind = 3
-            print *, 'Error: Wrong grid_kind - grid_kind=3 is not compatible with current implementation of strong electric fields.'
+        else
+            print *, 'Error: direct flux-coordinate grids are not compatible with strong electric fields.'
             stop
         endif
       endif !boole_strong_electric_field
@@ -227,8 +259,8 @@
         print *, 'Error: Wrong coordinate system - Only RPhiZ-coordinates allowed for &
                  &rectangular or SOLEDGE3X_EIRENE grid.'
         stop
-      elseif((grid_kind.eq.3).and.(coord_system_in.ne.2)) then
-        print *, 'Error: Wrong coordinate system - Only (s,theta,phi)-coordinates are allowed for field aligned VMEC grid.'
+      elseif((grid_kind.eq.3 .or. grid_kind.eq.6).and.(coord_system_in.ne.2)) then
+        print *, 'Error: Only (s,theta,phi) coordinates are allowed for direct flux grids.'
         stop
       else
         coord_system = coord_system_in
@@ -302,6 +334,9 @@
                 case(3) !VMEC (non-axisymmetric)
                     call splint_vmec_data(1.d-16,0.1d0,0.1d0,A_phi,A_theta,dA_phi_ds,dA_theta_ds,aiota, &
                                             mag_axis_R0,mag_axis_Z0,alam,dR_ds1,dR_dt,dR_dp,dZ_ds1,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp)
+                case(6) !direct Boozer chartmap
+                    mag_axis_R0 = chartmap_rmajor
+                    mag_axis_Z0 = chartmap_zaxis
 !
                 case(5) !analytic circular tokamak
                     mag_axis_R0 = R0_analytic_circ
@@ -390,6 +425,13 @@
                                   & ipert_in,bmod_multiplier,A_x1(iv),A_x2(iv),A_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv), &
                                   & Bmod(iv),q,dR_ds(iv),dZ_ds(iv))
 !
+              case(6) !direct Boozer chartmap
+                call vector_potential_sthetaphi_chartmap(&
+                    verts_sthetaphi(1, iv), verts_sthetaphi(2, iv), &
+                    verts_sthetaphi(3, iv), bmod_multiplier, A_x1(iv), &
+                    A_x2(iv), A_x3(iv), h_x1(iv), h_x2(iv), h_x3(iv), &
+                    Bmod(iv), sqg(iv), dR_ds(iv), dZ_ds(iv))
+!
             end select
 !
         end select
@@ -475,8 +517,8 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
               p_x1(i)=verts_sthetaphi(1,iv)
               p_x2(i)=verts_sthetaphi(2,iv)
               p_x3(i)=verts_sthetaphi(3,iv)
-!
-            case(3) !VMEC (non-axisymmetric)
+!              
+            case(3,6) !VMEC or Boozer chartmap
               p_x1(i)=verts_sthetaphi(1,iv)
               p_x2(i)=verts_sthetaphi(2,iv)
               p_x3(i)=verts_sthetaphi(3,iv)
@@ -505,7 +547,7 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
                 p_x3(i) = 2.d0*pi/n_field_periods
               endif
           end select
-        case(3) !VMEC field-aligned grid in Symmetry flux coordinate system
+        case(3,6) !direct flux-coordinate grid
           if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_sthetaphi(3,iv) .eq. 0.d0)) then !if(tetra in last phi_slice & phi .eq. 0)
             p_x3(i) = 2.d0*pi/n_field_periods
           endif
@@ -540,7 +582,7 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
       avec(i,9)=verts_rphiz(1,iv) !major radius R
       avec(i,10)=verts_rphiz(3,iv) !Z
 !      
-      if(grid_kind.eq.3) avec(i,11)=sqg(iv)
+      if(grid_kind.eq.3 .or. grid_kind.eq.6) avec(i,11)=sqg(iv)
 !
       !Strong electric fields and grid_kind=3 are mutually exclusive 
       !(grid_kind=3 -> flux coordinates, strong E -> cylindrical coordinates)
@@ -635,7 +677,7 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
     tetra_physics(ind_tetr)%Phi1 = avec(1,8)
 !
 ! Square root g in the first vertex:
-    if(grid_kind.eq.3) tetra_physics(ind_tetr)%sqg1 = avec(1,11)
+    if(grid_kind.eq.3 .or. grid_kind.eq.6) tetra_physics(ind_tetr)%sqg1 = avec(1,11)
 !
 ! Components of the drift velocity v_E and modulo squared of drift veloctiy v_E in the first vertex (only if grid_kind =/= 3)
     if(boole_strong_electric_field) then
@@ -684,7 +726,7 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
     tetra_physics(ind_tetr)%gZ(3) = davec_dx3(10)
 !
 ! gradient of sqrtg - $\difp{\sqrt(g)}{x^i} :
-    if(grid_kind.eq.3) then
+    if(grid_kind.eq.3 .or. grid_kind.eq.6) then
       tetra_physics(ind_tetr)%gsqg(1) = davec_dx1(11)
       tetra_physics(ind_tetr)%gsqg(2) = davec_dx2(11)
       tetra_physics(ind_tetr)%gsqg(3) = davec_dx3(11)
@@ -882,8 +924,8 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
             select case(grid_kind)
               case(2) !EFIT -> Use linearized quantity
                 met_det = metric_determinant(ind_tetr,[p_x1(j),p_x2(j),p_x3(j)])
-!
-              case(3) !VMEC
+!                            
+              case(3,6) !direct flux-coordinate grid
                 met_det = avec(j,11)
 !
               case(5) !analytic circular tokamak: same formula as EFIT with analytic psitor_max
@@ -934,10 +976,11 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
             case(2) !s,theta,phi --> Symmetry flux coordinate system 
                 do j = 1,4
                     iv=tetra_grid(ind_tetr)%ind_knot(j)
-                    tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + & !dPhi_ds * ds_dr
-                                    & tetra_physics(ind_tetr)%gPhi(1) * &
-                                    & sqrt((avec(j,9)-mag_axis_R0)**2+(avec(j,10)-mag_axis_Z0)**2) &
-                                    & /((avec(j,9)-mag_axis_R0)*dR_ds(iv) + (avec(j,10)-mag_axis_Z0)*dZ_ds(iv))  
+                    tetra_physics(ind_tetr)%Er_mod = tetra_physics(ind_tetr)%Er_mod + &
+                        radial_electric_projection_flux( &
+                            tetra_physics(ind_tetr)%gPhi(1), &
+                            avec(j,9) - mag_axis_R0, avec(j,10) - mag_axis_Z0, &
+                            dR_ds(iv), dZ_ds(iv))
                 enddo
         end select
         tetra_physics(ind_tetr)%Er_mod = abs(tetra_physics(ind_tetr)%Er_mod/4.d0)
@@ -1051,7 +1094,7 @@ enddo
         if(boole_strong_electric_field) deallocate(E_x1,E_x2,E_x3)
         if(boole_strong_electric_field) deallocate(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
         if(coord_system.eq.2) deallocate(dR_ds,dZ_ds)
-        if(grid_kind.eq.3) deallocate(sqg)
+        if(grid_kind.eq.3 .or. grid_kind.eq.6) deallocate(sqg)
         if(boole_axi_noise_vector_pot.or.boole_axi_noise_elec_pot) deallocate(rnd_axi_noise)
 !
         ! Clear any FPE sticky flags set by LAPACK's internal pivot operations
@@ -1115,6 +1158,7 @@ enddo
         use tetra_grid_settings_mod, only: grid_kind, &
             R0_analytic_circ, a_analytic_circ, B0_analytic_circ, &
             q0_analytic_circ, q1_analytic_circ
+        use field_analytic_circ_mod, only: helpert_loaded, eval_helical_pert_circ
 
 !
         implicit none
@@ -1136,6 +1180,8 @@ enddo
         double precision :: dBpkdR, dBpkdp, dBpkdZ
         double precision :: dBzkdR, dBzkdp, dBzkdZ
         double precision :: rho_ac, q_loc
+        double precision :: dA_hp, dP_hp, dA_p, dA_m
+        double precision, parameter :: h_hp = 1.d-3
 !
         call field(r,phi,z,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ  &
                   ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
@@ -1163,6 +1209,21 @@ enddo
                      dBzkdR, dBzkdp, dBzkdZ)
           A_z = A_z - B_pk * dR_int
         end do
+!
+        ! Prescribed helical perturbation (grid_kind = 5): A_phi += dA_phi and the
+        ! matching dB_R = -d_Z dA_phi/R, dB_Z = d_R dA_phi/R (dB_phi = 0), so h and
+        ! |B| at the vertices are consistent with curl A.
+        if (grid_kind .eq. 5 .and. helpert_loaded) then
+          call eval_helical_pert_circ(r, phi, z, dA_hp, dP_hp)
+          A_phi = A_phi + dA_hp
+          call eval_helical_pert_circ(r, phi, z + h_hp, dA_p, dP_hp)
+          call eval_helical_pert_circ(r, phi, z - h_hp, dA_m, dP_hp)
+          B_r = B_r - (dA_p - dA_m)/(2.d0*h_hp)/r
+          call eval_helical_pert_circ(r + h_hp, phi, z, dA_p, dP_hp)
+          call eval_helical_pert_circ(r - h_hp, phi, z, dA_m, dP_hp)
+          B_z = B_z + (dA_p - dA_m)/(2.d0*h_hp)/r
+          bmod = sqrt(B_r**2 + B_p**2 + B_z**2)*bmod_multiplier
+        endif
 !
         B_phi=B_p*R
 !
@@ -1372,6 +1433,31 @@ enddo
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+      subroutine vector_potential_sthetaphi_chartmap(s,theta,phi,bmod_multiplier, &
+                                                     A_s,A_theta,A_phi,B_s, &
+                                                     B_theta,B_phi,bmod,sqg, &
+                                                     dR_ds,dZ_ds)
+        use boozer_chartmap_mod, only: evaluate_boozer_chartmap, &
+                                       evaluate_chartmap_geometry
+
+        implicit none
+
+        double precision, intent(in) :: s,theta,phi,bmod_multiplier
+        double precision, intent(out) :: A_s,A_theta,A_phi,B_s,B_theta,B_phi
+        double precision, intent(out) :: bmod,sqg,dR_ds,dZ_ds
+        double precision :: h_s,h_theta,h_phi,R,phi_cyl,Z,bmod_unscaled
+
+        call evaluate_boozer_chartmap(s,theta,phi,A_s,A_theta,A_phi,h_s, &
+                                      h_theta,h_phi,bmod_unscaled,sqg)
+        B_s = h_s*bmod_unscaled
+        B_theta = h_theta*bmod_unscaled
+        B_phi = h_phi*bmod_unscaled
+        bmod = bmod_unscaled*bmod_multiplier
+        call evaluate_chartmap_geometry(s,theta,phi,R,phi_cyl,Z,dR_ds,dZ_ds)
+      end subroutine vector_potential_sthetaphi_chartmap
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
       function psi_rphiz(ind_tetr,x) result(psi_linear)
 !
         implicit none
@@ -1439,8 +1525,8 @@ enddo
                 metric_determinant = ( (tetra_physics(ind_tetr)%R1+sum(tetra_physics(ind_tetr)%gR*(x-x1)) )**2 * psitor_max ) / &
                                        & ( (tetra_physics(ind_tetr)%h3_1 + sum(tetra_physics(ind_tetr)%gh3*(x-x1))) * &
                                        &   (tetra_physics(ind_tetr)%bmod1 + sum(tetra_physics(ind_tetr)%gB*(x-x1))) )
-!
-              case(3) !VMEC
+                            
+              case(3,6) !direct flux-coordinate grid
                 metric_determinant = tetra_physics(ind_tetr)%sqg1 + sum(tetra_physics(ind_tetr)%gsqg * (x-x1))
 !
               case(5) !analytic circular tokamak: same structure as EFIT, analytic psitor_max
@@ -1550,4 +1636,3 @@ enddo
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
   end module tetra_physics_mod
-

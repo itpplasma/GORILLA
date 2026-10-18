@@ -30,18 +30,25 @@
         use tetra_grid_settings_mod, only: boole_n_field_periods,n_field_periods_manual,grid_size,n1,n2,n3,grid_kind, &
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
-                                         & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
+                                         & netcdf_filename, &
+                                         & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, &
+                                         & q0_analytic_circ, q1_analytic_circ, &
                                          & q_exp_analytic_circ, q_profile_file_analytic_circ, sfc_s_min, sfc_s_max
+        use tetra_grid_settings_mod, only: helical_pert_file_analytic_circ, &
+            helical_pert_amp_analytic_circ, helical_pert_m_analytic_circ, &
+            helical_pert_n_analytic_circ
         use new_vmec_stuff_mod, only: nper
         use spline_vmec_data_mod, only: spline_vmec_data
+        use boozer_chartmap_mod, only: load_boozer_chartmap, chartmap_nfp
         use field_divB0_mod, only: field
         use field_mod, only: ianalytic_circ
         use field_analytic_circ_mod, only: set_field_analytic_circ, write_flux_functions_analytic_circ
+        use field_analytic_circ_mod, only: load_helical_pert_circ
         !use make_grid_rect_mod, only: make_grid_rect
 !
         implicit none
 !
-        integer :: efit_vmec,i
+        integer :: efit_vmec,i,iunit
         double precision :: rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ    &
                             ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ
         double precision :: rho_ac,s_edge_ac,twopi_ac,eps_ac,th_geom_ac
@@ -49,6 +56,9 @@
         double precision :: rho_inner_ac, rho_outer_ac, rho_v, theta_v
         integer :: iv_loc, ind_tetr1_ac, ind_tetr2_ac, iface1_ac, iface2_ac
         integer :: ir_ac, iphi_ac, iz_ac, ii_ac, jj_ac, nr_ac, nphi_ac, nz_ac
+!
+        !Free any pre-existing grid arrays so a fresh grid can be built without external bookkeeping.
+        call deallocate_tetra_grid()
 !
         call set_grid_size([n1,n2,n3])      !Rectangular grid:                  [n1,n2,n3] = [nR,nphi,nZ]
                                             !Field-aligned grid:                [n1,n2,n3] = [ns,nphi,ntheta]
@@ -62,8 +72,9 @@
             select case(grid_kind)
                 case(1,2,4,5) !2D EFIT & WEST equilibria
                     call set_n_field_periods(1)
-                case(3) !3D VMEC equilibria
-                    call set_n_field_periods(0) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
+                case(3,6) !3D VMEC or Boozer chartmap equilibria
+                    !The correct value is assigned below (before subroutine 'make_grid_aligned' is called.)
+                    call set_n_field_periods(0)
             end select
 !
         else !Manually from input file
@@ -79,7 +90,8 @@
             ppp=0.d0
             zzz=0.d0
 !
-            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &
                        & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !                   
             !Settings for rectangular grid: Values are obtained from field_eq_mod
@@ -106,7 +118,8 @@
             ppp=0.d0
             zzz=0.d0
 !
-            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &
                        & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !         
             call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
@@ -121,9 +134,17 @@
 !
             if(boole_n_field_periods) then
                 !Assign value for number of field periods from VMEC equilibrium file
-                call set_n_field_periods(nper) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
+                !The correct value is assigned below (before subroutine 'make_grid_aligned' is called.)
+                call set_n_field_periods(nper)
             endif
 !
+            call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
+!
+          case(6) !field-aligned grid in direct Boozer chartmap coordinates
+!
+            efit_vmec = 3
+            call load_boozer_chartmap(netcdf_filename)
+            if(boole_n_field_periods) call set_n_field_periods(chartmap_nfp)
             call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
 !            
           case(4) !SOLEDGE3X_EIRENE-grid               
@@ -133,7 +154,8 @@
             ppp=0.d0
             zzz=0.d0
 !
-            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &
                           & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
             call make_grid_SOLEDGE3X_EIRENE(grid_size)
@@ -146,6 +168,10 @@
             ! grid_kind=5 is analytic: generate its own self-consistent equil-mapping
             ! (psi_pol == tetra_physics%Aphi1) so no external flux_functions.dat is needed.
             call write_flux_functions_analytic_circ()
+            if (len_trim(helical_pert_file_analytic_circ) > 0) &
+                call load_helical_pert_circ(trim(helical_pert_file_analytic_circ), &
+                    helical_pert_amp_analytic_circ, helical_pert_m_analytic_circ, &
+                    helical_pert_n_analytic_circ)
               twopi_ac  = 8.d0*atan(1.d0)
               s_edge_ac = R0_analytic_circ - sqrt(R0_analytic_circ**2 - a_analytic_circ**2)
               !
@@ -286,47 +312,47 @@
         if(boole_write_mesh_obj) then
 !
             ![R,phi,Z]: Write Mesh to File
-            open(123, file=filename_mesh_rphiz)
+            open(newunit=iunit, file=filename_mesh_rphiz)
             101 format(1000(e21.14,x))
             do i=1, (nvert / grid_size(2)) * 2
-                write(123, '(A2)', advance="no") "v "
-                write(123,101) verts_rphiz(1, i)*cos(verts_rphiz(2, i)), &
+                write(iunit, '(A2)', advance="no") "v "
+                write(iunit,101) verts_rphiz(1, i)*cos(verts_rphiz(2, i)), &
                   &verts_rphiz(1, i)*sin(verts_rphiz(2, i)), &
                   &verts_rphiz(3, i)
             end do
             do i=1, ntetr / grid_size(2)
-                write(123, '(A2)', advance="no") "f "
-                write(123, *) tetra_grid(i)%ind_knot([2, 3, 4])
-                write(123, '(A2)', advance="no") "f "
-                write(123, *) tetra_grid(i)%ind_knot([1, 4, 3])
-                write(123, '(A2)', advance="no") "f "
-                write(123, *) tetra_grid(i)%ind_knot([1, 2, 4])
-                write(123, '(A2)', advance="no") "f "
-                write(123, *) tetra_grid(i)%ind_knot([1, 3, 2])
+                write(iunit, '(A2)', advance="no") "f "
+                write(iunit, *) tetra_grid(i)%ind_knot([2, 3, 4])
+                write(iunit, '(A2)', advance="no") "f "
+                write(iunit, *) tetra_grid(i)%ind_knot([1, 4, 3])
+                write(iunit, '(A2)', advance="no") "f "
+                write(iunit, *) tetra_grid(i)%ind_knot([1, 2, 4])
+                write(iunit, '(A2)', advance="no") "f "
+                write(iunit, *) tetra_grid(i)%ind_knot([1, 3, 2])
             end do
-            close(123)
+            close(iunit)
     !
             ![s,theta,phi]: Write Mesh to File
-            if ((grid_kind .eq. 2).or.(grid_kind .eq. 3)) then
+            if ((grid_kind .eq. 2).or.(grid_kind .eq. 3).or.(grid_kind .eq. 6)) then
     !
-                open(123, file=filename_mesh_sthetaphi)
+                open(newunit=iunit, file=filename_mesh_sthetaphi)
                 do i=1, (nvert / grid_size(2)) * 2
-                    write(123, '(A2)', advance="no") "v "
-                    write(123,101) verts_sthetaphi(1, i), &
+                    write(iunit, '(A2)', advance="no") "v "
+                    write(iunit,101) verts_sthetaphi(1, i), &
                                 verts_sthetaphi(2, i), &
                                 verts_sthetaphi(3, i)
                 end do
                 do i=1, ntetr / grid_size(2)
-                    write(123, '(A2)', advance="no") "f "
-                    write(123, *) tetra_grid(i)%ind_knot([2, 3, 4])
-                    write(123, '(A2)', advance="no") "f "
-                    write(123, *) tetra_grid(i)%ind_knot([1, 4, 3])
-                    write(123, '(A2)', advance="no") "f "
-                    write(123, *) tetra_grid(i)%ind_knot([1, 2, 4])
-                    write(123, '(A2)', advance="no") "f "
-                    write(123, *) tetra_grid(i)%ind_knot([1, 3, 2])
+                    write(iunit, '(A2)', advance="no") "f "
+                    write(iunit, *) tetra_grid(i)%ind_knot([2, 3, 4])
+                    write(iunit, '(A2)', advance="no") "f "
+                    write(iunit, *) tetra_grid(i)%ind_knot([1, 4, 3])
+                    write(iunit, '(A2)', advance="no") "f "
+                    write(iunit, *) tetra_grid(i)%ind_knot([1, 2, 4])
+                    write(iunit, '(A2)', advance="no") "f "
+                    write(iunit, *) tetra_grid(i)%ind_knot([1, 3, 2])
                 end do
-                close(123)
+                close(iunit)
             endif
 !
         endif !boole_write_mesh_obj
@@ -379,6 +405,12 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
             call create_points(verts_per_ring, nphi, verts_rphiz, verts_sthetaphi, efit_vmec,n_field_periods,nvert, &
                        verts_theta_vmec,r_scaling_func = scaling_r, theta_scaling_func = scaling_theta, &
                        repeat_center_point = .true.)
+        case(3) !direct Boozer chartmap
+            call create_points(verts_per_ring, nphi, verts_rphiz, verts_sthetaphi, &
+                               efit_vmec, n_field_periods, nvert, &
+                               r_scaling_func=scaling_r, &
+                               theta_scaling_func=scaling_theta, &
+                               repeat_center_point=.true.)
     end select
 !    
     call calc_mesh(verts_per_ring, nphi, verts_rphiz(:, :nvert / nphi), ntetr, &
@@ -871,4 +903,3 @@ b: do ind_tetr=1,ntetr
     end subroutine deallocate_tetra_grid
 !
 end module tetra_grid_mod
-
