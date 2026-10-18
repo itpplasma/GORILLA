@@ -352,6 +352,21 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                 iphi=int(x(2)/hphi) +1
                 iz=int((x(3)-Zmin)/hz) +1
 !
+                !Diagnostic to check, if out of domain
+                if(ir.lt.1.or.ir.gt.nr.or.iphi.lt.1.or.iphi.gt.nphi.or.iz.lt.1.or.iz.gt.nz) then
+                    ind_tetr_out=-1
+                    iface=-1
+                    print *, 'Error in start_tetra_rect: Particle is outside of the domain!'
+                    stop
+                endif
+!
+                !Starting tetrahedron of hexahedron (ir,iphi,iz), 0-based formula + 1
+                !(like istarttetr in make_grid_rect)
+                indtetr_start = int((dble(iz)-1.d0)*6.d0 + 6.d0*dble(nz)*(dble(ir)-1.d0) &
+                & + 6.d0*(dble(iphi)-1.d0)*dble(nr)*dble(nz) +1.d0)
+                ntetr_searched = 6
+                use_grid = .false.
+!
             case(5) !analytic circular tokamak - flux-aligned (rho,phi,theta) mesh
               ! coord_system==1: x is physical (R,phi,Z); convert to (rho,phi,theta) for lookup.
               ! coord_system==2: x is SFL (s,theta,phi); use the field-aligned plane search.
