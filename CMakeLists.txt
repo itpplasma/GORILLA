@@ -4,6 +4,7 @@ project (GORILLA
   VERSION 1.0.0)
 
 enable_language(Fortran)
+enable_testing()
 
 include_directories(/usr/local/include)
 if(UNIX AND NOT APPLE)
@@ -40,5 +41,19 @@ add_executable(test_gorilla_main.x
 )
 
 target_link_libraries(test_gorilla_main.x GORILLA netcdff netcdf lapack)
+
+add_executable(test_boozer_chartmap_driver.x
+  SRC/TESTS/test_boozer_chartmap_driver.f90
+)
+target_link_libraries(test_boozer_chartmap_driver.x GORILLA netcdff netcdf lapack)
+add_test(NAME boozer_chartmap_oracle COMMAND test_boozer_chartmap_driver.x)
+
+add_executable(test_radial_electric_projection_driver.x
+  SRC/TESTS/test_radial_electric_projection_driver.f90
+)
+target_link_libraries(test_radial_electric_projection_driver.x
+  GORILLA netcdff netcdf lapack)
+add_test(NAME radial_electric_projection_oracle
+  COMMAND test_radial_electric_projection_driver.x)
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})

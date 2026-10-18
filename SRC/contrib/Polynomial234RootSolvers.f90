@@ -1,180 +1,144 @@
 !! ----------------------------------------------------------------------------------
 !! MODULE Polynomial234RootSolvers
 !!
-!!    Minimal in-tree replacement for the ACM TOMS Algorithm 954 polynomial root
-!!    solver.  Implements quadraticRoots and cubicRoots with classical
-!!    (numerically-stable) formulas; quarticRoots still aborts with a clear
-!!    error so that exotic code paths that rely on the original library remain
-!!    visible.  For high-precision benchmarks the real Algorithm 954 file should
-!!    be dropped in to replace this one.
+!! Wrapper around the Skowron & Gould (2012) general complex polynomial root
+!! solver `cmplx_roots_gen` (see SRC/contrib/cmplx_roots_sg.f90), providing the
+!! quadratic/cubic/quartic interfaces previously supplied by ACM Algorithm 954
+!! (Flocke 2015). External call sites are unchanged: arguments and the
+!! `root(:,1)=Re, root(:,2)=Im` layout are preserved, real roots are emitted
+!! with an exactly-zero imaginary part, and real roots are placed before
+!! complex ones (largest real part first), matching the prior convention.
 !!
-!!    Reference equations:
-!!      quadraticRoots:   x**2 + q1*x + q0 = 0
-!!      cubicRoots:       x**3 + c2*x**2 + c1*x + c0 = 0
-!!      quarticRoots:     x**4 + q3*x**3 + q2*x**2 + q1*x + q0 = 0  (NOT IMPLEMENTED)
+!! Skowron J., Gould A., 2012, "General Complex Polynomial Root Solver and Its
+!! Further Optimization for Binary Microlenses", arXiv:1203.1034.
+!! License: Apache 2.0 (see SRC/contrib/LICENSE.cmplx_roots_sg).
 !!
 !! ----------------------------------------------------------------------------------
 
 module Polynomial234RootSolvers
 
-use SetWorkingPrecision, ONLY : wp, wpformat
+  use SetWorkingPrecision, only: wp
+  use cmplx_roots_sg_mod,  only: cmplx_roots_gen
 
-implicit none
+  implicit none
 
-real(wp), parameter, private :: pi_ = 3.141592653589793238462643383279502884_wp
-real(wp), parameter, private :: third_ = 1.0_wp / 3.0_wp
-real(wp), parameter, private :: two_pi_over_three_ = 2.0_wp * pi_ / 3.0_wp
+  private
+  public :: quadraticRoots, cubicRoots, quarticRoots
+
+  ! A root with |Im(z)| <= cmplx_tol * max(1, |Re(z)|) is taken to be real
+  ! and emitted with Im = 0 exactly. Sits well above double-precision
+  ! macheps (~2.2e-16) while still rejecting genuinely complex roots whose
+  ! imaginary parts are merely small.
+  real(kind = wp), parameter :: cmplx_tol = 1.0e-12_wp
 
 contains
 
-! ---------------------------------------------------------------------
-! Quadratic: x**2 + q1*x + q0 = 0
-! Uses the numerically-stable form
-!     q = -0.5*(q1 + sign(q1)*sqrt(discr))
-!     root1 = q;  root2 = q0 / q
-! to avoid cancellation when q1 and sqrt(discr) are close in magnitude.
-! ---------------------------------------------------------------------
-subroutine quadraticRoots (q1, q0, nReal, root)
+  subroutine quadraticRoots(q1, q0, nReal, root)
+    real(kind = wp), intent(in)  :: q1, q0
+    integer,         intent(out) :: nReal
+    real(kind = wp), intent(out) :: root(1:2, 1:2)
 
-  implicit none
+    complex(kind = wp) :: poly(3), croots(2)
 
-  integer            , intent (out) :: nReal
-  real    (kind = wp), intent (in)  :: q1, q0
-  real    (kind = wp), intent (out) :: root (1:2,1:2)
+    poly(1) = cmplx(q0,     0.0_wp, kind = wp)
+    poly(2) = cmplx(q1,     0.0_wp, kind = wp)
+    poly(3) = cmplx(1.0_wp, 0.0_wp, kind = wp)
 
-  real(wp) :: discr, sqrt_discr, qhelp
+    call cmplx_roots_gen(croots, poly, 2, .true., .false.)
+    call pack_roots(croots, 2, nReal, root)
+  end subroutine quadraticRoots
 
-  root = 0.0_wp
-  discr = q1*q1 - 4.0_wp * q0
+  subroutine cubicRoots(c2, c1, c0, nReal, root)
+    real(kind = wp), intent(in)  :: c2, c1, c0
+    integer,         intent(out) :: nReal
+    real(kind = wp), intent(out) :: root(1:3, 1:2)
 
-  if (discr > 0.0_wp) then
-    nReal = 2
-    sqrt_discr = sqrt(discr)
-    if (q1 >= 0.0_wp) then
-      qhelp = -0.5_wp * (q1 + sqrt_discr)
-    else
-      qhelp = -0.5_wp * (q1 - sqrt_discr)
-    end if
-    root(1, 1) = qhelp
-    root(1, 2) = 0.0_wp
-    if (qhelp /= 0.0_wp) then
-      root(2, 1) = q0 / qhelp
-    else
-      root(2, 1) = 0.0_wp
-    end if
-    root(2, 2) = 0.0_wp
-  else if (discr == 0.0_wp) then
-    nReal = 2
-    root(1, 1) = -0.5_wp * q1
-    root(1, 2) = 0.0_wp
-    root(2, 1) = -0.5_wp * q1
-    root(2, 2) = 0.0_wp
-  else
-    nReal = 0
-    sqrt_discr = sqrt(-discr)
-    root(1, 1) = -0.5_wp * q1
-    root(1, 2) =  0.5_wp * sqrt_discr
-    root(2, 1) = -0.5_wp * q1
-    root(2, 2) = -0.5_wp * sqrt_discr
-  end if
+    complex(kind = wp) :: poly(4), croots(3)
 
-end subroutine quadraticRoots
+    poly(1) = cmplx(c0,     0.0_wp, kind = wp)
+    poly(2) = cmplx(c1,     0.0_wp, kind = wp)
+    poly(3) = cmplx(c2,     0.0_wp, kind = wp)
+    poly(4) = cmplx(1.0_wp, 0.0_wp, kind = wp)
 
-! ---------------------------------------------------------------------
-! Cubic: x**3 + c2*x**2 + c1*x + c0 = 0
-!   1. depress with y = x + c2/3:  y**3 + p*y + q = 0
-!   2. branch on sign of discriminant disc = q**2/4 + p**3/27
-!        disc > 0: one real, two complex conjugate (Cardano)
-!        disc = 0: three real (some equal)
-!        disc < 0: three distinct real (trigonometric)
-!   3. shift back x = y - c2/3.
-! ---------------------------------------------------------------------
-subroutine cubicRoots (c2, c1, c0, nReal, root, printInfo)
+    call cmplx_roots_gen(croots, poly, 3, .true., .false.)
+    call pack_roots(croots, 3, nReal, root)
+  end subroutine cubicRoots
 
-  implicit none
+  subroutine quarticRoots(q3, q2, q1, q0, nReal, root)
+    real(kind = wp), intent(in)  :: q3, q2, q1, q0
+    integer,         intent(out) :: nReal
+    real(kind = wp), intent(out) :: root(1:4, 1:2)
 
-  logical, optional  , intent (in)  :: printInfo
-  integer            , intent (out) :: nReal
-  real    (kind = wp), intent (in)  :: c2, c1, c0
-  real    (kind = wp), intent (out) :: root (1:3,1:2)
+    complex(kind = wp) :: poly(5), croots(4)
 
-  real(wp) :: shift, p, q, disc
-  real(wp) :: A_, B_, t1, t2
-  real(wp) :: m_, theta, cos_arg
+    poly(1) = cmplx(q0,     0.0_wp, kind = wp)
+    poly(2) = cmplx(q1,     0.0_wp, kind = wp)
+    poly(3) = cmplx(q2,     0.0_wp, kind = wp)
+    poly(4) = cmplx(q3,     0.0_wp, kind = wp)
+    poly(5) = cmplx(1.0_wp, 0.0_wp, kind = wp)
 
-  root = 0.0_wp
-  shift = c2 * third_
-  p = c1 - c2*c2 * third_
-  q = (2.0_wp * c2*c2*c2) / 27.0_wp - (c2 * c1) * third_ + c0
-  disc = (q*q) * 0.25_wp + (p*p*p) / 27.0_wp
+    call cmplx_roots_gen(croots, poly, 4, .true., .false.)
+    call pack_roots(croots, 4, nReal, root)
+  end subroutine quarticRoots
 
-  if (disc > 0.0_wp) then
-    ! one real, two complex conjugate
-    nReal = 1
-    A_ = -q * 0.5_wp + sqrt(disc)
-    B_ = -q * 0.5_wp - sqrt(disc)
-    t1 = sign(abs(A_)**third_, A_)
-    t2 = sign(abs(B_)**third_, B_)
-    root(1, 1) = t1 + t2 - shift
-    root(1, 2) = 0.0_wp
-    root(2, 1) = -0.5_wp * (t1 + t2) - shift
-    root(2, 2) = 0.5_wp * sqrt(3.0_wp) * (t1 - t2)
-    root(3, 1) = root(2, 1)
-    root(3, 2) = -root(2, 2)
-  else if (disc == 0.0_wp) then
-    nReal = 3
-    if (q == 0.0_wp) then
-      root(1, 1) = -shift
-      root(2, 1) = -shift
-      root(3, 1) = -shift
-    else
-      t1 = sign(abs(q * 0.5_wp)**third_, q)
-      root(1, 1) = -2.0_wp * t1 - shift
-      root(2, 1) =  t1 - shift
-      root(3, 1) =  t1 - shift
-    end if
-  else
-    ! three distinct real roots, trigonometric form (p < 0 here)
-    nReal = 3
-    m_ = sqrt(-p * third_)
-    cos_arg = -q / (2.0_wp * m_ * m_ * m_)
-    cos_arg = max(-1.0_wp, min(1.0_wp, cos_arg))
-    theta = acos(cos_arg) * third_
-    root(1, 1) = 2.0_wp * m_ * cos(theta)                          - shift
-    root(2, 1) = 2.0_wp * m_ * cos(theta - two_pi_over_three_)     - shift
-    root(3, 1) = 2.0_wp * m_ * cos(theta + two_pi_over_three_)     - shift
-  end if
+  subroutine pack_roots(croots, n, nReal, root)
+    integer,            intent(in)  :: n
+    complex(kind = wp), intent(in)  :: croots(n)
+    integer,            intent(out) :: nReal
+    real(kind = wp),    intent(out) :: root(n, 2)
 
-  if (present(printInfo)) then
-    if (printInfo) then
-      write(*, '(a, 3es16.8)') 'cubicRoots: real parts = ', root(1,1), root(2,1), root(3,1)
-    end if
-  end if
+    real(kind = wp) :: re_part(n), im_part(n), tol_i
+    logical         :: is_real(n)
+    integer         :: i, idx
 
-end subroutine cubicRoots
+    do i = 1, n
+      re_part(i) = real(croots(i),  kind = wp)
+      im_part(i) = aimag(croots(i))
+      tol_i      = cmplx_tol * max(1.0_wp, abs(re_part(i)))
+      is_real(i) = abs(im_part(i)) .le. tol_i
+    end do
 
-! ---------------------------------------------------------------------
-! Quartic: x**4 + q3*x**3 + q2*x**2 + q1*x + q0 = 0
-! NOT implemented in this in-tree replacement.  Calls are caught at
-! runtime with a clear error so the missing path is obvious.
-! ---------------------------------------------------------------------
-subroutine quarticRoots (q3, q2, q1, q0, nReal, root, printInfo)
+    nReal = count(is_real)
+    root  = 0.0_wp
 
-  implicit none
+    idx = 0
+    do i = 1, n
+      if (is_real(i)) then
+        idx = idx + 1
+        root(idx, 1) = re_part(i)
+        root(idx, 2) = 0.0_wp
+      end if
+    end do
+    call sort_real_descending(root, nReal)
 
-  logical, optional  , intent (in)  :: printInfo
-  integer            , intent (out) :: nReal
-  real    (kind = wp), intent (in)  :: q3, q2, q1, q0
-  real    (kind = wp), intent (out) :: root (1:4,1:2)
+    do i = 1, n
+      if (.not. is_real(i)) then
+        idx = idx + 1
+        root(idx, 1) = re_part(i)
+        root(idx, 2) = im_part(i)
+      end if
+    end do
+  end subroutine pack_roots
 
-  print *, 'ERROR: quarticRoots is not implemented in the in-tree Polynomial234RootSolvers.'
-  print *, '       Replace SRC/contrib/Polynomial234RootSolvers.f90 with the real ACM TOMS'
-  print *, '       Algorithm 954 file from <https://doi.org/10.1145/2699468>.'
-  print *, '       coefficients: q3=', q3, ' q2=', q2, ' q1=', q1, ' q0=', q0
-  nReal = 0
-  root  = 0.0_wp
-  stop
+  subroutine sort_real_descending(arr, m)
+    real(kind = wp), intent(inout) :: arr(:, :)
+    integer,         intent(in)    :: m
+    integer         :: i, j
+    real(kind = wp) :: tmp_re, tmp_im
 
-end subroutine quarticRoots
+    do i = 2, m
+      tmp_re = arr(i, 1)
+      tmp_im = arr(i, 2)
+      j = i - 1
+      do while (j >= 1)
+        if (arr(j, 1) >= tmp_re) exit
+        arr(j+1, 1) = arr(j, 1)
+        arr(j+1, 2) = arr(j, 2)
+        j = j - 1
+      end do
+      arr(j+1, 1) = tmp_re
+      arr(j+1, 2) = tmp_im
+    end do
+  end subroutine sort_real_descending
 
 end module Polynomial234RootSolvers

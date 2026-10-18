@@ -54,4 +54,8 @@ ax3.set_title('Total energy')
 
 plt.tight_layout()
 
+# Save plot to file for deterministic output
+plt.savefig('example_2.png', dpi=150)
+print("Plot saved to example_2.png")
+
 plt.show()
