@@ -43,7 +43,10 @@ module find_tetra_mod
         real(dp), dimension(:,:), allocatable  :: verts_abc
 !
 print*, 'grid_for_find_tetra started'
-        boole_reduce_entries = .true.
+        !Free any pre-existing find-tetra arrays so a fresh build can proceed without external bookkeeping.
+        call deallocate_find_tetra_arrays
+!
+        boole_reduce_entries = .false.
         boole_axi_symmetry = .false.
 !
         if (coord_system.eq.1) allocate(verts_abc(size(verts_rphiz(:,1)),size(verts_rphiz(1,:))))
@@ -434,7 +437,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
               endif  ! coord_system==1 vs coord_system==2 for grid_kind=5
 !
-            case(2,3,4) !EFIT field-aligned grid or VMEC field_aligned grid or SOLEDGE3X_EIRENE
+            case(2,3,4,6) !field-aligned grids or SOLEDGE3X-EIRENE
 !
                 ind_b = 2 !(phi in cylindrical and flux coordinates)
                 if (coord_system.eq.2) ind_b = 3
