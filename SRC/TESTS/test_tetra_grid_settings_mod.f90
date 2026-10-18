@@ -32,7 +32,8 @@ contains
    	sfc_s_min_compare = 0.1d0
    	
    	@assertTrue(boole_n_field_periods)
-   	@assertFalse(boole_write_mesh_obj)
+    @assertFalse(boole_write_mesh_obj)
+    @assertFalse(boole_axisymmetric_only)
    	@assertEqual(filename_mesh_rphiz, 'mesh_rphiz.obj')
    	@assertEqual(filename_mesh_sthetaphi, 'mesh_sthetaphi.obj')
    	@assertEqual(g_file_filename, 'MHD_EQUILIBRIA/g_file_for_test')

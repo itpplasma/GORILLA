@@ -1,5 +1,6 @@
 module test_binsrc
    use funit
+   use binsrc_mod
    implicit none
 !
 ! Background:

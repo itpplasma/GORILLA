@@ -2,7 +2,8 @@ CONFIG ?= Release
 BUILD_DIR := BUILD
 BUILD_NINJA := $(BUILD_DIR)/build.ninja
 
-.PHONY: all configure reconfigure build test install clean
+
+.PHONY: all configure reconfigure build test install clean example
 all: build
 
 $(BUILD_NINJA):
@@ -24,3 +25,11 @@ doc: configure
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+example: build
+	@if [ -z "$(EXAMPLE)" ]; then \
+		echo "Usage: make example EXAMPLE=<number>"; \
+		echo "Example: make example EXAMPLE=1"; \
+		exit 1; \
+	fi
+	bash EXAMPLES/run_example.sh $(EXAMPLE)

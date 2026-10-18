@@ -42,6 +42,9 @@ module gorilla_plot_mod
             integer                                      :: file_id_phi_0,file_id_vpar_0,file_id_full_orbit,file_id_e_tot, &
                                                          & file_id_p_phi,file_id_J_par,file_id_read_start,counter_phi_0_mappings, &
                                                          & counter_vpar_0_mappings, counter_tetrahedron_passes, ind_tetr, i_surf
+            integer                                      :: file_id_phi_0_rphiz,file_id_phi_0_sthetaphi, &
+                                                         & file_id_vpar_0_rphiz,file_id_vpar_0_sthetaphi, &
+                                                         & file_id_full_orbit_rphiz,file_id_full_orbit_sthetaphi
             integer                                      :: i,counter_lost_particles,n_start_pos,i_os
             double precision                             :: vmod,vpar,vperp
             double precision,dimension(3)                :: x
@@ -53,50 +56,47 @@ module gorilla_plot_mod
             !---------------------------------------------------------------------------------------------------------------------!
             !File Handling
 !
-            !Select file id for Poincaré mappings depending on coordinate system
-            select case(coord_system)
-                case(1) !Cylindrical coordinates
-                    file_id_phi_0 = 91
-                    file_id_vpar_0 = 93
-                    file_id_full_orbit = 95
-                case(2) !Symmetry Flux coordinates
-                    file_id_phi_0 = 92
-                    file_id_vpar_0 = 94
-                    file_id_full_orbit = 96
-            end select
-!
-            !Determine remaining file ids
-            file_id_e_tot = 97
-            file_id_p_phi = 98
-            file_id_J_par = 99
-            file_id_read_start = 100
-!
-            !Open files (optional - only if input options require)
+            !Open files (optional - only if input options require). Both rphiz and sthetaphi
+            !variants are opened: the orbit integration writes the file matching coord_system
+            !directly, and the other variant is either generated later by sym_flux_in_cyl or
+            !left as an empty placeholder that MATLAB's load_copy expects to exist.
             if(boole_poincare_phi_0) then
-                open(unit=91, file=filename_poincare_phi_0_rphiz, status='unknown')
-                open(unit=92, file=filename_poincare_phi_0_sthetaphi, status='unknown')
+                open(newunit=file_id_phi_0_rphiz, file=filename_poincare_phi_0_rphiz, status='unknown')
+                open(newunit=file_id_phi_0_sthetaphi, file=filename_poincare_phi_0_sthetaphi, status='unknown')
             endif
 !
             if(boole_poincare_vpar_0) then
-                open(unit=93, file=filename_poincare_vpar_0_rphiz, status='unknown')
-                open(unit=94, file=filename_poincare_vpar_0_sthetaphi, status='unknown')
+                open(newunit=file_id_vpar_0_rphiz, file=filename_poincare_vpar_0_rphiz, status='unknown')
+                open(newunit=file_id_vpar_0_sthetaphi, file=filename_poincare_vpar_0_sthetaphi, status='unknown')
             endif
 !
             if(boole_full_orbit) then
-                open(unit=95, file=filename_full_orbit_rphiz, status='unknown')
-                open(unit=96, file=filename_full_orbit_sthetaphi, status='unknown')
+                open(newunit=file_id_full_orbit_rphiz, file=filename_full_orbit_rphiz, status='unknown')
+                open(newunit=file_id_full_orbit_sthetaphi, file=filename_full_orbit_sthetaphi, status='unknown')
             endif
 !
+            !Pick which of the two opened files the orbit integration actually writes to
+            select case(coord_system)
+                case(1) !Cylindrical coordinates
+                    if(boole_poincare_phi_0) file_id_phi_0 = file_id_phi_0_rphiz
+                    if(boole_poincare_vpar_0) file_id_vpar_0 = file_id_vpar_0_rphiz
+                    if(boole_full_orbit) file_id_full_orbit = file_id_full_orbit_rphiz
+                case(2) !Symmetry Flux coordinates
+                    if(boole_poincare_phi_0) file_id_phi_0 = file_id_phi_0_sthetaphi
+                    if(boole_poincare_vpar_0) file_id_vpar_0 = file_id_vpar_0_sthetaphi
+                    if(boole_full_orbit) file_id_full_orbit = file_id_full_orbit_sthetaphi
+            end select
+!
             if(boole_e_tot) then
-                open(unit=file_id_e_tot, file=filename_e_tot, status='unknown')
+                open(newunit=file_id_e_tot, file=filename_e_tot, status='unknown')
             endif
 !
             if(boole_p_phi) then
-                open(unit=file_id_p_phi, file=filename_p_phi, status='unknown')
+                open(newunit=file_id_p_phi, file=filename_p_phi, status='unknown')
             endif
 !
             if(boole_J_par) then
-                open(unit=file_id_J_par, file=filename_J_par, status='unknown')
+                open(newunit=file_id_J_par, file=filename_J_par, status='unknown')
             endif
 !
             !---------------------------------------------------------------------------------------------------------------------!
@@ -110,9 +110,9 @@ module gorilla_plot_mod
                     !Open file with starting positions and starting pitch parameter
                     select case(coord_system)
                         case(1) !Cylindrical coordinates
-                            open(unit=file_id_read_start, file=filename_orbit_start_pos_rphiz, iostat=i_os, status='old')
+                            open(newunit=file_id_read_start, file=filename_orbit_start_pos_rphiz, iostat=i_os, status='old')
                         case(2) !Symmetry flux coordinates
-                            open(unit=file_id_read_start, file=filename_orbit_start_pos_sthetaphi, iostat=i_os, status='old')
+                            open(newunit=file_id_read_start, file=filename_orbit_start_pos_sthetaphi, iostat=i_os, status='old')
                     end select
 !
                     !Error, if file does not exist.
@@ -136,9 +136,9 @@ module gorilla_plot_mod
                     !Open file with starting positions and starting pitch parameter
                     select case(coord_system)
                         case(1) !Cylindrical coordinates
-                            open(unit=file_id_read_start, file=filename_orbit_start_pos_rphiz, iostat=i_os, status='old')
+                            open(newunit=file_id_read_start, file=filename_orbit_start_pos_rphiz, iostat=i_os, status='old')
                         case(2) !Symmetry flux coordinates
-                            open(unit=file_id_read_start, file=filename_orbit_start_pos_sthetaphi, iostat=i_os, status='old')
+                            open(newunit=file_id_read_start, file=filename_orbit_start_pos_sthetaphi, iostat=i_os, status='old')
                     end select
 !
                     !Error, if file does not exist.
@@ -355,30 +355,30 @@ module gorilla_plot_mod
             !Transformation of coordinates and File handling
 !
             if(boole_poincare_phi_0) then
-                close(unit=91)
-                close(unit=92)
+                close(file_id_phi_0_rphiz)
+                close(file_id_phi_0_sthetaphi)
             endif
 !
             if(boole_poincare_vpar_0) then
-                close(unit=93)
-                close(unit=94)
+                close(file_id_vpar_0_rphiz)
+                close(file_id_vpar_0_sthetaphi)
             endif
 !
             if(boole_full_orbit) then
-                close(unit=95)
-                close(unit=96)
+                close(file_id_full_orbit_rphiz)
+                close(file_id_full_orbit_sthetaphi)
             endif
 !
             if(boole_e_tot) then
-                close(unit=file_id_e_tot)
+                close(file_id_e_tot)
             endif
 !
             if(boole_p_phi) then
-                close(unit=file_id_p_phi)
+                close(file_id_p_phi)
             endif
 !
             if(boole_J_par) then
-                close(unit=file_id_J_par)
+                close(file_id_J_par)
             endif
 !
             !If symmetry flux coordinates are used, transform to cylindrical coordinates
@@ -412,9 +412,11 @@ module gorilla_plot_mod
 !
             use gorilla_settings_mod, only: i_time_tracing_option
 !
-            open(unit=90, file='gorilla_plot.inp', status='unknown')
-            read(90,nml=gorilla_plot_nml)
-            close(90)
+            integer :: iunit
+!
+            open(newunit=iunit, file='gorilla_plot.inp', status='unknown')
+            read(iunit,nml=gorilla_plot_nml)
+            close(iunit)
 !
             print *,'GORILLA Plotting: Loaded input data from gorilla_plot.inp'
 !
