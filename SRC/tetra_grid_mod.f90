@@ -31,7 +31,8 @@
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
                                          & netcdf_filename, &
-                                         & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
+                                         & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, &
+                                         & q0_analytic_circ, q1_analytic_circ, &
                                          & q_exp_analytic_circ, q_profile_file_analytic_circ, sfc_s_min, sfc_s_max
         use tetra_grid_settings_mod, only: helical_pert_file_analytic_circ, &
             helical_pert_amp_analytic_circ, helical_pert_m_analytic_circ, &
@@ -72,7 +73,8 @@
                 case(1,2,4,5) !2D EFIT & WEST equilibria
                     call set_n_field_periods(1)
                 case(3,6) !3D VMEC or Boozer chartmap equilibria
-                    call set_n_field_periods(0) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
+                    !The correct value is assigned below (before subroutine 'make_grid_aligned' is called.)
+                    call set_n_field_periods(0)
             end select
 !
         else !Manually from input file
@@ -88,7 +90,8 @@
             ppp=0.d0
             zzz=0.d0
 !
-            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &
                        & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !                   
             !Settings for rectangular grid: Values are obtained from field_eq_mod
@@ -115,7 +118,8 @@
             ppp=0.d0
             zzz=0.d0
 !
-            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &
                        & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !         
             call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
@@ -130,7 +134,8 @@
 !
             if(boole_n_field_periods) then
                 !Assign value for number of field periods from VMEC equilibrium file
-                call set_n_field_periods(nper) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
+                !The correct value is assigned below (before subroutine 'make_grid_aligned' is called.)
+                call set_n_field_periods(nper)
             endif
 !
             call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
@@ -149,7 +154,8 @@
             ppp=0.d0
             zzz=0.d0
 !
-            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &
                           & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
             call make_grid_SOLEDGE3X_EIRENE(grid_size)
