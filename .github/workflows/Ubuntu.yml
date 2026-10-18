@@ -18,17 +18,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
+          sudo apt-get install gfortran liblapack-dev libnetcdff-dev
           sudo apt install lcov
-          
+
       - name: Install pFUnit
         run: |
-          git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit
+          git clone --branch v4.7.0 https://github.com/Goddard-Fortran-Ecosystem/pFUnit
           cd pFUnit
           mkdir -p build
           cd build
@@ -36,26 +36,19 @@ jobs:
           make -j$(nproc)
           make tests
           make install
-          
-      - name: Additional Files
-        run: |
-          cd $GITHUB_WORKSPACE
-          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
-          unzip 954.zip
-          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
-          
+
       - name: Build
         run: |
           ./build_coverage.sh
         
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: code-coverage-report
           path: BUILD/COVERAGE/
           
   Ubuntu:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     
     env:
       FC: gfortran
@@ -63,48 +56,31 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install wget unzip gfortran liblapack-dev libnetcdff-dev
-          
-      - name: Additional Files
-        run: |
-          cd $GITHUB_WORKSPACE
-          wget -O 954.zip "https://dl.acm.org/action/downloadSupplement?doi=10.1145%2F2699468&file=954.zip&download=true"
-          unzip 954.zip
-          cp 954/F90/Src/Polynomial234RootSolvers.f90 SRC/contrib/
-          
+          sudo apt-get install gfortran liblapack-dev libnetcdff-dev
+
       - name: Build
         run: |
           make
           
       - name: Run examples
         run: |
-          cd EXAMPLES/example_1
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_2
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_3
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_4
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_5
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_6
-          ../BUILD/test_gorilla_main.x
-          cd ../../EXAMPLES/example_7
-          ../BUILD/test_gorilla_main.x
+          for i in 1 2 3 4 5 6 7; do
+            (cd EXAMPLES/example_$i && ./test_gorilla_main.x)
+          done
           
       - name: Set up MATLAB
-        uses: matlab-actions/setup-matlab@v1
+        uses: matlab-actions/setup-matlab@v3
         
       - name: Run MATLAB scripts
-        uses: matlab-actions/run-command@v1
+        uses: matlab-actions/run-command@v3
         with:
           command: |
+            setenv('LD_PRELOAD','/usr/lib/x86_64-linux-gnu/libcurl.so.4')
             cd MATLAB
             example_1
             example_2
@@ -116,22 +92,23 @@ jobs:
             example_8
 
       - name: Run MATLAB livescript
-        uses: matlab-actions/run-command@v1
+        uses: matlab-actions/run-command@v3
         with:
           command: |
+            setenv('LD_PRELOAD','/usr/lib/x86_64-linux-gnu/libcurl.so.4')
             cd MATLAB
             plotting_tutorial
 
       - name: Archive MATLAB results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: MATLAB-RESULTS
           path: MATLAB/data_plots
         
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v3
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          python-version: 3.9
+          python-version: '3.12'
 
       - name: Install PYTHON dependencies
         run: |
@@ -142,33 +119,33 @@ jobs:
       - name: Run PYTHON scripts
         run: |
           cd PYTHON
-          python3.9 example_1.py
-          python3.9 example_2.py
-          python3.9 example_3.py
-          python3.9 example_4.py
-          python3.9 example_5.py
-          python3.9 example_6.py
-          python3.9 example_7.py
+          python3 example_1.py
+          python3 example_2.py
+          python3 example_3.py
+          python3 example_4.py
+          python3 example_5.py
+          python3 example_6.py
+          python3 example_7.py
 
       - name: Run PYTHON plottingscripts
         run: |
           cd PYTHON
-          python3.9 plot_example_1.py
-          python3.9 plot_example_2.py
-          python3.9 plot_example_3.py
-          python3.9 plot_example_4.py
-          python3.9 plot_example_5.py
-          python3.9 plot_example_6.py
-          python3.9 plot_example_7.py
+          python3 plot_example_1.py
+          python3 plot_example_2.py
+          python3 plot_example_3.py
+          python3 plot_example_4.py
+          python3 plot_example_5.py
+          python3 plot_example_6.py
+          python3 plot_example_7.py
 
       - name: Run JUPYTER notebook
         run: |
           cd PYTHON
           jupyter nbconvert --to script plotting_tutorial.ipynb
-          python3.9 plotting_tutorial.py
+          python3 plotting_tutorial.py
 
       - name: Archive PYTHON results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: PYTHON-RESULTS
           path: PYTHON/data_plots

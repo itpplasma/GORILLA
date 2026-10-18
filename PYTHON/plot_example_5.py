@@ -97,4 +97,8 @@ ax.view_init(elev=24.2848,azim = -57)
 ax.axis('off')
 ax.dist = 6.5
 
+# Save plot to file for deterministic output
+plt.savefig('example_5.png', dpi=150)
+print("Plot saved to example_5.png")
+
 plt.show()

@@ -1058,6 +1058,10 @@ if(diag_pusher_tetra_rk) print *, 'Newton extreme distance prevention'
 !
             !Integration step of prevention in case of ODE45
 !            if(boole_accuracy_ode45) then
+                ! The quadratic-start path skips the linear integration below.
+                ! Initialize dist_new nevertheless: Fortran does not guarantee
+                ! short-circuit evaluation of the subsequent logical expression.
+                dist_new = dist
                 !Extreme dtau prevention OR integration step
                 if(abs(dtau).gt.dtau_max) then
 if(diag_pusher_tetra_rk) print *, 'Extreme dtau prevention'

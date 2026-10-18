@@ -41,7 +41,7 @@ module field_line_integration_for_SYNCH_mod
   integer, parameter :: nstep_min=10   !minimum number of steps
 !
   integer :: nstep,nsurfmax,nlabel,ntheta
-  integer :: i,j,nsurf,nmap,isurf,iter
+  integer :: i,j,nsurf,nmap,isurf,iter,iunit
 !
   double precision, parameter :: pi = 3.14159265358979d0
   double precision :: rmn,rmx,zmn,zmx,raxis,zaxis
@@ -124,9 +124,9 @@ module field_line_integration_for_SYNCH_mod
 !
   psi_axis=psif
   print *,'toroidal field = ',btf
-  open(1,file='btor_rbig.dat')
-  write (1,*) btf,rtf
-  close(1)
+  open(newunit=iunit,file='btor_rbig.dat')
+  write (iunit,*) btf,rtf
+  close(iunit)
 !
 ! End of search for the magnetic axis
 !

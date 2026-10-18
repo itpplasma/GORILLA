@@ -25,8 +25,13 @@
 
 !
     !Grid kind - Selection of grid kind
-    !(1 ... rectangular grid, 2 ... field-aligned grid EFIT, 3 ... field-aligned grid VMEC, 4 ... SOLEDGE3X-EIRENE grid, 5 ... analytic circular tokamak)
+    !(1 ... rectangular, 2 ... field-aligned EFIT, 3 ... field-aligned VMEC,
+    !  4 ... SOLEDGE3X-EIRENE, 5 ... analytic circular tokamak,
+    !  6 ... field-aligned Boozer chartmap)
     integer,public,protected :: grid_kind
+!
+    !For VMEC input, retain only harmonics with toroidal mode number n=0.
+    logical,public,protected :: boole_axisymmetric_only = .false.
 !
     !MHD equilibrium filename
     character*64,public,protected :: g_file_filename
@@ -43,6 +48,10 @@
     !Outer s-bound of the radial mesh (default 1.0d0 = full plasma).  Set
     !sfc_s_min < sfc_s_max <= 1.0d0 to build only an annular shell in s.
     double precision,public,protected :: sfc_s_max = 1.0d0
+    !Radial grid spacing option
+    !1 ... equidistant in s (normalized toroidal flux) - default
+    !2 ... equidistant in sqrt(s) (approximately equidistant in minor radius)
+    integer, public, protected :: i_radial_spacing = 1
 !
     !Scaling of $\theta$-variable
     integer, public, protected :: theta_geom_flux
@@ -76,11 +85,16 @@
     character(50),public,protected :: filename_mesh_rphiz,filename_mesh_sthetaphi
 !
     !Namelist for Tetrahedronal Grid input
-    NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual,sfc_s_min,sfc_s_max, &
-                            & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
+    NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual, &
+                            & sfc_s_min,sfc_s_max, &
+                            & i_radial_spacing, &
+                            & boole_axisymmetric_only, &
+                            & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
+                            & theta_geom_flux,theta0_at_xpoint, &
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
                             & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename, &
-                            & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
+                            & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, &
+                            & q0_analytic_circ, q1_analytic_circ, &
                             & q_exp_analytic_circ, q_profile_file_analytic_circ, &
                             & helical_pert_file_analytic_circ, &
                             & helical_pert_amp_analytic_circ, &
@@ -92,9 +106,11 @@
 !
         subroutine load_tetra_grid_inp()
 !
-            open(unit=9, file='tetra_grid.inp', status='unknown')
-            read(9,nml=tetra_grid_nml)
-            close(9)
+            integer :: iunit
+!
+            open(newunit=iunit, file='tetra_grid.inp', status='unknown')
+            read(iunit,nml=tetra_grid_nml)
+            close(iunit)
 !
             if (sfc_s_max .le. sfc_s_min .or. sfc_s_max .gt. 1.0d0) then
                 print *, 'Error: sfc_s_max must satisfy sfc_s_min < sfc_s_max <= 1.0d0'

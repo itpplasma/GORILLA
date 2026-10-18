@@ -37,6 +37,9 @@ module pusher_tetra_poly_mod
     double precision, dimension(:,:), allocatable, public, protected          :: intermediate_z0_list
     integer, public, protected                                                :: number_of_integration_steps
 !
+    !File units for adaptive-scheme diagnostic reports (only used for single-particle diagnostics).
+    integer                                                                   :: iunit_total_fluc_report, iunit_step_fluc_report
+!
     private
 !    
     integer                             :: iface_init
@@ -101,16 +104,16 @@ module pusher_tetra_poly_mod
                 endif
 !
 if(report_pusher_tetry_poly_adaptive) then
-open(124, file='./total_fluc_report.dat')
-open(118, file='./step_fluc_report.dat')
+open(newunit=iunit_total_fluc_report, file='./total_fluc_report.dat')
+open(newunit=iunit_step_fluc_report, file='./step_fluc_report.dat')
 endif
 
             elseif(option .eq. 1) then
                 deallocate(tau_steps_list,intermediate_z0_list)
 !
 if(report_pusher_tetry_poly_adaptive) then
-close(124)
-close(118)
+close(iunit_total_fluc_report)
+close(iunit_step_fluc_report)
 endif
 !
             endif
@@ -222,7 +225,8 @@ endif
             ! allocate(tau_steps_list(max_entries),intermediate_z0_list(4,max_entries))
             number_of_integration_steps = 0
 !
-            if (any(boole_array_optional_quantities)) call initialise_optional_quantities(optional_quantities)
+            if (present(optional_quantities) .and. any(boole_array_optional_quantities)) &
+                & call initialise_optional_quantities(optional_quantities)
 !
             !Initial computation values
             z = z_init
@@ -655,7 +659,7 @@ endif
 !                
             endif
 !
-            if(any(boole_array_optional_quantities)) then
+            if(present(optional_quantities) .and. any(boole_array_optional_quantities)) then
                 !loop over number_of_integration_steps
                 do i = 1,number_of_integration_steps
                     call calc_optional_quantities(poly_order, intermediate_z0_list(:,i), tau_steps_list(i), optional_quantities)
@@ -1155,10 +1159,10 @@ report_index = report_index + 1
 step_fluc_report(report_index,:) = -1
 total_fluc_report(report_index,:) = -1
 do k = 1, report_index
-write(124,*) total_fluc_report(k,:)
+write(iunit_total_fluc_report,*) total_fluc_report(k,:)
 end do
 do k = 1, report_index
-write(118,*) step_fluc_report(k,:)
+write(iunit_step_fluc_report,*) step_fluc_report(k,:)
 end do
 deallocate(total_fluc_report,step_fluc_report)
 endif
