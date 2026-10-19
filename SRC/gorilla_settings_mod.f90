@@ -83,12 +83,8 @@
     character*64,public,protected :: filename_electric_field
     character*64,public,protected :: filename_electric_drift
 !
-    !For loading an experimentally-derived radial electric field profile and
-    !integrating it to an electrostatic potential Phi_0(psi_pol).  Triggers
-    !strong_electric_field_mod's case(1) path when er_profile_file is non-empty.
-    !Assumes Er(r_eff) is constant on each flux surface; r_eff is mapped to
-    !psi_pol via the equil_mapping file (same flux_functions.dat as the
-    !RMP applet's equil_mapping_file).
+    !Er(r_eff) profile and r_eff -> psi_pol mapping file (flux_functions.dat); if
+    !set, the integrated potential Phi_0(psi_pol) replaces eps_Phi*psi_pol.
     character(len=256), public, protected :: er_profile_file        = ''
     character(len=256), public, protected :: er_equil_mapping_file  = ''
 !
