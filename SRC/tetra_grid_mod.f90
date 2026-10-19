@@ -30,7 +30,8 @@
         use tetra_grid_settings_mod, only: boole_n_field_periods,n_field_periods_manual,grid_size,n1,n2,n3,grid_kind, &
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
-                                         & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
+                                         & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, &
+                                         & q0_analytic_circ, q1_analytic_circ, &
                                          & netcdf_filename, &
                                          & q_exp_analytic_circ, q_profile_file_analytic_circ, sfc_s_min, sfc_s_max
         use new_vmec_stuff_mod, only: nper
