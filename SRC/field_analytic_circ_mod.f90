@@ -37,14 +37,15 @@ contains
 
   subroutine set_field_analytic_circ(R0, a, B0, q0, q1, q_exp, q_file)
     double precision, intent(in) :: R0, a, B0, q0, q1
-    integer,          intent(in) :: q_exp
+    integer,          intent(in), optional :: q_exp
     character(len=*), intent(in), optional :: q_file
     R0_ac = R0
     a_ac  = a
     B0_ac = B0
     q0_ac = q0
     q1_ac = q1
-    p_ac  = q_exp
+    p_ac  = 2
+    if (present(q_exp)) p_ac = q_exp
     tabulated_ac = .false.
     if (present(q_file)) then
       if (len_trim(q_file) > 0) call load_q_table(q_file)
