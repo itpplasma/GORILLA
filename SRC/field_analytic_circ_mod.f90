@@ -36,6 +36,7 @@ module field_analytic_circ_mod
 contains
 
   subroutine set_field_analytic_circ(R0, a, B0, q0, q1, q_exp, q_file)
+    use field_eq_mod, only: rtf, btf
     double precision, intent(in) :: R0, a, B0, q0, q1
     integer,          intent(in), optional :: q_exp
     character(len=*), intent(in), optional :: q_file
@@ -44,6 +45,9 @@ contains
     B0_ac = B0
     q0_ac = q0
     q1_ac = q1
+    ! F = rtf*btf = R0*B0, so B_phi = F/R
+    rtf = R0_ac
+    btf = B0_ac
     p_ac  = 2
     if (present(q_exp)) p_ac = q_exp
     tabulated_ac = .false.
@@ -179,6 +183,7 @@ contains
   subroutine field_analytic_circ(r, p, z,                          &
       Br, Bp, Bz,                                                   &
       dBrdR, dBrdp, dBrdZ, dBpdR, dBpdp, dBpdZ, dBzdR, dBzdp, dBzdZ)
+    use field_eq_mod, only: psif
 
     double precision, intent(in)  :: r, p, z
     double precision, intent(out) :: Br, Bp, Bz
@@ -190,6 +195,7 @@ contains
 
     Rshift = r - R0_ac                    ! R - R0
     rho    = sqrt(Rshift**2 + z**2)       ! minor radius
+    psif   = psi_pol_analytic_circ(rho)
 
     if (tabulated_ac) then
       q      = splint_val(rt_ac, qt_ac, qy2_ac, ntab_ac, rho)
