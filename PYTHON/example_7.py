@@ -436,7 +436,6 @@ poincare_fig.savefig(path_data_plots + '/results' + name_test_case + 'poincare' 
 J_par_fig.savefig(path_data_plots + '/results' + name_test_case + 'Jpar' + extension)
 e_tot_fig.savefig(path_data_plots + '/results' + name_test_case + 'etot' + extension)
 e_tot_fluctuation_fig.savefig(path_data_plots + '/results' + name_test_case + 'etotfluctuation' + extension)
-plt.show()
 
 # Go back to path of PYTHON script
 os.chdir(path_script)

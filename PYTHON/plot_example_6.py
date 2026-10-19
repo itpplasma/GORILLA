@@ -94,4 +94,3 @@ ax.set_title(r'SOLEDGE3X-EIRENE: Toroidal projection ($\varphi=0$) of guiding-ce
 plt.savefig('example_6.png', dpi=150)
 print("Plot saved to example_6.png")
 
-plt.show()
