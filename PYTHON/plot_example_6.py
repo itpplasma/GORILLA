@@ -90,4 +90,8 @@ ax.set_xlabel('R [cm]')
 ax.set_ylabel('Z [cm]')
 ax.set_title(r'SOLEDGE3X-EIRENE: Toroidal projection ($\varphi=0$) of guiding-center orbits ($\lambda =$ ' + str(lambda_value) + ')')
 
+# Save plot to file for deterministic output
+plt.savefig('example_6.png', dpi=150)
+print("Plot saved to example_6.png")
+
 plt.show()

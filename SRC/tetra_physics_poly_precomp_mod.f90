@@ -76,6 +76,9 @@ module tetra_physics_poly_precomp_mod
 !
             implicit none
 !
+            !Free any pre-existing precomputed polynomial arrays so a fresh build can proceed without external bookkeeping.
+            call deallocate_precomp_poly
+!
             select case(ipusher)
                 case(1) !numerical RK pusher
 !
