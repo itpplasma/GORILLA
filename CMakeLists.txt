@@ -63,5 +63,10 @@ target_link_libraries(test_prescribed_er_driver.x GORILLA netcdff netcdf lapack)
 add_test(NAME prescribed_er_oracle COMMAND test_prescribed_er_driver.x)
 set_tests_properties(prescribed_er_oracle PROPERTIES
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_executable(test_hamiltonian_time_driver.x
+  SRC/TESTS/test_hamiltonian_time_driver.f90
+)
+target_link_libraries(test_hamiltonian_time_driver.x GORILLA netcdff netcdf lapack)
+add_test(NAME hamiltonian_time_oracle COMMAND test_hamiltonian_time_driver.x)
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
