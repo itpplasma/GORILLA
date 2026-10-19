@@ -45,4 +45,3 @@ plt.tight_layout()
 plt.savefig('example_4.png', dpi=150)
 print("Plot saved to example_4.png")
 
-plt.show()
