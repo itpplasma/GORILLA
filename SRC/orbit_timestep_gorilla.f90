@@ -182,7 +182,8 @@ module orbit_timestep_gorilla_mod
         subroutine initialize_gorilla(i_option,ipert_in,bmod_multiplier)
 !
             use constants, only: echarge,ame,amp,clight
-            use gorilla_settings_mod, only: eps_Phi,coord_system,ispecies,boole_grid_for_find_tetra
+            use gorilla_settings_mod, only: eps_Phi,coord_system,ispecies,boole_grid_for_find_tetra, &
+                                            & species_mass_number,species_charge_number
             use tetra_grid_mod, only: make_tetra_grid
             use tetra_physics_mod, only: make_tetra_physics,check_tetra_overlaps,cm_over_e,particle_charge,particle_mass
             use tetra_physics_poly_precomp_mod, only: make_precomp_poly
@@ -272,6 +273,19 @@ module orbit_timestep_gorilla_mod
 !                    
                         !mass charge ratio
                         cm_over_e= 184.d0*clight*amp/(74.d0*echarge)
+!
+                    case(5) !ion with explicit mass and charge numbers
+                        if(species_mass_number.le.0.d0.or.species_charge_number.le.0.d0) then
+                            error stop 'ERROR: ispecies=5 needs positive species_mass_number and species_charge_number.'
+                        endif
+                        !electric charge of particle
+                        particle_charge = species_charge_number*echarge
+!
+                        !mass of particle
+                        particle_mass = species_mass_number*amp
+!
+                        !mass charge ratio (same operation order as case(2) for A=2, Z=1)
+                        cm_over_e = species_mass_number*clight*amp/(species_charge_number*echarge)
 !
                     case default
                         print *, 'ERROR: Invalid ispecies option selected. Check gorilla.inp.'

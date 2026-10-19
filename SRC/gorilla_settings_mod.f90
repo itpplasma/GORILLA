@@ -83,6 +83,10 @@
     !part of B* from the equations of motion; E x B and strong-field terms remain.
     logical, public, protected :: boole_magnetic_drift = .true.
 !
+    !Mass and charge numbers (units of amp and echarge) for ispecies=5; ignored otherwise
+    double precision, public, protected :: species_mass_number = 0.d0
+    double precision, public, protected :: species_charge_number = 0.d0
+!
     logical, public, protected :: boole_save_electric
     character*64,public,protected :: filename_electric_field
     character*64,public,protected :: filename_electric_drift
@@ -116,7 +120,8 @@
                         & i_time_tracing_option, &
                         & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift, &
                         & er_profile_file, er_equil_mapping_file, &
-                        & boole_pert_from_mephit, boole_magnetic_drift
+                        & boole_pert_from_mephit, boole_magnetic_drift, &
+                        & species_mass_number, species_charge_number
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type
 !
