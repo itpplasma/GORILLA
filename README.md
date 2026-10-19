@@ -105,6 +105,49 @@ This will produce `test_gorilla_main.x` in the folder `BUILD/` required to run t
 
 To get additional tests and code coverage, build GORILLA with `build_coverage.sh`. This requires the additional tools and a correct set PFUNIT_DIR. See the pFUnit github [project page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit) for additional information.
 
+
+### CINECA Leonardo
+
+Built and tested on the Leonardo CPU login nodes (GCC 12.2.0, CMake 3.27.9,
+OpenBLAS 0.3.26, NetCDF-C 4.9.2, NetCDF-Fortran 4.6.1) at GORILLA `1a6cdc1`,
+2026-10-19. Pitagora access was not available, so nothing is verified there.
+GitHub is reachable from the login nodes. The two shims below are needed
+because the Spack NetCDF modules ship no `netCDFConfig.cmake` and
+`CMakeLists.txt` links `-llapack`, which OpenBLAS does not provide as a
+separate library.
+
+```bash
+module purge
+module load profile/base gcc/12.2.0 cmake/3.27.9 ninja/1.11.1 \
+    openblas/0.3.26--gcc--12.2.0 python/3.11.7 \
+    netcdf-c/4.9.2--gcc--12.2.0-spack0.22 \
+    netcdf-fortran/4.6.1--gcc--12.2.0-spack0.22
+export B=$CINECA_SCRATCH/builds TMPDIR=$CINECA_SCRATCH/builds/tmp
+mkdir -p $TMPDIR $B/shim/netCDF $B/shim/lib
+export CMAKE_BUILD_PARALLEL_LEVEL=4 OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=1
+echo 'set(netCDF_FOUND TRUE)' > $B/shim/netCDF/netCDFConfig.cmake
+for l in lapack blas; do ln -sf $OPENBLAS_LIB/libopenblas.so $B/shim/lib/lib$l.so; done
+LINK="-L$B/shim/lib -Wl,-rpath,$OPENBLAS_LIB -L$NETCDF_FORTRAN_LIB -L$NETCDF_C_LIB -Wl,-rpath,$NETCDF_FORTRAN_LIB -Wl,-rpath,$NETCDF_C_LIB"
+INC="-I$NETCDF_FORTRAN_INC -I$NETCDF_C_INC"
+cd $B
+git clone https://github.com/itpplasma/GORILLA.git && cd GORILLA
+nice cmake -S . -B build-lrd -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DnetCDF_DIR=$B/shim/netCDF "-DCMAKE_Fortran_FLAGS=$INC" \
+    "-DCMAKE_EXE_LINKER_FLAGS=$LINK" "-DCMAKE_SHARED_LINKER_FLAGS=$LINK"
+nice cmake --build build-lrd -j 4
+(cd build-lrd && ctest)
+```
+
+The Release build takes 25 s with `-j 4` under `nice`. `ctest` runs the two
+registered oracles (`boozer_chartmap_oracle`, `radial_electric_projection_oracle`):
+2 of 2 passed. `EXAMPLES/example_1` also ran to completion (7 s with four
+threads, 0 lost particles) as a batch job on the budget-free serial partition
+(`--partition=lrd_all_serial --cpus-per-task=4 --time=01:00:00`, no account):
+
+```bash
+cd EXAMPLES/example_1 && ln -sf ../../build-lrd/test_gorilla_main.x . && ./test_gorilla_main.x
+```
+
 ## Examples
 
 Seven examples for plotting Poincaré cuts, full guiding-center orbits (in plasma core or edge regions) and the appropriate time evolution of invariants of motion can be found in `EXAMPLES/example_1` - `EXAMPLES/example_7`. Further details on usage of GORILLA and plotting results follow below. To automatically build GORILLA, run one of the examples and plot the results from GORILLA root directory using make, use
