@@ -145,6 +145,7 @@
 !
     subroutine make_tetra_physics(coord_system_in,ipert_in,bmod_multiplier_in, boole_keep_phi_elec)
 !
+      use hamiltonian_time_coefficients_mod, only: hamiltonian_time_coefficients
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
                                 & set_verts_sthetaphi,verts_xyz
       use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,R0_analytic_circ
@@ -482,7 +483,7 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
   !$OMP& DO DEFAULT(NONE) &
   !$OMP& SHARED(ntetr,tetra_grid,coord_system,verts_rphiz,grid_kind,verts_sthetaphi, &
   !$OMP& grid_size,A_x1,A_x2,A_x3,h_x1,h_x2,h_x3,Bmod,phi_elec,v_E_x1,v_E_x2,v_E_x3,v2_E_mod,boole_strong_electric_field, &
-  !$OMP& handover_processing_kind,hamiltonian_time, &
+  !$OMP& handover_processing_kind,hamiltonian_time,cm_over_e, &
   !$OMP& sqg,tetra_physics,tetra_skew_coord,navec,verts_xyz,mag_axis_R0,mag_axis_Z0,dR_ds,dZ_ds,n_field_periods) &
   !$OMP& PRIVATE(ind_tetr,i,j,k,l,iv,p_x1,p_x2,p_x3,A_phi,A_theta,dA_phi_ds, &
   !$OMP& dA_theta_ds,aiota,R,Z,alam,dR_ds1,dR_dt,dR_dp,dZ_ds1,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp, &
@@ -964,14 +965,14 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
         mat_gh(:,2) = tetra_physics(ind_tetr)%gh2
         mat_gh(:,3) = tetra_physics(ind_tetr)%gh3
 !
-        !See description in the allocation
-        hamiltonian_time(ind_tetr)%h1_in_curlA = sum(vec_h_1 * tetra_physics(ind_tetr)%curlA)
-!
-        hamiltonian_time(ind_tetr)%h1_in_curlh = sum(vec_h_1 * tetra_physics(ind_tetr)%curlh)
-!
-        hamiltonian_time(ind_tetr)%vec_mismatch_der = matmul(mat_gh,tetra_physics(ind_tetr)%curlA)
-!
-        hamiltonian_time(ind_tetr)%vec_parcurr_der = matmul(mat_gh,tetra_physics(ind_tetr)%curlh)
+        !Same symplectic curl as the orbit equations (curlA + cm_over_e*curlvE for strong E)
+        call hamiltonian_time_coefficients(vec_h_1, mat_gh, &
+            tetra_physics(ind_tetr)%curlA, tetra_physics(ind_tetr)%curlh, &
+            tetra_physics(ind_tetr)%curlvE, cm_over_e, boole_strong_electric_field, &
+            hamiltonian_time(ind_tetr)%h1_in_curlA, &
+            hamiltonian_time(ind_tetr)%h1_in_curlh, &
+            hamiltonian_time(ind_tetr)%vec_mismatch_der, &
+            hamiltonian_time(ind_tetr)%vec_parcurr_der)
 !
 !
         !-------------- Precomputation of matrices for position exchange in between tetrahedra via Cartesian coorinates ---------!
