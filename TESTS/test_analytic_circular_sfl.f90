@@ -28,7 +28,8 @@ program test_analytic_circular_sfl
     real(dp) :: err_bphi, err_bth, err_q, err_b, err_h(3), h_true(3), b_true
     real(dp) :: br, bp, bz, d(9), xr(3)
     integer :: coord_system, ind, j, iv, nfail, nplane
-    real(dp) :: s_node(0:n1), pt_node(0:n1), pp_node(0:n1)
+    real(dp) :: s_node(0:n1), pt_node(0:n1), pp_node(0:n1), th_own, th_nb
+    integer :: nb, nseam
     character(len=16) :: arg
 
     pi = acos(-1.0_dp)
@@ -105,6 +106,22 @@ program test_analytic_circular_sfl
         end if
     end do
 
+    ! theta seam: a face shared with a neighbour must coincide after the periodic
+    ! shift of the pusher, theta_own - theta_neighbour = 2*pi*neighbour_perbou_theta
+    nseam = 0
+    if (coord_system == 2) then
+        do ind = 1, nplane
+            do j = 1, 4
+                nb = tetra_grid(ind)%neighbour_tetr(j)
+                if (nb < 1) cycle
+                th_own = face_theta(ind, j)
+                th_nb = face_theta(nb, tetra_grid(ind)%neighbour_face(j))
+                if (abs(th_own - th_nb - 2.0_dp*pi*tetra_grid(ind)%neighbour_perbou_theta(j)) &
+                    > 1.0e-12_dp) nseam = nseam + 1
+            end do
+        end do
+    end if
+
     print '(a,i2,a,f8.0)', 'coord_system =', coord_system, '  B0 =', b0
     print '(a,es10.3)', 'max rel err B^phi   (centroid) ', err_bphi
     print '(a,es10.3)', 'max rel err B^theta (centroid) ', err_bth
@@ -118,6 +135,8 @@ program test_analytic_circular_sfl
         call check(err_q < 1.0e-5_dp, 'q secant')
         call check(err_b < 1.0e-10_dp, '|B| at vertices')
         call check(maxval(err_h) < 1.0e-6_dp, 'covariant h at vertices')
+        print '(a,i0)', 'faces inconsistent across the theta seam ', nseam
+        call check(nseam == 0, 'theta periodic boundary')
     else
         ! Linear A on the tetrahedron: centroid vs secant point, O(cell size)
         call check(err_bphi < 2.0e-2_dp, 'B^phi')
@@ -136,6 +155,16 @@ contains
             print '(2a)', 'FAIL: ', what
         end if
     end subroutine check
+
+    ! Mean theta* of face iface (opposite to local vertex iface) of tetrahedron it, in the
+    ! frame of it (seam vertices stored at 0 count as 2*pi, as in make_tetra_physics)
+    real(dp) function face_theta(it, iface) result(th)
+        integer, intent(in) :: it, iface
+        real(dp) :: tv(4)
+        tv = verts_sthetaphi(2, tetra_grid(it)%ind_knot)
+        if (any(tv >= pi)) where (tv == 0.0_dp) tv = 2.0_dp*pi
+        th = (sum(tv) - tv(iface))/3.0_dp
+    end function face_theta
 
     ! Oracle flux at a mesh node, identified by its s value
     real(dp) function node_flux(s, f) result(v)

@@ -254,13 +254,18 @@
                                        tetra_grid(ind_tetr2_ac)%ind_knot(:), &
                                        iface1_ac, iface2_ac)
                   if (iface1_ac .ne. -1) then
+                    ! Seam faces are periodic boundaries in theta for coord_system=2
+                    ! (pusher_tetra_func_mod): leaving the iz=nz cell (theta -> 2*pi)
+                    ! subtracts 2*pi (+1), leaving the iz=1 cell (theta -> 0) adds it (-1).
                     if (tetra_grid(ind_tetr1_ac)%neighbour_tetr(iface1_ac) .eq. -1) then
                       tetra_grid(ind_tetr1_ac)%neighbour_tetr(iface1_ac) = ind_tetr2_ac
                       tetra_grid(ind_tetr1_ac)%neighbour_face(iface1_ac) = iface2_ac
+                      tetra_grid(ind_tetr1_ac)%neighbour_perbou_theta(iface1_ac) = -1
                     end if
                     if (tetra_grid(ind_tetr2_ac)%neighbour_tetr(iface2_ac) .eq. -1) then
                       tetra_grid(ind_tetr2_ac)%neighbour_tetr(iface2_ac) = ind_tetr1_ac
                       tetra_grid(ind_tetr2_ac)%neighbour_face(iface2_ac) = iface1_ac
+                      tetra_grid(ind_tetr2_ac)%neighbour_perbou_theta(iface2_ac) = 1
                     end if
                   end if
                 end do
@@ -616,6 +621,7 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
             tetra(ind_tetr)%neighbour_tetr(i)=-1
             tetra(ind_tetr)%neighbour_face(i)=-1
             tetra(ind_tetr)%neighbour_perbou_phi(i)=0
+            tetra(ind_tetr)%neighbour_perbou_theta(i)=0
             enddo
         enddo
 !
@@ -627,6 +633,7 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
             tetra(ind_tetr)%neighbour_tetr(i)=-1
             tetra(ind_tetr)%neighbour_face(i)=-1
             tetra(ind_tetr)%neighbour_perbou_phi(i)=0
+            tetra(ind_tetr)%neighbour_perbou_theta(i)=0
             enddo
         enddo
 !
