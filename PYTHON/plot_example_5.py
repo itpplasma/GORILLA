@@ -101,4 +101,3 @@ ax.dist = 6.5
 plt.savefig('example_5.png', dpi=150)
 print("Plot saved to example_5.png")
 
-plt.show()

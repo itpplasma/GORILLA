@@ -334,7 +334,6 @@ for i in range(2):
   # Save figure to file and show
   fig.savefig(path_data_plots + '/results' + name_test_case + particle_type[i] + extension)
 
-plt.show()
 
 # Go back to path of PYTHON script
 os.chdir(path_script)
