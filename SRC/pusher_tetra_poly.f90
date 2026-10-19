@@ -48,6 +48,13 @@ module pusher_tetra_poly_mod
     double precision, dimension(3)      :: x_init
     double precision, dimension(4), public, protected :: z_init
     double precision                    :: k1, k3
+    ! Coordinate roundoff bound of the face through which the marker entered,
+    ! evaluated in the cell where its position was last computed. A handover
+    ! keeps the position, so that uncertainty also applies to the neighbour's
+    ! faces at the entry point, whose own bounds can be far smaller (nearly
+    ! coplanar sliver faces with different tilts toward R). Used only for the
+    ! zero-time outward transfer at the unchanged entry point.
+    double precision                    :: inherited_face_roundoff = 0.d0
     double precision,parameter          :: eps_tau = 100.d0
     double precision, dimension(4,4)    :: unity_matrix4 = reshape( [ 1.d0, 0.d0, 0.d0, 0.d0, &
                                 0.d0, 1.d0, 0.d0, 0.d0, & 
@@ -55,7 +62,8 @@ module pusher_tetra_poly_mod
                                 0.d0, 0.d0, 0.d0, 1.d0 ], [4,4])
 !
     !$OMP THREADPRIVATE(ind_tetr,iface_init,perpinv,perpinv2,dt_dtau_const,bmod0,t_remain,x_init,  &
-    !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps,sign_rhs)
+    !$OMP& z_init,k1,k3,vmod0,tau_steps_list,intermediate_z0_list,number_of_integration_steps,sign_rhs, &
+    !$OMP& inherited_face_roundoff)
 !
     public :: pusher_tetra_poly,initialize_const_motion_poly, &
         & Quadratic_Solver2, Cubic_Solver, Quartic_Solver,analytic_integration_without_precomp, &
@@ -147,6 +155,8 @@ endif
             x_init = x
 !             vperp_init = vperp
             iface_init = iface
+            !A marker that did not arrive through a face carries no handover uncertainty
+            if(iface.eq.0) inherited_face_roundoff = 0.d0
 !
             !Tetrahedron constants
             dt_dtau_const = tetra_physics(ind_tetr)%dt_dtau_const
@@ -584,6 +594,7 @@ if(diag_pusher_tetry_poly) print *, 'tau until t finished',tau
 !
                 if(boole_face_correct) then
                     boole_t_finished = .true.
+                    inherited_face_roundoff = 0.d0
                     
                     z_save = z(1:3)
                     x=z(1:3)+tetra_physics(ind_tetr)%x1
@@ -647,6 +658,7 @@ endif
                     !Save relative coordinates after pushing
                     z_save = z(1:3)
 !
+                    call carry_face_roundoff(z(1:3),iface_new,tau)
                     iface = iface_new
                     call pusher_handover2neighbour(ind_tetr,ind_tetr_inout,iface,x,iper_phi)
                 endif
@@ -661,6 +673,7 @@ endif
                 !Save relative coordinates after pushing
                 z_save = z(1:3)
 !
+                call carry_face_roundoff(z(1:3),iface_new,tau)
                 iface = iface_new
                 call pusher_handover2neighbour(ind_tetr,ind_tetr_inout,iface,x,iper_phi)
 !                
@@ -726,6 +739,19 @@ if(diag_pusher_tetry_poly) print *, 'face', k,'normal_distance',normal_distance_
             tolerance=tolerance+abs(tetra_physics(ind_tetr)%dist_ref_vec(iface))
             tolerance=8.d0*epsilon(1.d0)*tolerance
         end function face_distance_roundoff
+!
+        subroutine carry_face_roundoff(z123,iface_exit,tau_cell)
+            ! Exit-face bound in the cell that computed the exit position. A zero-time
+            ! exit computes no new position, so it keeps the larger earlier bound.
+            implicit none
+            double precision,intent(in) :: z123(3),tau_cell
+            integer,intent(in) :: iface_exit
+            if(tau_cell.gt.0.d0) then
+                inherited_face_roundoff=face_distance_roundoff(z123,iface_exit)
+            else
+                inherited_face_roundoff=max(inherited_face_roundoff,face_distance_roundoff(z123,iface_exit))
+            endif
+        end subroutine carry_face_roundoff
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -1328,6 +1354,16 @@ if (diag_pusher_tetry_poly_adaptive) print*, 'max scale factor', max_scale_facto
             ! just outside a second face. Its root is then slightly negative.
             ! Transfer outward through that incident face without advancing time
             ! or changing position; never immediately return through the entry face.
+            if(i.ne.iface.and.coef_mat(i,1).lt.0.d0.and.coef_mat(i,2).lt.0.d0.and. &
+               abs(coef_mat(i,1)).gt.face_distance_roundoff(z(1:3),i).and. &
+               abs(coef_mat(i,1)).le.inherited_face_roundoff.and.all(z(1:3).eq.z_init(1:3))) then
+                ! Still at the entry point: the handover position carries the
+                ! previous cell's exit-face uncertainty, which can exceed this
+                ! face's own bound. Outward only; the entry face is excluded.
+                zero_time_exit(i)=.true.
+                dtau_vec(i)=0.d0
+                cycle
+            endif
             if(i.ne.iface.and.abs(coef_mat(i,1)).le.face_distance_roundoff(z(1:3),i)) then
                 if(coef_mat(i,2).lt.0.d0) then
                     zero_time_exit(i)=.true.
