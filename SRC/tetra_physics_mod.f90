@@ -1147,14 +1147,10 @@ enddo
 !
       subroutine vector_potential_rphiz(r,phi,z,ipert,bmod_multiplier,A_r,A_phi,A_z,B_r,B_phi,B_z,bmod)
 !
-        use field_eq_mod,                 only : rtf,btf,psif
+        use field_eq_mod,                 only : rtf,psif
         use field_mod,                    only : ampl
         use getout_vector_potentials_mod, only : ar,az
         use field_divB0_mod, only: field
-        use tetra_grid_settings_mod, only: grid_kind, &
-            R0_analytic_circ, a_analytic_circ, B0_analytic_circ, &
-            q0_analytic_circ, q1_analytic_circ
-
 !
         implicit none
 !
@@ -1166,7 +1162,7 @@ enddo
         ! Locals for the A_z = -int_{rtf}^{r} F(psi(R',z))/R' dR' midpoint sum.
         ! field() already returns B_phi_phys = fpol(psi(R,Z))/R when use_fpol=.true.
         ! (EFIT default), so summing -B_p_k*dR integrates F/R analytically.
-        ! Replaces the legacy A_z = -rtf*btf*log(r) which used the vacuum constant F=rtf*btf.
+        ! For constant F = rtf*btf this reduces to A_z = -rtf*btf*log(r).
         integer, parameter :: n_int = 64
         integer :: k_int
         double precision :: R_ref, dR_int, R_k
@@ -1174,7 +1170,6 @@ enddo
         double precision :: dBrkdR, dBrkdp, dBrkdZ
         double precision :: dBpkdR, dBpkdp, dBpkdZ
         double precision :: dBzkdR, dBzkdp, dBzkdZ
-        double precision :: rho_ac, q_loc
 !
         call field(r,phi,z,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ  &
                   ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
@@ -1182,13 +1177,9 @@ enddo
         bmod=sqrt(B_r**2+B_p**2+B_z**2)*bmod_multiplier
 !
         A_r=0.d0
-        ! A_phi = psi_pol for ALL grid kinds.  field() (field_divB0) sets psif =
-        ! poloidal flux for the analytic-circ too -- analytic (parabola/quartic) OR
-        ! TABULATED q (psi_tabulated).  The old grid_kind==5 branch recomputed A_phi
-        ! from the hardcoded quadratic q0/q1 parabola, IGNORING q_profile_file; that
-        ! made Aphi1 inconsistent with the field & flux-mapping whenever a tabulated
-        ! q was used -> eval_s_local returned a wrong s_loc (the Re-sign flip /
-        ! amplitude artifact).  Using psif keeps Aphi1 consistent in every case.
+        ! A_phi = psi_pol for all grid kinds; field() also sets psif for the
+        ! analytic circular tokamak (analytic or tabulated q), which keeps Aphi1
+        ! consistent with the field and the flux mapping.
         A_phi = psif
 !
         R_ref = rtf

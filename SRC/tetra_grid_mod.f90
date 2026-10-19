@@ -50,7 +50,7 @@
         ! Variables for the flux-aligned analytic-circ mesh (grid_kind=5)
         double precision :: rho_inner_ac, rho_outer_ac, rho_v, theta_v
         integer :: iv_loc, ind_tetr1_ac, ind_tetr2_ac, iface1_ac, iface2_ac
-        integer :: ir_ac, iphi_ac, iz_ac, ii_ac, jj_ac, nr_ac, nphi_ac, nz_ac
+        integer :: ir_ac, iphi_ac, ii_ac, jj_ac, nr_ac, nphi_ac, nz_ac
 !
         !Free any pre-existing grid arrays so a fresh grid can be built without external bookkeeping.
         call deallocate_tetra_grid()
@@ -161,10 +161,7 @@
               twopi_ac  = 8.d0*atan(1.d0)
               s_edge_ac = R0_analytic_circ - sqrt(R0_analytic_circ**2 - a_analytic_circ**2)
               !
-              ! Build the mesh in flux-surface-aligned (rho, theta, phi) coordinates.
-              ! Replacing the previous rectangular (R,Z,phi) mesh: in that layout only
-              ! ~1.6% of cells fell within the sfc_s annulus, diluting the delta-f signal
-              ! by the same factor.  Here we map:
+              ! Build the mesh in flux-surface-aligned (rho, theta, phi) coordinates:
               !   n1 cells in rho  from rho(sfc_s_min) to rho(sfc_s_max)
               !   n2 cells in phi  from 0 to 2*pi  (toroidal, unchanged)
               !   n3 cells in theta from 0 to 2*pi  (poloidal, passed as Zmin/Zmax=0/2pi)
@@ -258,14 +255,7 @@
               !   s     = (R0 - sqrt(R0^2 - rho^2)) / s_edge_ac
               !   theta = STRAIGHT-FIELD-LINE poloidal angle theta*  (NOT geometric)
               !   phi   = toroidal angle (pass-through)
-              !
-              ! The previous code stored the geometric angle atan2(Z,R-R0) under the
-              ! false premise "= SFL angle for circular geometry".  That is only true
-              ! as eps=rho/R0 -> 0.  Here eps reaches ~0.37, so geometric and SFL
-              ! angles differ by up to ~19 deg at the q=3 surface, which de-coheres the
-              ! delta-f helical phase factor exp(i(m*theta + n*phi)) along resonant
-              ! field lines (m=-6 amplifies a theta error 6x) and corrupts both the
-              ! amplitude and the phase of the screening current.
+              ! The geometric angle atan2(Z,R-R0) equals theta* only as eps=rho/R0 -> 0.
               !
               ! For the analytic field B_phi = B0*R0/R the field-line winding is
               !   dphi/dtheta_geom = q / (1 + eps*cos(theta_geom)),
