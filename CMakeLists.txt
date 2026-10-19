@@ -66,6 +66,20 @@ if(BUILD_TESTING)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(test_analytic_circular_sfl.x TESTS/test_analytic_circular_sfl.f90)
+    target_link_libraries(test_analytic_circular_sfl.x GORILLA netcdff netcdf lapack)
+    foreach(cs 1 2)
+        foreach(b0sign 1 -1)
+            set(sfl_dir ${CMAKE_CURRENT_BINARY_DIR}/analytic_circular_sfl_cs${cs}_b${b0sign})
+            file(MAKE_DIRECTORY ${sfl_dir})
+            add_test(NAME analytic_circular_sfl_cs${cs}_b${b0sign}
+                COMMAND test_analytic_circular_sfl.x ${cs} ${b0sign}
+                WORKING_DIRECTORY ${sfl_dir})
+        endforeach()
+    endforeach()
+endif()
+
+if(BUILD_TESTING)
     add_executable(test_analytic_poloidal_flux.x
         SRC/field_analytic_circ_mod.f90
         TESTS/test_analytic_poloidal_flux.f90)

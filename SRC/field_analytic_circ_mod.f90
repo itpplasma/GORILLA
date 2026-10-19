@@ -226,6 +226,15 @@ contains
   end function psi_pol_analytic_circ
 
 
+  ! Toroidal flux per toroidal radian of B_phi = B0*R0/R inside the circle rho:
+  ! psi_tor = B0*R0*(R0 - sqrt(R0^2 - rho^2)), written in a form stable near the axis.
+  ! s = psi_tor(rho)/psi_tor(a) is the radial label of the grid_kind=5 mesh.
+  double precision function psi_tor_analytic_circ(rho) result(psi)
+    double precision, intent(in) :: rho
+    psi = B0_ac*R0_ac*rho**2/(R0_ac + sqrt(R0_ac**2 - rho**2))
+  end function psi_tor_analytic_circ
+
+
   ! Write a SELF-CONSISTENT flux_functions.dat (R_beg, r, q, psi_pol, psi_tor)
   ! for grid_kind=5 directly from the analytic field -- so grid_kind=5 never
   ! depends on an externally provided (and possibly inconsistent) equil-mapping.
@@ -244,8 +253,7 @@ contains
     do i = 1, nf
       r = dble(i-1)/dble(nf-1) * a_ac
       if (i .eq. 1) r = 1.d-6
-      ! Exact toroidal flux of B_phi=B0*R0/R; stable near the axis.
-        psi_tor = B0_ac*R0_ac*r**2/(R0_ac + sqrt(R0_ac**2 - r**2))
+        psi_tor = psi_tor_analytic_circ(r)
         q_winding = q_analytic_circ(r)*R0_ac/sqrt(R0_ac**2 - r**2)
         write(iu, '(5(1x,ES23.16))') R0_ac + r, r, q_winding, &
             psi_pol_analytic_circ(r), psi_tor
