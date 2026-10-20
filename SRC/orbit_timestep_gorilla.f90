@@ -16,7 +16,8 @@ module orbit_timestep_gorilla_mod
 !    
     contains
 !
-        subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface,t_remain_out)
+        subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface,t_remain_out, &
+                                        & ind_tetr_last_out)
 !
             use supporting_functions_mod, only: bmod_func, vperp_func
             use pusher_tetra_rk_mod, only: pusher_tetra_rk,initialize_const_motion_rk
@@ -36,10 +37,12 @@ module orbit_timestep_gorilla_mod
             logical, intent(inout)                          :: boole_initialized
             integer, intent(inout)                          :: ind_tetr,iface
             double precision, intent(out), optional         :: t_remain_out
+            !Last cell the particle was pushed in (identifies the exit cell of a loss)
+            integer, intent(out), optional                  :: ind_tetr_last_out
             double precision, dimension(3)                  :: z_save
             double precision                                :: vperp2,t_remain,t_pass,vpar_save
             logical                                         :: boole_t_finished
-            integer                                         :: ind_tetr_save,iper,k
+            integer                                         :: ind_tetr_save,iper,k,ind_tetr_last
             double precision                                :: perpinv,perpinv2
             integer                                         :: sign_t_step
             integer                                         :: stagnant_handovers
@@ -67,6 +70,7 @@ module orbit_timestep_gorilla_mod
             endif
 !           
             !print*, 't_step, sign_t_step = ', t_step, sign_t_step
+            if(present(ind_tetr_last_out)) ind_tetr_last_out = ind_tetr
             !Exit the subroutine after initialization, if time step equals zero
             if(t_step.eq.0.d0) return
 !
@@ -100,6 +104,7 @@ module orbit_timestep_gorilla_mod
             boole_t_finished = .false.
             stagnant_handovers=0
 !
+            ind_tetr_last = ind_tetr
             !Loop for tetrahedron pushings until t_step is reached
             do
 !
@@ -114,6 +119,7 @@ module orbit_timestep_gorilla_mod
 !                
                 !Save the tetrahedron index for computation of vperp in the last step
                 ind_tetr_save = ind_tetr
+                ind_tetr_last = ind_tetr
 !
                 !Save vpar for the computation of the parallel adiabatic invariant
                 vpar_save = vpar
@@ -168,6 +174,8 @@ module orbit_timestep_gorilla_mod
                 endif
 !
             enddo !Loop for tetrahedron pushings
+!
+            if(present(ind_tetr_last_out)) ind_tetr_last_out = ind_tetr_last
 !
             !Compute vperp from position
             vperp = vperp_func(z_save,perpinv,ind_tetr_save)
