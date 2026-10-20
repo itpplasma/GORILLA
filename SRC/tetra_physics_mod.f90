@@ -427,7 +427,6 @@
                     verts_sthetaphi(3, iv), bmod_multiplier, A_x1(iv), &
                     A_x2(iv), A_x3(iv), h_x1(iv), h_x2(iv), h_x3(iv), &
                     Bmod(iv), sqg(iv), dR_ds(iv), dZ_ds(iv))
-!               
 !
               case(5) !analytic circular tokamak
                 call vector_potential_sthetaphi_circ(verts_sthetaphi(1,iv),verts_sthetaphi(2,iv),verts_sthetaphi(3,iv), &
@@ -1169,6 +1168,8 @@ enddo
         use field_mod,                    only : ampl
         use getout_vector_potentials_mod, only : ar,az
         use field_divB0_mod, only: field
+        use tetra_grid_settings_mod, only: grid_kind
+        use field_analytic_circ_mod, only: helpert_loaded, eval_helical_pert_circ
 !
         implicit none
 !
@@ -1188,6 +1189,8 @@ enddo
         double precision :: dBrkdR, dBrkdp, dBrkdZ
         double precision :: dBpkdR, dBpkdp, dBpkdZ
         double precision :: dBzkdR, dBzkdp, dBzkdZ
+        double precision :: dA_hp, dP_hp, dA_p, dA_m
+        double precision, parameter :: h_hp = 1.d-3
 !
         call field(r,phi,z,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ  &
                   ,dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
@@ -1211,6 +1214,21 @@ enddo
                      dBzkdR, dBzkdp, dBzkdZ)
           A_z = A_z - B_pk * dR_int
         end do
+!
+        ! Prescribed helical perturbation (grid_kind = 5): A_phi += dA_phi and the
+        ! matching dB_R = -d_Z dA_phi/R, dB_Z = d_R dA_phi/R (dB_phi = 0), so h and
+        ! |B| at the vertices are consistent with curl A.
+        if (grid_kind .eq. 5 .and. helpert_loaded) then
+          call eval_helical_pert_circ(r, phi, z, dA_hp, dP_hp)
+          A_phi = A_phi + dA_hp
+          call eval_helical_pert_circ(r, phi, z + h_hp, dA_p, dP_hp)
+          call eval_helical_pert_circ(r, phi, z - h_hp, dA_m, dP_hp)
+          B_r = B_r - (dA_p - dA_m)/(2.d0*h_hp)/r
+          call eval_helical_pert_circ(r + h_hp, phi, z, dA_p, dP_hp)
+          call eval_helical_pert_circ(r - h_hp, phi, z, dA_m, dP_hp)
+          B_z = B_z + (dA_p - dA_m)/(2.d0*h_hp)/r
+          bmod = sqrt(B_r**2 + B_p**2 + B_z**2)*bmod_multiplier
+        endif
 !
         B_phi=B_p*R
 !
@@ -1283,12 +1301,21 @@ enddo
                                                  q,dR_ds,dZ_ds)
 !
 !  Analytic SFL vector potential for the circular tokamak (grid_kind=5).
-!  All flux quantities are per-toroidal-radian (consistent with the
-!  psi_pol convention used in vector_potential_rphiz for grid_kind=5).
+!  Coordinates (s, theta, phi): s = psi_tor/psi_tor(a) (the mesh label), theta the
+!  straight-field-line angle stored in verts_sthetaphi (tetra_grid_mod), phi toroidal.
+!  All flux quantities are per toroidal radian and come from field_analytic_circ_mod,
+!  so the q profile (analytic or tabulated) is the one of the field and of
+!  coord_system=1.
 !
-        use tetra_grid_settings_mod, only: R0_analytic_circ, a_analytic_circ, &
-                                         & B0_analytic_circ, q0_analytic_circ, q1_analytic_circ
+!  The SFL angle theta and the geometric angle theta_g = atan2(Z, R-R0) are related by
+!    tan(theta/2) = sqrt((1-eps)/(1+eps)) * tan(theta_g/2),  eps = rho/R0.
+!  (s, theta, phi) is left-handed for (R, phi, Z) right-handed and theta counter-
+!  clockwise; the covariant potential of B is then A_theta = -psi_tor, A_phi = psi_pol
+!  and sqrt(g) = -R^2 psi_tor(a)/B_phi_cov < 0 (see metric_determinant).
+!
         use field_divB0_mod, only: field
+        use field_analytic_circ_mod, only: R0_ac, a_ac, q_analytic_circ, &
+                                         & psi_pol_analytic_circ, psi_tor_analytic_circ
 !
         implicit none
 !
@@ -1299,61 +1326,44 @@ enddo
         double precision, intent(out) :: B_s, B_theta, B_phi, bmod
         double precision, intent(out) :: q, dR_ds, dZ_ds
 !
-        double precision :: R0, a, B0, q0, q1
-        double precision :: s_edge, rho2, rho, R, Z
-        double precision :: drho_ds, dR_dtheta, dZ_dtheta
-        double precision :: psi_pol, psitor_max
+        double precision :: R0, s_edge, rho2, rho, R, Z, eps, theta_g
+        double precision :: drho_ds, dthg_dth, dthg_ds, dR_dtheta, dZ_dtheta
         double precision :: B_r, B_p, B_z
         double precision :: dBrdR, dBrdp, dBrdZ
         double precision :: dBpdR, dBpdp, dBpdZ
         double precision :: dBzdR, dBzdp, dBzdZ
 !
-        R0 = R0_analytic_circ
-        a  = a_analytic_circ
-        B0 = B0_analytic_circ
-        q0 = q0_analytic_circ
-        q1 = q1_analytic_circ
-!
-        ! Recompute s_edge (not module-public from tetra_grid_mod)
-        s_edge = R0 - sqrt(R0**2 - a**2)
+        R0 = R0_ac
+        s_edge = R0 - sqrt(R0**2 - a_ac**2)
 !
         ! Invert s = (R0 - sqrt(R0^2 - rho^2)) / s_edge for rho
         rho2 = R0**2 - (R0 - s*s_edge)**2
         rho  = sqrt(max(rho2, 0.d0))
+        eps  = rho/R0
 !
-        ! Physical (R, Z) from flux-aligned (rho, theta)
-        R = R0 + rho*cos(theta)
-        Z =      rho*sin(theta)
+        ! Geometric angle of the SFL angle theta (inverse of tetra_grid_mod) and its
+        ! derivatives: dtheta_g/dtheta at fixed s, dtheta_g/ds at fixed theta
+        theta_g = 2.d0*atan2(sqrt(1.d0+eps)*sin(0.5d0*theta), &
+                           & sqrt(1.d0-eps)*cos(0.5d0*theta))
+        dthg_dth = (1.d0 + eps*cos(theta_g))/sqrt(1.d0 - eps**2)
 !
-        ! Safety factor
-        if (q1 .ne. 0.d0) then
-          q = q0 + q1*(rho/a)**2
-        else
-          q = q0
-        endif
+        R = R0 + rho*cos(theta_g)
+        Z =      rho*sin(theta_g)
 !
-        ! Geometry derivatives w.r.t. s and theta
         if (rho .gt. 0.d0) then
           drho_ds = s_edge*(R0 - s*s_edge) / rho
         else
           drho_ds = 0.d0
         endif
-        dR_ds     =  drho_ds*cos(theta)
-        dZ_ds     =  drho_ds*sin(theta)
-        dR_dtheta = -rho*sin(theta)
-        dZ_dtheta =  rho*cos(theta)
+        dthg_ds = sin(theta_g)/(1.d0 - eps**2) * drho_ds/R0
 !
-        ! Poloidal flux per toroidal radian (same formula as vector_potential_rphiz)
-        if ((q1 .ne. 0.d0) .and. (q0 .gt. 0.d0) .and. (q .gt. 0.d0)) then
-          psi_pol = B0 * a**2 / (2.d0*q1) * log(q/q0)
-        else
-          psi_pol = 0.d0
-        endif
+        dR_ds     =  drho_ds*cos(theta_g) - rho*sin(theta_g)*dthg_ds
+        dZ_ds     =  drho_ds*sin(theta_g) + rho*cos(theta_g)*dthg_ds
+        dR_dtheta = -rho*sin(theta_g)*dthg_dth
+        dZ_dtheta =  rho*cos(theta_g)*dthg_dth
 !
-        ! Toroidal flux per toroidal radian: psi_tor = B0*rho^2/2
-        ! psitor_max = B0*a^2/2  (value at s=1, rho=a)
-        ! (NOT the full-loop B0*pi*a^2 — avoids the 2pi convention bug)
-        psitor_max = 0.5d0 * B0 * a**2
+        ! Field-line winding (SFL safety factor) at finite aspect ratio
+        q = q_analytic_circ(rho)*R0/sqrt(R0**2 - rho**2)
 !
         ! Covariant B components via the generic field wrapper
         call field(R,phi,Z, B_r,B_p,B_z, dBrdR,dBrdp,dBrdZ, &
@@ -1364,10 +1374,10 @@ enddo
         B_s     = B_r*dR_ds     + B_z*dZ_ds
         B_theta = B_r*dR_dtheta + B_z*dZ_dtheta
 !
-        ! Vector potentials
+        ! Vector potentials (psi_tor(rho) = s*psi_tor(a) exactly)
         A_s     = 0.d0
-        A_theta = s * psitor_max
-        A_phi   = psi_pol
+        A_theta = -s * psi_tor_analytic_circ(a_ac)
+        A_phi   = psi_pol_analytic_circ(rho)
 !
       end subroutine vector_potential_sthetaphi_circ
 !
@@ -1490,7 +1500,8 @@ enddo
       function metric_determinant(ind_tetr,x)
 !
         use magdata_in_symfluxcoor_mod,   only : psitor_max
-        use tetra_grid_settings_mod, only: grid_kind, B0_analytic_circ, a_analytic_circ
+        use tetra_grid_settings_mod, only: grid_kind
+        use field_analytic_circ_mod, only: a_ac, psi_tor_analytic_circ
 !
         implicit none
 !
@@ -1516,8 +1527,10 @@ enddo
               case(3,6) !direct flux-coordinate grid
                 metric_determinant = tetra_physics(ind_tetr)%sqg1 + sum(tetra_physics(ind_tetr)%gsqg * (x-x1))
 !
-              case(5) !analytic circular tokamak: same structure as EFIT, analytic psitor_max
-                psitor_max_ac = 0.5d0 * B0_analytic_circ * a_analytic_circ**2
+              case(5) !analytic circular tokamak: sqrt(g) = dA_theta/ds / B^phi with
+                      !A_theta = -s*psi_tor(a) (left-handed (s,theta,phi), see
+                      !vector_potential_sthetaphi_circ), B^phi = h_phi*B/R^2
+                psitor_max_ac = -psi_tor_analytic_circ(a_ac)
                 metric_determinant = ( (tetra_physics(ind_tetr)%R1+sum(tetra_physics(ind_tetr)%gR*(x-x1)) )**2 * psitor_max_ac ) / &
                                        & ( (tetra_physics(ind_tetr)%h3_1 + sum(tetra_physics(ind_tetr)%gh3*(x-x1))) * &
                                        &   (tetra_physics(ind_tetr)%bmod1 + sum(tetra_physics(ind_tetr)%gB*(x-x1))) )

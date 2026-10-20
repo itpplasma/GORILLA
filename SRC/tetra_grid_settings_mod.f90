@@ -71,6 +71,14 @@
     double precision, public, protected :: q1_analytic_circ = 0.d0
     integer, public, protected :: q_exp_analytic_circ = 2   ! q=q0+q1*(r/a)^p exponent (2 or 4)
     character(256), public, protected :: q_profile_file_analytic_circ = ''  ! tabulated q(r) (overrides analytic when set)
+    ! Prescribed static helical perturbation (grid_kind = 5, coord_system = 1):
+    ! A_phi += amp Re[psihat(rho) e^{i alpha}], Phi += amp Re[Phihat(rho) e^{i alpha}],
+    ! alpha = m theta* + n phi (theta* straight-field-line angle). Table columns:
+    ! rho [cm], Re psihat, Im psihat [G cm^2], Re Phihat, Im Phihat [statV]. '' = off.
+    character(256), public, protected :: helical_pert_file_analytic_circ = ''
+    double precision, public, protected :: helical_pert_amp_analytic_circ = 1.d0
+    integer, public, protected :: helical_pert_m_analytic_circ = 0
+    integer, public, protected :: helical_pert_n_analytic_circ = 0
 !
     !Object file with mesh data
     logical,public,protected :: boole_write_mesh_obj
@@ -85,7 +93,10 @@
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
                             & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename, &
                             & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
-                            & q_exp_analytic_circ, q_profile_file_analytic_circ
+                            & q_exp_analytic_circ, q_profile_file_analytic_circ, &
+                            & helical_pert_file_analytic_circ, &
+                            & helical_pert_amp_analytic_circ, &
+                            & helical_pert_m_analytic_circ, helical_pert_n_analytic_circ
 !
     public :: load_tetra_grid_inp,set_grid_size,set_n_field_periods,set_n2,set_n3
 !
