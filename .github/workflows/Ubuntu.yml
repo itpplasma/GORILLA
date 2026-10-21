@@ -18,7 +18,7 @@ jobs:
     runs-on: [self-hosted, itp-ubuntu24]
 
     env:
-      FC: gfortran
+      FC: /usr/bin/gfortran
       PFUNIT_DIR: ${{ github.workspace }}/pFUnit/build/installed/PFUNIT-4.7/
 
     steps:
@@ -56,7 +56,7 @@ jobs:
     runs-on: [self-hosted, itp-ubuntu24]
 
     env:
-      FC: gfortran
+      FC: /usr/bin/gfortran
       PFUNIT_DIR: ${{ github.workspace }}/pFUnit/build/installed/PFUNIT-4.7
 
     steps:
