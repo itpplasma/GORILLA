@@ -2,10 +2,16 @@ name: Repository hygiene
 on:
   pull_request:
   merge_group:
+  push:
+    branches:
+      - main
 permissions:
   contents: read
 jobs:
   repo-hygiene:
-    uses: itpplasma/.github/.github/workflows/repo-hygiene.yml@ea1b6401dad136e8b61206fe0647d6ecc772523b
+    uses: itpplasma/.github/.github/workflows/repo-hygiene.yml@dd4e7ef8217afa34e70efe4dc6a9289f6b5176b2
     with:
-      hygiene-revision: ea1b6401dad136e8b61206fe0647d6ecc772523b
+      hygiene-revision: dd4e7ef8217afa34e70efe4dc6a9289f6b5176b2
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
