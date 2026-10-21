@@ -83,6 +83,11 @@
     character*64,public,protected :: filename_electric_field
     character*64,public,protected :: filename_electric_drift
 !
+    !Er(r_eff) profile and r_eff -> psi_pol mapping file (flux_functions.dat); if
+    !set, the integrated potential Phi_0(psi_pol) replaces eps_Phi*psi_pol.
+    character(len=256), public, protected :: er_profile_file        = ''
+    character(len=256), public, protected :: er_equil_mapping_file  = ''
+!
     !Boolean for precalculation of rectangular grid to improve find_tetra (sensible for n_particles >> 1)
     logical, public, protected :: boole_grid_for_find_tetra
     integer, public :: a_factor, b_factor, c_factor
@@ -102,6 +107,7 @@
                         & a_factor, b_factor, c_factor, &
                         & i_time_tracing_option, &
                         & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift, &
+                        & er_profile_file, er_equil_mapping_file, &
                         & boole_pert_from_mephit
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type

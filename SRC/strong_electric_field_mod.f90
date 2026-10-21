@@ -4,9 +4,8 @@ module strong_electric_field_mod
 !
     private
 !
-    !Setting mode of getting the electric potential
-    !2 ... potential as a rescaled poloidal flux (E-field orthogonal to magnetic surfaces)
-    integer, parameter                           :: electric_potential_option = 2
+    !Electric potential: Phi_0(psi_pol) from er_profile_file if set (eps_Phi is
+    !then ignored), otherwise the rescaled poloidal flux eps_Phi*psi_pol.
     !Setting mode of getting the electric field
     !1 ... using central differences to estimate the gradient of a scalar potential
     integer, parameter                           :: electric_field_option = 1
@@ -15,7 +14,12 @@ module strong_electric_field_mod
     logical                                      :: boole_first_call = .true.
     double precision, dimension(3)               :: dx_array
 !
-    public :: get_electric_field, save_electric_field, get_v_E, save_v_E
+    !Phi_0(psi_pol) table, loaded on first use
+    logical                                      :: phi0_loaded = .false.
+    double precision, allocatable                :: psi_pol_phi0(:), phi0_vals(:)
+!
+    public :: get_electric_potential, get_electric_field, save_electric_field, get_v_E, save_v_E
+    public :: load_phi0_from_er, eval_phi0
 !
 contains
 !
@@ -89,7 +93,7 @@ contains
     subroutine get_electric_potential(R,phi,Z,electric_potential)
 !
         use field_eq_mod,                 only : psif
-        use gorilla_settings_mod,         only: eps_Phi
+        use gorilla_settings_mod,         only: eps_Phi, er_profile_file, er_equil_mapping_file
         use field_divB0_mod, only: field
 !
         implicit none
@@ -99,22 +103,124 @@ contains
 !
         double precision                         :: d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12 !Dummy variables for field() to set psif
 !
-        select case(electric_potential_option)
+        call field(R,phi,Z,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12)
 !
-! create case (1) here where I can import data from Markus
-!
-            !Get scalar electric potential as a rescale of the poloidal magnetic flux (potential contours align with flux surfaces)
-            case(2)
-                call field(R,phi,Z,d1,d2,d3,d4,d5,d6  &
-                          ,d7,d8,d9,d10,d11,d12)
-                electric_potential = psif*eps_Phi
-!
-            case default
-                print *, 'ERROR: Invalid way to get electric potential. Change the parameters in module strong_electric_field_mod!'
-                stop
-        end select
+        if (len_trim(er_profile_file) > 0) then
+            if (.not. phi0_loaded) &
+                call load_phi0_from_er(trim(er_profile_file), trim(er_equil_mapping_file))
+            electric_potential = eval_phi0(psif)
+        else
+            electric_potential = psif*eps_Phi
+        end if
 !
     end subroutine get_electric_potential
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    ! Phi_0(r_eff) = -int_0^r_eff Er dr' (trapezoidal, Er linear in r_eff) on the
+    ! nodes of the mapping file, interpolated in psi_pol by cubic Lagrange
+    ! polynomials. Er file: r_eff [cm], Er [statV/cm]. Mapping file (GORILLA has
+    ! no r_eff for general equilibria): R_beg, r_eff, q, psi_pol, psi_tor.
+    ! All values must be finite. Er needs >=2 increasing radii; the cubic
+    ! mapping needs >=4 increasing radii and strictly monotonic poloidal flux.
+    subroutine load_phi0_from_er(filename_er, filename_mapping)
+!
+        use binsrc_mod, only: binsrc
+        use plag_coeff_mod, only: plag_coeff
+!
+        character(len=*), intent(in) :: filename_er, filename_mapping
+        double precision, allocatable :: er(:,:), eq(:,:), er_eq(:), phi0_eq(:)
+        double precision :: r, coef(0:0,2)
+        integer :: i, j, n_er, n_eq
+!
+        call read_table(filename_er, 2, 2, er)
+        call read_table(filename_mapping, 5, 4, eq)
+        n_er = size(er, 2)
+        n_eq = size(eq, 2)
+        if (.not. all(er(1,2:) > er(1,:n_er-1))) &
+            error stop 'Er profile radii must be strictly increasing'
+        if (.not. all(eq(2,2:) > eq(2,:n_eq-1))) &
+            error stop 'Er mapping radii must be strictly increasing'
+        if (.not. all(eq(4,2:) > eq(4,:n_eq-1)) .and. &
+            .not. all(eq(4,2:) < eq(4,:n_eq-1))) &
+            error stop 'Er mapping poloidal flux must be strictly monotonic'
+        allocate(er_eq(n_eq), phi0_eq(n_eq))
+        do j = 1, n_eq
+            r = min(max(eq(2,j), er(1,1)), er(1,n_er))
+            call binsrc(er(1,:), 1, n_er, r, i)
+            call plag_coeff(2, 0, r, er(1,i-1:i), coef)
+            er_eq(j) = sum(coef(0,:)*er(2,i-1:i))
+        end do
+        phi0_eq(1) = 0.0d0
+        do j = 2, n_eq
+            phi0_eq(j) = phi0_eq(j-1) - 0.5d0*(er_eq(j-1) + er_eq(j))*(eq(2,j) - eq(2,j-1))
+        end do
+!
+        if (eq(4,n_eq) >= eq(4,1)) then
+            psi_pol_phi0 = eq(4,:)
+            phi0_vals = phi0_eq
+        else
+            psi_pol_phi0 = eq(4,n_eq:1:-1)
+            phi0_vals = phi0_eq(n_eq:1:-1)
+        end if
+        phi0_loaded = .true.
+        print *, 'Loaded Er profile ', trim(filename_er), ': Phi_0 = ', &
+            phi0_vals(1), ' ... ', phi0_vals(n_eq), ' statV'
+!
+    end subroutine load_phi0_from_er
+!
+    subroutine read_table(filename, ncol, min_rows, table)
+!
+        use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+        character(len=*), intent(in) :: filename
+        integer, intent(in) :: ncol, min_rows
+        double precision, allocatable, intent(out) :: table(:,:)
+        character(len=512) :: line
+        integer :: iunit, ios, n, pass
+!
+        open(newunit=iunit, file=filename, status='old', action='read', iostat=ios)
+        if (ios /= 0) error stop 'strong_electric_field_mod: cannot open Er profile or mapping file'
+        do pass = 1, 2
+            n = 0
+            do
+                read(iunit, '(A)', iostat=ios) line
+                if (ios /= 0) exit
+                line = adjustl(line)
+                if (len_trim(line) == 0 .or. line(1:1) == '#') cycle
+                n = n + 1
+                if (pass == 2) read(line, *) table(:,n)
+            end do
+            if (pass == 1) then
+                if (n < min_rows) &
+                    error stop 'Er profile or mapping has too few data rows'
+                allocate(table(ncol, n))
+            endif
+            rewind(iunit)
+        end do
+        close(iunit)
+        if (.not. all(ieee_is_finite(table))) &
+            error stop 'Er profile or mapping contains nonfinite values'
+!
+    end subroutine read_table
+!
+    double precision function eval_phi0(psi_pol_val) result(phi_out)
+!
+        use binsrc_mod, only: binsrc
+        use plag_coeff_mod, only: plag_coeff
+!
+        double precision, intent(in) :: psi_pol_val
+        integer, parameter :: nplag = 4
+        integer :: i, n
+        double precision :: psi, coef(0:0,nplag)
+!
+        n = size(psi_pol_phi0)
+        psi = min(max(psi_pol_val, psi_pol_phi0(1)), psi_pol_phi0(n))
+        call binsrc(psi_pol_phi0, 1, n, psi, i)
+        i = min(max(i - nplag/2, 1), n - nplag + 1)
+        call plag_coeff(nplag, 0, psi, psi_pol_phi0(i:i+nplag-1), coef)
+        phi_out = sum(coef(0,:)*phi0_vals(i:i+nplag-1))
+!
+    end function eval_phi0
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
