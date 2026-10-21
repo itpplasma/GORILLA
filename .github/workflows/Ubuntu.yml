@@ -12,14 +12,14 @@ on:
 
 jobs:
   Ubuntu-coverage:
-    # Full tier: runs in the merge queue; PRs skip it unless labeled full-ci.
+    # Required validation runs after admission to the merge queue.
     if: >-
-      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
-    runs-on: ubuntu-24.04
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]')
+    runs-on: [self-hosted, itp-ubuntu24]
 
     env:
       FC: gfortran
-      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7/
+      PFUNIT_DIR: ${{ github.workspace }}/pFUnit/build/installed/PFUNIT-4.7/
 
     steps:
       - name: Checkout
@@ -53,11 +53,11 @@ jobs:
           path: BUILD/COVERAGE/
 
   Ubuntu:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, itp-ubuntu24]
 
     env:
       FC: gfortran
-      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7
+      PFUNIT_DIR: ${{ github.workspace }}/pFUnit/build/installed/PFUNIT-4.7
 
     steps:
       - name: Checkout
@@ -157,7 +157,7 @@ jobs:
 
 
     if: >-
-      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]')
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
