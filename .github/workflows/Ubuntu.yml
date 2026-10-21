@@ -6,13 +6,17 @@ on:
   merge_group:
 
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   Ubuntu-coverage:
     # Full tier: runs in the merge queue; PRs skip it unless labeled full-ci.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    if: >-
+      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
     runs-on: ubuntu-24.04
-    
+
     env:
       FC: gfortran
       PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7/
@@ -41,16 +45,16 @@ jobs:
       - name: Build
         run: |
           ./build_coverage.sh
-        
+
       - name: Archive code coverage results
         uses: actions/upload-artifact@v7
         with:
           name: code-coverage-report
           path: BUILD/COVERAGE/
-          
+
   Ubuntu:
     runs-on: ubuntu-24.04
-    
+
     env:
       FC: gfortran
       PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7
@@ -67,16 +71,16 @@ jobs:
       - name: Build
         run: |
           make
-          
+
       - name: Run examples
         run: |
           for i in 1 2 3 4 5 6 7; do
             (cd EXAMPLES/example_$i && ./test_gorilla_main.x)
           done
-          
+
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v3
-        
+
       - name: Run MATLAB scripts
         uses: matlab-actions/run-command@v3
         with:
@@ -105,7 +109,7 @@ jobs:
         with:
           name: MATLAB-RESULTS
           path: MATLAB/data_plots
-        
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -151,4 +155,9 @@ jobs:
           name: PYTHON-RESULTS
           path: PYTHON/data_plots
 
-          
+
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
