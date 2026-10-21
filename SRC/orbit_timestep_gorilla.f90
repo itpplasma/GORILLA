@@ -8,6 +8,7 @@ module orbit_timestep_gorilla_mod
     private
 !
     public :: orbit_timestep_gorilla,initialize_gorilla,check_coordinate_domain
+    public :: apply_marker_species
 !
     integer, dimension(:,:), allocatable, public, protected   :: equidistant_grid
     integer, dimension(:), allocatable, public, protected     :: entry_counter
@@ -15,6 +16,24 @@ module orbit_timestep_gorilla_mod
     logical, public, protected                                :: boole_axi_symmetry
 !    
     contains
+
+        subroutine apply_marker_species()
+            use, intrinsic :: iso_fortran_env, only: real64
+            use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+            use gorilla_settings_mod, only: marker_mass_g, marker_charge_e
+            use tetra_physics_mod, only: particle_mass, particle_charge, cm_over_e
+            use constants, only: clight, echarge
+            implicit none
+
+            if (.not. ieee_is_finite(marker_mass_g)) error stop 'Invalid marker mass'
+            if (.not. ieee_is_finite(marker_charge_e)) error stop 'Invalid marker charge'
+            if (marker_mass_g == 0.0_real64 .and. marker_charge_e == 0.0_real64) return
+            if (marker_mass_g <= 0.0_real64) error stop 'Marker mass must be positive'
+            if (marker_charge_e == 0.0_real64) error stop 'Marker charge must be nonzero'
+            particle_mass = marker_mass_g
+            particle_charge = marker_charge_e * echarge
+            cm_over_e = clight * particle_mass / particle_charge
+        end subroutine apply_marker_species
 !
         subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface,t_remain_out)
 !
@@ -237,6 +256,7 @@ module orbit_timestep_gorilla_mod
                         stop
 !
                 end select  
+                call apply_marker_species()
 !  
                 print *, 'Start grid computation'
                 call make_tetra_grid()

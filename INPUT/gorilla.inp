@@ -19,6 +19,10 @@
  !particle species
  !1 ... electron, 2 ... deuterium ion, 3 ... alpha particle, 4 ... ionised tungsten
  ispecies = 1 ,
+ !Optional exact marker species: mass in grams, signed charge in units of e.
+ !Both zero retain ispecies. Otherwise mass must be positive and charge nonzero.
+ marker_mass_g = 0.d0 ,
+ marker_charge_e = 0.d0 ,
 !
 !------------------------------------------------------------------------------------------------------------!
 !
