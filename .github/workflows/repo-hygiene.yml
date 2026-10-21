@@ -6,6 +6,6 @@ permissions:
   contents: read
 jobs:
   repo-hygiene:
-    uses: itpplasma/.github/.github/workflows/repo-hygiene.yml@0663fcdd3b414a741bc3df08959a6f83aedf2d40
+    uses: itpplasma/.github/.github/workflows/repo-hygiene.yml@ea1b6401dad136e8b61206fe0647d6ecc772523b
     with:
-      hygiene-revision: 0663fcdd3b414a741bc3df08959a6f83aedf2d40
+      hygiene-revision: ea1b6401dad136e8b61206fe0647d6ecc772523b
