@@ -57,3 +57,11 @@ add_test(NAME radial_electric_projection_oracle
   COMMAND test_radial_electric_projection_driver.x)
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
+
+# Exact species contract used by external namelist writers and native table readers.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_executable(test_marker_species.x SRC/TESTS/test_marker_species.f90)
+target_link_libraries(test_marker_species.x GORILLA netcdff netcdf lapack)
+add_test(NAME marker_species
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/SRC/TESTS/test_marker_species.py
+    $<TARGET_FILE:test_marker_species.x> ${CMAKE_CURRENT_SOURCE_DIR}/INPUT/gorilla.inp)
