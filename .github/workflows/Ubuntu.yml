@@ -9,7 +9,6 @@ on:
   push:
     branches:
       - main
-
 jobs:
   Ubuntu-coverage:
     # Full tier: runs in the merge queue; PRs skip it unless labeled full-ci.
