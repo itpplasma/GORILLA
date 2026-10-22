@@ -35,6 +35,7 @@ add_library(GORILLA STATIC
 	tetra_grid_mod.f90
 	utils_bdivfree.f90
 	bdivfree.f90
+    hamiltonian_time_coefficients_mod.f90
     strong_electric_field_mod.f90 
 	tetra_physics_mod.f90
 	tetra_physics_poly_precomp_mod.f90 
