@@ -30,16 +30,20 @@
         use tetra_grid_settings_mod, only: boole_n_field_periods,n_field_periods_manual,grid_size,n1,n2,n3,grid_kind, &
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
+                                         & netcdf_filename, &
                                          & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, &
                                          & q0_analytic_circ, q1_analytic_circ, &
-                                         & netcdf_filename, &
                                          & q_exp_analytic_circ, q_profile_file_analytic_circ, sfc_s_min, sfc_s_max
+        use tetra_grid_settings_mod, only: helical_pert_file_analytic_circ, &
+            helical_pert_amp_analytic_circ, helical_pert_m_analytic_circ, &
+            helical_pert_n_analytic_circ
         use new_vmec_stuff_mod, only: nper
         use spline_vmec_data_mod, only: spline_vmec_data
         use boozer_chartmap_mod, only: load_boozer_chartmap, chartmap_nfp
         use field_divB0_mod, only: field
         use field_mod, only: ianalytic_circ
         use field_analytic_circ_mod, only: set_field_analytic_circ, write_flux_functions_analytic_circ
+        use field_analytic_circ_mod, only: load_helical_pert_circ
         !use make_grid_rect_mod, only: make_grid_rect
 !
         implicit none
@@ -69,7 +73,8 @@
                 case(1,2,4,5) !2D EFIT & WEST equilibria
                     call set_n_field_periods(1)
                 case(3,6) !3D VMEC or Boozer chartmap equilibria
-                    call set_n_field_periods(0) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
+                    !The correct value is assigned below (before subroutine 'make_grid_aligned' is called.)
+                    call set_n_field_periods(0)
             end select
 !
         else !Manually from input file
@@ -85,7 +90,8 @@
             ppp=0.d0
             zzz=0.d0
 !
-            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &
                        & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !                   
             !Settings for rectangular grid: Values are obtained from field_eq_mod
@@ -112,7 +118,8 @@
             ppp=0.d0
             zzz=0.d0
 !
-            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &
                        & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !         
             call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
@@ -127,7 +134,8 @@
 !
             if(boole_n_field_periods) then
                 !Assign value for number of field periods from VMEC equilibrium file
-                call set_n_field_periods(nper) !The correct value is assigned below ( befor subroutine 'make_grid_aligned' is called.)
+                !The correct value is assigned below (before subroutine 'make_grid_aligned' is called.)
+                call set_n_field_periods(nper)
             endif
 !
             call make_grid_aligned(grid_size,efit_vmec,n_field_periods)
@@ -146,7 +154,8 @@
             ppp=0.d0
             zzz=0.d0
 !
-            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &      !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            !field must be called in order to obtain Rmin/Rmax and Zmin/Zmax values
+            call field(rrr,ppp,zzz,B_r,B_p,B_z,dBrdR,dBrdp,dBrdZ,  &
                           & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
             call make_grid_SOLEDGE3X_EIRENE(grid_size)
@@ -159,6 +168,10 @@
             ! grid_kind=5 is analytic: generate its own self-consistent equil-mapping
             ! (psi_pol == tetra_physics%Aphi1) so no external flux_functions.dat is needed.
             call write_flux_functions_analytic_circ()
+            if (len_trim(helical_pert_file_analytic_circ) > 0) &
+                call load_helical_pert_circ(trim(helical_pert_file_analytic_circ), &
+                    helical_pert_amp_analytic_circ, helical_pert_m_analytic_circ, &
+                    helical_pert_n_analytic_circ)
               twopi_ac  = 8.d0*atan(1.d0)
               s_edge_ac = R0_analytic_circ - sqrt(R0_analytic_circ**2 - a_analytic_circ**2)
               !
@@ -238,13 +251,18 @@
                                        tetra_grid(ind_tetr2_ac)%ind_knot(:), &
                                        iface1_ac, iface2_ac)
                   if (iface1_ac .ne. -1) then
+                    ! Seam faces are periodic boundaries in theta for coord_system=2
+                    ! (pusher_tetra_func_mod): leaving the iz=nz cell (theta -> 2*pi)
+                    ! subtracts 2*pi (+1), leaving the iz=1 cell (theta -> 0) adds it (-1).
                     if (tetra_grid(ind_tetr1_ac)%neighbour_tetr(iface1_ac) .eq. -1) then
                       tetra_grid(ind_tetr1_ac)%neighbour_tetr(iface1_ac) = ind_tetr2_ac
                       tetra_grid(ind_tetr1_ac)%neighbour_face(iface1_ac) = iface2_ac
+                      tetra_grid(ind_tetr1_ac)%neighbour_perbou_theta(iface1_ac) = -1
                     end if
                     if (tetra_grid(ind_tetr2_ac)%neighbour_tetr(iface2_ac) .eq. -1) then
                       tetra_grid(ind_tetr2_ac)%neighbour_tetr(iface2_ac) = ind_tetr1_ac
                       tetra_grid(ind_tetr2_ac)%neighbour_face(iface2_ac) = iface1_ac
+                      tetra_grid(ind_tetr2_ac)%neighbour_perbou_theta(iface2_ac) = 1
                     end if
                   end if
                 end do
@@ -593,6 +611,7 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
             tetra(ind_tetr)%neighbour_tetr(i)=-1
             tetra(ind_tetr)%neighbour_face(i)=-1
             tetra(ind_tetr)%neighbour_perbou_phi(i)=0
+            tetra(ind_tetr)%neighbour_perbou_theta(i)=0
             enddo
         enddo
 !
@@ -604,6 +623,7 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
             tetra(ind_tetr)%neighbour_tetr(i)=-1
             tetra(ind_tetr)%neighbour_face(i)=-1
             tetra(ind_tetr)%neighbour_perbou_phi(i)=0
+            tetra(ind_tetr)%neighbour_perbou_theta(i)=0
             enddo
         enddo
 !
