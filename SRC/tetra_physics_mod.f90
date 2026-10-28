@@ -154,8 +154,9 @@
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, &
             & axi_noise_eps_A, axi_noise_eps_Phi, non_axi_noise_eps_A, &
-            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit
-      use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E
+            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit, er_profile_file
+      use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E, &
+          get_electric_potential
       use differentiate_mod, only: differentiate
       use splint_vmec_data_mod, only: splint_vmec_data
       use boozer_chartmap_mod, only: chartmap_rmajor, chartmap_zaxis
@@ -472,10 +473,10 @@
               if (boole_keep_phi_elec) then
                 !Do nothing, phi_elec is set from outside and should not be overwritten
               else
-                phi_elec(iv) = A_x2(iv)*eps_Phi
+                call set_weak_electric_potential(iv)
               endif
             else
-              phi_elec(iv) = A_x2(iv)*eps_Phi
+              call set_weak_electric_potential(iv)
             endif
         endif
 !
@@ -1103,6 +1104,22 @@ enddo
           call ieee_set_flag(ieee_divide_by_zero, .false.)
         endif
 !
+      contains
+
+      subroutine set_weak_electric_potential(vertex)
+          integer, intent(in) :: vertex
+
+          if (len_trim(er_profile_file) > 0) then
+              ! The profile needs psif from field(), not set for VMEC or chartmap grids.
+              if (grid_kind == 3 .or. grid_kind == 6) error stop &
+                  'er_profile_file requires grid_kind 1, 2, 4 or 5'
+              call get_electric_potential(verts_rphiz(1,vertex), verts_rphiz(2,vertex), &
+                  verts_rphiz(3,vertex), phi_elec(vertex))
+          else
+              phi_elec(vertex) = A_x2(vertex)*eps_Phi
+          end if
+      end subroutine set_weak_electric_potential
+
       end subroutine make_tetra_physics
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
