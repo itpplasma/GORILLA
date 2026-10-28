@@ -17,7 +17,8 @@ contains
 
 subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scaling_func,theta_scaling_func,repeat_center_point)
 !
-    use tetra_grid_settings_mod, only: s_min => sfc_s_min,theta_geom_flux, n_extra_rings, i_radial_spacing
+    use tetra_grid_settings_mod, only: s_min => sfc_s_min, s_max => sfc_s_max, &
+                                       theta_geom_flux, n_extra_rings, i_radial_spacing
     use magdata_in_symfluxcoor_mod, only: psipol_max
     use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
 !
@@ -64,12 +65,12 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
     select case(i_radial_spacing)
         case(1)
             !Equidistant in s (normalized toroidal flux) - default behavior
-            r_frac(n+1:nlabel) = s_min + [(dble(i)*(1.d0-s_min), i=1, nlabel-n, 1)] / (dble(nlabel-n))
+            r_frac(n+1:nlabel) = s_min + [(dble(i)*(s_max-s_min), i=1, nlabel-n, 1)] / (dble(nlabel-n))
         case(2)
             !Equidistant in sqrt(s) (approximately equidistant in minor radius)
             sqrt_s_min = sqrt(s_min)
             do i = 1, nlabel-n
-                sqrt_s = sqrt_s_min + dble(i) * (1.d0 - sqrt_s_min) / dble(nlabel-n)
+                sqrt_s = sqrt_s_min + dble(i) * (sqrt(s_max) - sqrt_s_min) / dble(nlabel-n)
                 r_frac(n+i) = sqrt_s**2
             enddo
     end select
@@ -170,7 +171,8 @@ end subroutine create_points_2d
 !
   subroutine create_points_2d_vmec(n_theta, points_sthetaphi, r_scaling_func, theta_scaling_func, repeat_center_point)
 !
-    use tetra_grid_settings_mod, only: s_min => sfc_s_min, i_radial_spacing
+    use tetra_grid_settings_mod, only: s_min => sfc_s_min, s_max => sfc_s_max, &
+                                       i_radial_spacing
 !
     integer, dimension(:), intent(in) :: n_theta
     !double precision, dimension(:,:), intent(out) :: points_rphiz
@@ -200,12 +202,12 @@ end subroutine create_points_2d
     select case(i_radial_spacing)
         case(1)
             !Equidistant in s (normalized toroidal flux) - default behavior
-            r_frac = s_min + [(dble(i)*(1.d0-s_min), i=1, size(r_frac), 1)] / (dble(nlabel))
+            r_frac = s_min + [(dble(i)*(s_max-s_min), i=1, size(r_frac), 1)] / (dble(nlabel))
         case(2)
             !Equidistant in sqrt(s) (approximately equidistant in minor radius)
             sqrt_s_min = sqrt(s_min)
             do i = 1, nlabel
-                sqrt_s = sqrt_s_min + dble(i) * (1.d0 - sqrt_s_min) / dble(nlabel)
+                sqrt_s = sqrt_s_min + dble(i) * (sqrt(s_max) - sqrt_s_min) / dble(nlabel)
                 r_frac(i) = sqrt_s**2
             enddo
     end select

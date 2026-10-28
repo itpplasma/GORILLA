@@ -284,7 +284,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
         use gorilla_settings_mod, only: boole_grid_for_find_tetra, b_factor
         use tetra_grid_mod, only : Rmin,Rmax,Zmin,Zmax,ntetr,tetra_grid, verts_rphiz
-        use tetra_grid_settings_mod, only: grid_kind, grid_size, n_field_periods
+        use tetra_grid_settings_mod, only: grid_kind, grid_size, n_field_periods, R0_analytic_circ
         use tetra_physics_mod, only: tetra_physics,cm_over_e,isinside, coord_system
         use pusher_tetra_func_mod, only: pusher_handover2neighbour
         use constants, only: pi,clight,eps
@@ -310,6 +310,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
         integer :: hexahedron_index, shifted_hexahedron_index, ntetr_searched
         real(dp) :: perpinv
         real(dp) ::hr,hphi,hz,vnorm,vperp2
+        real(dp) :: rho_ac_local, theta_ac_local   ! for grid_kind=5 flux-aligned mesh
         real(dp), dimension(4):: cur_dist_value, z
         real(dp), dimension(3) :: x_save
         real(dp), dimension(4)   :: dzdtau
@@ -331,17 +332,17 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
         !Calculation of search domain depending on grid_kind
         select case(grid_kind)
-            case(1,5) !rectangular grid
+            case(1) !rectangular grid - built by make_grid_rect in (R,phi,Z)
 !
                 nr = grid_size(1)
                 nphi = grid_size(2)
                 nz = grid_size(3)
 !
-                hr=(Rmax-Rmin)/nr !calculating the discretization step sizes in these directions
+                hr=(Rmax-Rmin)/nr
                 hphi=(2.d0 * pi)/nphi
                 hz=(Zmax-Zmin)/nz
 !
-                ir=int((x(1)-Rmin)/hr) +1 !get the reference coordinate in the (indexwise: 1-based) grid, so for instance the particle is in box (ir,iphi,iz)=(4,2,7)
+                ir=int((x(1)-Rmin)/hr) +1
                 iphi=int(x(2)/hphi) +1
                 iz=int((x(3)-Zmin)/hz) +1
 !
@@ -353,7 +354,68 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                     stop
                 endif
 !
-                indtetr_start = int((dble(iz)-1.d0)*6.d0 + 6.d0*dble(nz)*(dble(ir)-1.d0) & 
+                !Starting tetrahedron of hexahedron (ir,iphi,iz), 0-based formula + 1
+                !(like istarttetr in make_grid_rect)
+                indtetr_start = int((dble(iz)-1.d0)*6.d0 + 6.d0*dble(nz)*(dble(ir)-1.d0) &
+                & + 6.d0*(dble(iphi)-1.d0)*dble(nr)*dble(nz) +1.d0)
+                ntetr_searched = 6
+                use_grid = .false.
+!
+            case(5) !analytic circular tokamak - flux-aligned (rho,phi,theta) mesh
+              ! coord_system==1: x is physical (R,phi,Z); convert to (rho,phi,theta) for lookup.
+              ! coord_system==2: x is SFL (s,theta,phi); use the field-aligned plane search.
+              if (coord_system .eq. 2) then
+                  ! SFL path: phi is x(3); use same plane-based search as case(2,3,4).
+                  ind_b = 3
+                  nphi_tetr = grid_size(2)
+                  nphi = nphi_tetr
+                  ntetr_in_plane = ntetr/nphi_tetr
+                  if (boole_grid_for_find_tetra) then
+                      use_grid = .true.
+                  else
+                      use_grid = .false.
+                      ind_plane_tetra_start = int(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods))
+                      ! Guard: wrap index to [0, nphi_tetr-1] in case phi drifted
+                      ! outside [0, 2*pi/n_field_periods) due to floating point or
+                      ! a missed periodic_relocation step.
+                      ind_plane_tetra_start = modulo(ind_plane_tetra_start, nphi_tetr)
+                      if (abs(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods) - &
+                                & dble(ind_plane_tetra_start)).gt.(1.0d0-eps)) numerical_corr_plus  = 1
+                      if (abs(x(ind_b)*nphi_tetr/(2.d0*pi/n_field_periods) - &
+                                & dble(ind_plane_tetra_start)).lt.eps)          numerical_corr_minus = 1
+                      indtetr_start  = ind_plane_tetra_start*ntetr_in_plane + 1
+                      ntetr_searched = ntetr_in_plane*(1+numerical_corr_plus+numerical_corr_minus)
+                  endif
+              else
+              ! coord_system==1 path: mesh stored in (rho,"phi",theta) space.
+              ! Rmin=rho_inner, Rmax=rho_outer, Zmin=0, Zmax=2*pi.
+!
+                nr = grid_size(1)
+                nphi = grid_size(2)
+                nz = grid_size(3)
+!
+                hr=(Rmax-Rmin)/nr      ! hr = (rho_outer - rho_inner) / nr
+                hphi=(2.d0 * pi/n_field_periods)/nphi  ! phi spans one field period [0,2*pi/N]
+                hz=(Zmax-Zmin)/nz      ! hz = 2*pi / nz  (theta step)
+!
+                ! Convert (R,Z) -> (rho,theta) and use those for grid lookup
+                rho_ac_local = sqrt((x(1)-R0_analytic_circ)**2 + x(3)**2)
+                theta_ac_local = modulo(atan2(x(3), x(1)-R0_analytic_circ), 2.d0*pi)
+!
+                ir=int((rho_ac_local - Rmin)/hr) +1
+                iphi=int(x(2)/hphi) +1
+                iz=int((theta_ac_local - Zmin)/hz) +1
+!
+                ! Soft out-of-domain check for the flux-aligned mesh: positions
+                ! outside [rho_inner,rho_outer] are simply not in the mesh.  Return
+                ! ind_tetr=-1 so callers can handle rejection gracefully.
+                if(ir.lt.1.or.ir.gt.nr.or.iphi.lt.1.or.iphi.gt.nphi.or.iz.lt.1.or.iz.gt.nz) then
+                    ind_tetr_out=-1
+                    iface=-1
+                    return
+                endif
+!
+                indtetr_start = int((dble(iz)-1.d0)*6.d0 + 6.d0*dble(nz)*(dble(ir)-1.d0) &
                 & + 6.d0*(dble(iphi)-1.d0)*dble(nr)*dble(nz) +1.d0)
                     !This calculates the starting tetrahedron index as a function of (ir,iphi,iz)
                     !+1, since formula is 0-based (like istarttetr in make_grid_rect)
@@ -363,6 +425,8 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
                 ! if () numerical_corr_plus = 1
                 ntetr_searched = 6
                 use_grid = .false.
+!
+              endif  ! coord_system==1 vs coord_system==2 for grid_kind=5
 !
             case(2,3,4,6) !field-aligned grids or SOLEDGE3X-EIRENE
 !
