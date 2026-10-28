@@ -1,6 +1,7 @@
 !
   module gorilla_settings_mod
 !
+    use, intrinsic :: iso_fortran_env, only: real64
     implicit none
 !
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -27,6 +28,9 @@
 !    
     !particle species
     integer, public, protected :: ispecies
+    ! Optional matched physical marker species (CGS mass, charge in units of e).
+    real(real64), public, protected :: marker_mass_g = 0.0_real64
+    real(real64), public, protected :: marker_charge_e = 0.0_real64
 !
     !periodic coordinate particle re-location
     logical, public, protected :: boole_periodic_relocation
@@ -92,6 +96,7 @@
 !
     !Namelist for Gorilla input
     NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
+                        & marker_mass_g, marker_charge_e, &
                         & boole_pusher_ode45, boole_dt_dtau, boole_newton_precalc, poly_order, i_precomp, boole_guess, &
                         & rel_err_ode45,boole_periodic_relocation,handover_processing_kind, boole_axi_noise_vector_pot, &
                         & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, &
@@ -112,6 +117,9 @@
 !
             integer :: iunit
 !
+            ! Missing overrides select the legacy species on every load.
+            marker_mass_g = 0.0_real64
+            marker_charge_e = 0.0_real64
             open(newunit=iunit, file='gorilla.inp', status='unknown')
             read(iunit,nml=gorillanml)
             close(iunit)
