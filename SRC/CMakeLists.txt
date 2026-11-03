@@ -2,7 +2,8 @@ add_library(GORILLA STATIC
 	SetWorkingPrecision.f90
 	contrib/cmplx_roots_sg.f90
 	contrib/Polynomial234RootSolvers.f90
-	constants_mod.f90 
+	constants_mod.f90
+	gorilla_status_mod.f90
 	tetra_grid_settings_mod.f90
 	gorilla_settings_mod.f90
 	various_functions_mod.f90 
@@ -48,7 +49,8 @@ add_library(GORILLA STATIC
 	pusher_tetra_rk.f90
 	find_tetra_mod.f90 
 	get_canonical_coordinates.f90 
-	orbit_timestep_gorilla.f90 
+	orbit_timestep_gorilla.f90
+	orbit_timestep_gorilla_batch_mod.F90
 	gorilla_plot_mod.f90
 	)
 
