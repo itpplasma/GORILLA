@@ -4,6 +4,14 @@ project (GORILLA
   VERSION 1.0.0)
 
 enable_language(Fortran)
+option(GORILLA_ENABLE_CUDA "Build the polynomial CUDA batch backend" OFF)
+if(GORILLA_ENABLE_CUDA)
+  if(CMAKE_VERSION VERSION_LESS 3.18)
+    message(FATAL_ERROR "GORILLA_ENABLE_CUDA requires CMake 3.18 or newer")
+  endif()
+  enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
+endif()
 enable_testing()
 
 include_directories(/usr/local/include)
@@ -91,3 +99,12 @@ add_test(NAME orbit_batch_oracle COMMAND test_orbit_batch_driver.x ${CMAKE_CURRE
 set_tests_properties(orbit_batch_oracle PROPERTIES
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/orbit_batch_test
   ENVIRONMENT "OMP_NUM_THREADS=2")
+
+if(GORILLA_ENABLE_CUDA)
+  add_executable(test_cuda_poly2.x SRC/TESTS/test_cuda_poly2.cu)
+  target_include_directories(test_cuda_poly2.x PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/SRC)
+  target_link_libraries(test_cuda_poly2.x PRIVATE GORILLA CUDA::cudart)
+  set_target_properties(test_cuda_poly2.x PROPERTIES CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED YES)
+  add_test(NAME cuda_poly2_oracle COMMAND test_cuda_poly2.x)
+  set_tests_properties(cuda_poly2_oracle PROPERTIES SKIP_RETURN_CODE 77)
+endif()

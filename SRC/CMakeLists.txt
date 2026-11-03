@@ -67,6 +67,14 @@ target_include_directories(GORILLA PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 # Static-library consumers need the same OpenMP runtime.
 target_link_libraries(GORILLA PUBLIC OpenMP::OpenMP_Fortran)
 
+if(GORILLA_ENABLE_CUDA)
+  target_sources(GORILLA PRIVATE gorilla_cuda.cu)
+  target_include_directories(GORILLA PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_compile_definitions(GORILLA PRIVATE "$<$<COMPILE_LANGUAGE:Fortran>:GORILLA_HAVE_CUDA>")
+  target_link_libraries(GORILLA PUBLIC CUDA::cudart)
+  set_target_properties(GORILLA PROPERTIES CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED YES)
+endif()
+
 if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	add_subdirectory(TESTS)
 endif()
