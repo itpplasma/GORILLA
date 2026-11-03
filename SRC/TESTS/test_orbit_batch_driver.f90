@@ -86,9 +86,7 @@ program test_orbit_batch_driver
     if(cells(1)/=-1) error stop 'legacy numerical failure indicator'
 
     call seed()
-    x(:,1)=[1075.d0,0.2d0,99.d0]
-    initialized(1)=.false.; vp(1)=1.d8; vt(1)=1.d7
-    call orbit_timestep_gorilla(x(:,1),vp(1),vt(1),0.d0,initialized(1),cells(1),faces(1),status=ss(1))
+    call seed_boundary_exit()
     if(ss(1)/=GORILLA_COMPLETE.or.cells(1)<1) error stop 'boundary seed starts inside the mesh'
     xs=x; vps=vp; vts=vt; cs=cells; fs=faces; is=initialized
     call orbit_timestep_gorilla(xs(:,1),vps(1),vts(1),1.d-5,is(1),cs(1),fs(1),remaining,ss(1))
@@ -122,6 +120,41 @@ program test_orbit_batch_driver
     if(ierr==0.or.any(status/=GORILLA_NUMERICAL_FAILURE).or.any(x/=xs)) error stop 'finalized handle'
     print *, 'orbit batch oracle: PASS'
 contains
+    subroutine seed_boundary_exit()
+        real(real64) :: vertices(3,4),centroid(3),face_centre(3),candidate(3),trial(3)
+        real(real64) :: trial_vpar,trial_vperp,trial_remaining
+        integer :: cell,face,direction,trial_cell,trial_face,trial_status
+        logical :: trial_initialized
+
+        ! Boundary coordinates must follow the mesh, including circular variants.
+        do cell=1,ntetr
+            vertices=verts_rphiz(:,tetra_grid(cell)%ind_knot)
+            centroid=sum(vertices,dim=2)/4.d0
+            do face=1,4
+                if(tetra_grid(cell)%neighbour_tetr(face)>=0) cycle
+                face_centre=(sum(vertices,dim=2)-vertices(:,face))/3.d0
+                candidate=face_centre+1.d-4*(centroid-face_centre)
+                do direction=-1,1,2
+                    trial=candidate; trial_vpar=direction*1.d8; trial_vperp=1.d7
+                    trial_cell=0; trial_face=0; trial_initialized=.false.
+                    call orbit_timestep_gorilla(trial,trial_vpar,trial_vperp,0.d0, &
+                        trial_initialized,trial_cell,trial_face,status=trial_status)
+                    if(trial_status/=GORILLA_COMPLETE.or.trial_cell<1) cycle
+                    call orbit_timestep_gorilla(trial,trial_vpar,trial_vperp,1.d-5, &
+                        trial_initialized,trial_cell,trial_face,trial_remaining,trial_status)
+                    if(trial_status/=GORILLA_PHYSICAL_LOSS) cycle
+                    if(trial_remaining<=0.or.trial_remaining>=1.d-5) cycle
+                    x(:,1)=candidate; vp(1)=direction*1.d8; vt(1)=1.d7
+                    initialized(1)=.false.
+                    call orbit_timestep_gorilla(x(:,1),vp(1),vt(1),0.d0,initialized(1), &
+                        cells(1),faces(1),status=ss(1))
+                    return
+                enddo
+            enddo
+        enddo
+        error stop 'mesh has no integrated boundary-exit seed'
+    end subroutine
+
     subroutine seed()
         integer :: k,cell
         do k=1,3
