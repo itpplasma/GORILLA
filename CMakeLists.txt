@@ -83,3 +83,11 @@ target_link_libraries(test_cell_generated_driver.x GORILLA)
 add_test(NAME cell_generated_oracle COMMAND test_cell_generated_driver.x)
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
+
+add_executable(test_orbit_batch_driver.x SRC/TESTS/test_orbit_batch_driver.f90)
+target_link_libraries(test_orbit_batch_driver.x GORILLA netcdff netcdf lapack)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/orbit_batch_test)
+add_test(NAME orbit_batch_oracle COMMAND test_orbit_batch_driver.x ${CMAKE_CURRENT_SOURCE_DIR})
+set_tests_properties(orbit_batch_oracle PROPERTIES
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/orbit_batch_test
+  ENVIRONMENT "OMP_NUM_THREADS=2")

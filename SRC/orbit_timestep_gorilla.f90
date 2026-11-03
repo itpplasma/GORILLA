@@ -9,6 +9,8 @@ module orbit_timestep_gorilla_mod
 !
     public :: orbit_timestep_gorilla,initialize_gorilla,check_coordinate_domain
 !
+    integer, public, protected :: gorilla_mesh_generation = 0
+    logical, public, protected :: gorilla_mesh_ready = .false.
     integer, dimension(:,:), allocatable, public, protected   :: equidistant_grid
     integer, dimension(:), allocatable, public, protected     :: entry_counter
     double precision, dimension(3,5), public, protected       :: dimension_parametres
@@ -16,8 +18,12 @@ module orbit_timestep_gorilla_mod
 !    
     contains
 !
-        subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface,t_remain_out)
+        subroutine orbit_timestep_gorilla(x,vpar,vperp,t_step,boole_initialized,ind_tetr,iface,t_remain_out,status,crossing_count)
 !
+            use iso_fortran_env, only: int64
+            use gorilla_status_mod, only: GORILLA_ACTIVE, GORILLA_COMPLETE, &
+                GORILLA_PHYSICAL_LOSS, GORILLA_NUMERICAL_FAILURE
+            use tetra_grid_mod, only: ntetr
             use supporting_functions_mod, only: bmod_func, vperp_func
             use pusher_tetra_rk_mod, only: pusher_tetra_rk,initialize_const_motion_rk
             use pusher_tetra_poly_mod, only: pusher_tetra_poly,initialize_const_motion_poly
@@ -36,13 +42,20 @@ module orbit_timestep_gorilla_mod
             logical, intent(inout)                          :: boole_initialized
             integer, intent(inout)                          :: ind_tetr,iface
             double precision, intent(out), optional         :: t_remain_out
-            double precision, dimension(3)                  :: z_save
+            integer, intent(out), optional :: status
+            integer(int64), intent(out), optional :: crossing_count
+            integer :: cell_status
+            double precision, dimension(3)                  :: z_save,x_entry
             double precision                                :: vperp2,t_remain,t_pass,vpar_save
             logical                                         :: boole_t_finished
-            integer                                         :: ind_tetr_save,iper,k
+            integer                                         :: ind_tetr_save,iface_entry,iper,k
             double precision                                :: perpinv,perpinv2
             integer                                         :: sign_t_step
 !
+            if (present(crossing_count)) crossing_count = 0
+            if (present(status)) status = GORILLA_NUMERICAL_FAILURE
+            if (present(t_remain_out)) t_remain_out = t_step
+
             !If orbit_timestep is called for the first time without grid position
             if(.not.boole_initialized) then
 !
@@ -57,6 +70,7 @@ module orbit_timestep_gorilla_mod
 !               
                 !If particle doesn't lie inside any tetrahedron
                 if(ind_tetr.eq.-1) then
+                    if (present(status)) status = GORILLA_PHYSICAL_LOSS
                     return
                 endif
 !
@@ -65,7 +79,19 @@ module orbit_timestep_gorilla_mod
 !           
             !print*, 't_step, sign_t_step = ', t_step, sign_t_step
             !Exit the subroutine after initialization, if time step equals zero
-            if(t_step.eq.0.d0) return
+            if (ind_tetr < 1) then
+                if (present(status)) status = GORILLA_PHYSICAL_LOSS
+                return
+            endif
+            if (ind_tetr > ntetr) return
+            if (present(status)) then
+                if (iface < 0.or.iface > 4) return
+            endif
+            if (t_step.eq.0.d0) then
+                if (present(status)) status = GORILLA_COMPLETE
+                if (present(t_remain_out)) t_remain_out = 0.d0
+                return
+            endif
 !
             !Squared perpendicular velocity
             vperp2 = vperp**2
@@ -102,6 +128,7 @@ module orbit_timestep_gorilla_mod
                 !Domain Boundary
                 if(ind_tetr.eq.-1) then
                     print *, 'WARNING: Particle lost.'
+                    if (present(status)) status = GORILLA_PHYSICAL_LOSS
                     if( present(t_remain_out)) then
                         t_remain_out = t_remain
                     endif
@@ -118,18 +145,34 @@ module orbit_timestep_gorilla_mod
                 !t_pass (out) ... time to pass the tetrahdron
 !
                 !Calculate trajectory
+                x_entry = x
+                iface_entry = iface
+                cell_status = GORILLA_ACTIVE
                 select case(ipusher)
                     case(1)
                         call pusher_tetra_rk(ind_tetr,iface,x,vpar,z_save,t_remain,t_pass,boole_t_finished,iper)
                     case(2)
                         call pusher_tetra_poly(poly_order,ind_tetr,iface,x,vpar,z_save,t_remain,&
-                                                         & t_pass,boole_t_finished,iper)
+                                                         & t_pass,boole_t_finished,iper,status=cell_status)
                 end select
 !
+                if (cell_status == GORILLA_NUMERICAL_FAILURE) then
+                    if (present(status)) status = cell_status
+                    x = x_entry
+                    vpar = vpar_save
+                    if (present(status)) then
+                        ind_tetr = ind_tetr_save
+                        iface = iface_entry
+                    endif
+                    z_save = x - tetra_physics(ind_tetr_save)%x1
+                    exit
+                endif
+                if (.not.boole_t_finished.and.present(crossing_count)) crossing_count = crossing_count + 1
                 t_remain = t_remain - t_pass
 !
                 !Orbit stops within cell, because "flight"-time t_step has finished
                 if(boole_t_finished) then
+                    if (present(status)) status = GORILLA_COMPLETE
                     if( present(t_remain_out)) then
                         t_remain_out = t_remain
                     endif
@@ -138,6 +181,7 @@ module orbit_timestep_gorilla_mod
 !
             enddo !Loop for tetrahedron pushings
 !
+            if (present(t_remain_out)) t_remain_out = t_remain
             !Compute vperp from position
             vperp = vperp_func(z_save,perpinv,ind_tetr_save)
 !            
@@ -166,6 +210,7 @@ module orbit_timestep_gorilla_mod
             logical                                 :: boole_grid,boole_physics,boole_bmod_multiplier
             double precision,intent(in),optional    :: bmod_multiplier
 !
+            gorilla_mesh_ready = .false.
             boole_grid = .true.
             boole_physics = .true.
             if(present(i_option)) then
@@ -261,6 +306,8 @@ module orbit_timestep_gorilla_mod
 !
             endif !boole_physics
 !
+            gorilla_mesh_ready = boole_physics
+            gorilla_mesh_generation = gorilla_mesh_generation + 1
         end subroutine initialize_gorilla
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
