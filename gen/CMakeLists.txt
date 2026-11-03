@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.20)
+project(gorilla_cell_generator LANGUAGES Fortran C CXX)
+find_package(fortsym CONFIG REQUIRED)
+add_executable(generate_cell_kernels generate_cell_kernels.f90)
+target_link_libraries(generate_cell_kernels PRIVATE fortsym::fortsym)

@@ -2047,13 +2047,15 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         subroutine analytic_integration_without_precomp(poly_order,z,tau)
 !
             use poly_without_precomp_mod
+            use gorilla_cell_generated, only: gorilla_poly_step1, gorilla_poly_step2, &
+                                              gorilla_poly_step3, gorilla_poly_step4
 !
             implicit none
 !
             integer, intent(in)                          :: poly_order
             double precision, intent(in)                 :: tau
             double precision, dimension(4),intent(inout) :: z
-            double precision                             :: tau2_half,tau3_sixth,tau4_twentyfourth
+            double precision                             :: z_out(4)
 !
             !for each time integration performed, tau and z are saved for later computation of optional quantities
             !it is important to handle number_of_integration_steps appropriately when intrgration steps are discarded
@@ -2061,24 +2063,19 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
             tau_steps_list(number_of_integration_steps) = tau
             intermediate_z0_list(:,number_of_integration_steps) = z
 !
-            if(poly_order.ge.1) then
-                z = z + tau*(b+amat_in_z)
-            endif
-!
-            if(poly_order.ge.2) then
-                tau2_half = tau**2*0.5d0
-                z = z + tau2_half*(amat_in_b + amat2_in_z)
-            endif
-!
-            if(poly_order.ge.3) then
-                tau3_sixth = tau**3/6.d0
-                z = z + tau3_sixth*(amat2_in_b + amat3_in_z)
-            endif
-
-            if(poly_order.ge.4) then
-                tau4_twentyfourth = tau**4/24.d0
-                z = z + tau4_twentyfourth *(amat3_in_b + amat4_in_z)
-            endif
+            select case(poly_order)
+                case(1)
+                    call gorilla_poly_step1(z,b,amat_in_z,tau,z_out)
+                case(2)
+                    call gorilla_poly_step2(z,b,amat_in_z,amat_in_b,amat2_in_z,tau,z_out)
+                case(3)
+                    call gorilla_poly_step3(z,b,amat_in_z,amat_in_b,amat2_in_z, &
+                                           amat2_in_b,amat3_in_z,tau,z_out)
+                case(4:)
+                    call gorilla_poly_step4(z,b,amat_in_z,amat_in_b,amat2_in_z, &
+                                           amat2_in_b,amat3_in_z,amat3_in_b,amat4_in_z,tau,z_out)
+            end select
+            if(poly_order.ge.1) z = z_out
 !
         end subroutine analytic_integration_without_precomp
 !

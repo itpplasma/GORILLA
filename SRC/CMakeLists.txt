@@ -42,6 +42,7 @@ add_library(GORILLA STATIC
 	spline5_RZ.f90 
 	supporting_functions_mod.f90 
 	pusher_tetra_func_mod.f90 
+	generated/gorilla_cell_generated.f90
 	pusher_tetra_poly.f90 
 	pusher_tetra_rk.f90
 	find_tetra_mod.f90 

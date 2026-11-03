@@ -76,4 +76,10 @@ target_link_libraries(test_radial_electric_projection_driver.x
 add_test(NAME radial_electric_projection_oracle
   COMMAND test_radial_electric_projection_driver.x)
 
+add_executable(test_cell_generated_driver.x
+  SRC/TESTS/test_cell_generated_driver.f90
+)
+target_link_libraries(test_cell_generated_driver.x GORILLA)
+add_test(NAME cell_generated_oracle COMMAND test_cell_generated_driver.x)
+
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
