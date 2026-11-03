@@ -180,8 +180,10 @@ endif
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
         subroutine pusher_tetra_poly(poly_order,ind_tetr_inout,iface,x,vpar,z_save,t_remain_in,t_pass, &
-                        & boole_t_finished,iper_phi,optional_quantities)
+                        & boole_t_finished,iper_phi,optional_quantities,status)
 !
+            use gorilla_status_mod, only: GORILLA_ACTIVE, GORILLA_COMPLETE, &
+                GORILLA_PHYSICAL_LOSS, GORILLA_NUMERICAL_FAILURE
             use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
             use gorilla_diag_mod,  only: diag_pusher_tetry_poly
             use pusher_tetra_func_mod, only: pusher_handover2neighbour
@@ -203,6 +205,7 @@ endif
             integer,intent(out)                                   :: iper_phi
             type(optional_quantities_type), intent(out), optional :: optional_quantities
 !
+            integer, intent(out), optional :: status
             logical, dimension(4)                                 :: boole_faces
             integer                                               :: i,j,k
             double precision, dimension(4)                        :: z,operator_b_in_b,z_dummy
@@ -216,6 +219,11 @@ endif
             integer                                               :: i_step_root
             double precision                                      :: t_remain_new, normal_velocity_function
 !
+            if (present(status)) status = GORILLA_NUMERICAL_FAILURE
+            t_pass = 0.d0
+            z_save = x - tetra_physics(ind_tetr_inout)%x1
+            iper_phi = 0
+            boole_t_finished = .false.
             call initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
             !In case of first call of orbit integration -> initialize the intermediate_steps_array
             if (.not.(allocated(tau_steps_list).OR.allocated(intermediate_z0_list))) call manage_intermediate_steps_arrays(0)
@@ -671,6 +679,16 @@ endif
 !
             !Deallocation
             if(i_time_tracing_option.eq.2) deallocate(t_hamiltonian_list,t_hamiltonian)
+!
+            if (present(status)) then
+                if (ind_tetr_inout < 0) then
+                    status = GORILLA_PHYSICAL_LOSS
+                elseif (boole_t_finished) then
+                    status = GORILLA_COMPLETE
+                else
+                    status = GORILLA_ACTIVE
+                endif
+            endif
 !
         end subroutine pusher_tetra_poly
 !
