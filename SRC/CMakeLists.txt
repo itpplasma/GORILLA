@@ -61,6 +61,9 @@ set_target_properties (GORILLA PROPERTIES
 
 target_include_directories(GORILLA PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
+# Static-library consumers need the same OpenMP runtime.
+target_link_libraries(GORILLA PUBLIC OpenMP::OpenMP_Fortran)
+
 if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	add_subdirectory(TESTS)
 endif()
