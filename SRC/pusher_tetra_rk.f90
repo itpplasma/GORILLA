@@ -194,7 +194,12 @@ module pusher_tetra_rk_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine pusher_tetra_rk(ind_tetr_inout,iface,x,vpar,z_final,t_remain_in,t_pass,boole_t_finished,iper_phi)
+    subroutine pusher_tetra_rk(ind_tetr_inout,iface,x,vpar,z_final,t_remain_in,t_pass,boole_t_finished,iper_phi, &
+                             & boole_pusher_failed)
+!
+        !If the particle cannot be pushed (no convergence), it is removed: ind_tetr_inout = iface = -1, t_pass = 0,
+        !boole_t_finished = .false., iper_phi = 0, z_final = entry point, and boole_pusher_failed = .true.
+        !Leaving the grid also gives ind_tetr_inout = -1, but with boole_pusher_failed = .false.
 !
         use tetra_grid_mod, only: tetra_grid, verts_sthetaphi
         use tetra_physics_mod, only: tetra_physics, cm_over_e,coord_system,dt_dtau,isinside
@@ -214,6 +219,7 @@ module pusher_tetra_rk_mod
         double precision, intent(in) :: t_remain_in
         double precision, intent(out) :: t_pass
         double precision,dimension(3),intent(inout) :: x
+        logical, intent(out), optional :: boole_pusher_failed
 !         double precision,dimension(3),intent(out),optional :: x_final
 !
 !
@@ -245,6 +251,12 @@ module pusher_tetra_rk_mod
 
         !Initialize starting values and 'working' constants in module for tetrahedron
         call initialize_pusher_tetra_rk_mod(ind_tetr_inout,x,iface,vpar,t_remain_in)
+!
+        !Defined results for an early return (particle removed)
+        z_final = z_init(1:3)
+        t_pass = 0.d0
+        iper_phi = 0
+        if(present(boole_pusher_failed)) boole_pusher_failed = .false.
 !
 !
 if(diag_pusher_tetra_rk) call print_starting_condition()
@@ -327,7 +339,9 @@ if(diag_pusher_tetra_rk) print *, 'no analytical approximation exists'
                 print *, 'Initial last line defense did not converge.'
                 ind_tetr_inout = -1
                 iface = -1
+                t_pass = 0.d0
                 call print_starting_condition()
+                if(present(boole_pusher_failed)) boole_pusher_failed = .true.
                 return
             endif
         endif
@@ -504,7 +518,9 @@ if(diag_pusher_tetra_rk) print *, 'tau < 0.d0 case'
             print *, 'Particle convergence failed'
             ind_tetr_inout = -1
             iface = -1
+            t_pass = 0.d0
             call print_starting_condition()
+            if(present(boole_pusher_failed)) boole_pusher_failed = .true.
             return
         endif
 !
@@ -536,7 +552,9 @@ endif
             print *, 'Error in final processing: Could not converge even with ODE45'
             ind_tetr_inout = -1
             iface = -1
+            t_pass = 0.d0
             call print_starting_condition()
+            if(present(boole_pusher_failed)) boole_pusher_failed = .true.
             return
         endif
 
@@ -555,7 +573,9 @@ endif
             print *, 'boole_t_finished was not set'
             ind_tetr_inout = -1
             iface = -1
+            t_pass = 0.d0
             call print_starting_condition()
+            if(present(boole_pusher_failed)) boole_pusher_failed = .true.
             return
         endif
         
@@ -565,7 +585,9 @@ endif
             print *, 't_pass is <= Zero'
             ind_tetr_inout = -1
             iface = -1
+            t_pass = 0.d0
             call print_starting_condition()
+            if(present(boole_pusher_failed)) boole_pusher_failed = .true.
             return
         endif
 ! endif        
