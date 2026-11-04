@@ -208,6 +208,7 @@ module pusher_tetra_rk_mod
         use supporting_functions_mod, only: calc_eigval
         use odeint_mod, only: odeint_allroutines
         use gorilla_settings_mod, only: boole_pusher_ode45
+        use pusher_tetra_func_mod, only: particle_bounces_across_deactivated_face
 !
         implicit none
 !
@@ -257,6 +258,15 @@ module pusher_tetra_rk_mod
         t_pass = 0.d0
         iper_phi = 0
         if(present(boole_pusher_failed)) boole_pusher_failed = .false.
+!
+        !Particle bouncing between two overlapping tetrahedra without advancing -> remove it
+        if(particle_bounces_across_deactivated_face(ind_tetr_inout,iface)) then
+            print *, 'Error: Particle bounces across a deactivated face (overlapping tetrahedra). Remove particle.'
+            ind_tetr_inout = -1
+            iface = -1
+            if(present(boole_pusher_failed)) boole_pusher_failed = .true.
+            return
+        endif
 !
 !
 if(diag_pusher_tetra_rk) call print_starting_condition()

@@ -189,7 +189,7 @@ endif
 !
             use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
             use gorilla_diag_mod,  only: diag_pusher_tetry_poly
-            use pusher_tetra_func_mod, only: pusher_handover2neighbour
+            use pusher_tetra_func_mod, only: pusher_handover2neighbour, particle_bounces_across_deactivated_face
             use gorilla_settings_mod, only: i_precomp, boole_guess, optional_quantities_type, boole_array_optional_quantities, &
                                     &  boole_adaptive_time_steps, i_time_tracing_option
 !
@@ -230,6 +230,15 @@ endif
             boole_t_finished = .false.
             iper_phi = 0
             if(present(boole_pusher_failed)) boole_pusher_failed = .false.
+!
+            !Particle bouncing between two overlapping tetrahedra without advancing -> remove it
+            if(particle_bounces_across_deactivated_face(ind_tetr_inout,iface)) then
+                print *, 'Error: Particle bounces across a deactivated face (overlapping tetrahedra). Remove particle.'
+                ind_tetr_inout = -1
+                iface = -1
+                if(present(boole_pusher_failed)) boole_pusher_failed = .true.
+                return
+            endif
             !In case of first call of orbit integration -> initialize the intermediate_steps_array
             if (.not.(allocated(tau_steps_list).OR.allocated(intermediate_z0_list))) call manage_intermediate_steps_arrays(0)
 !
