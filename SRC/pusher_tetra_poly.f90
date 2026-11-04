@@ -180,11 +180,16 @@ endif
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
         subroutine pusher_tetra_poly(poly_order,ind_tetr_inout,iface,x,vpar,z_save,t_remain_in,t_pass, &
-                        & boole_t_finished,iper_phi,optional_quantities)
+                        & boole_t_finished,iper_phi,optional_quantities,boole_pusher_failed)
+!
+            !If the particle cannot be pushed (no analytical solution, trouble shooting failed), it is removed:
+            !ind_tetr_inout = iface = -1, t_pass = 0, boole_t_finished = .false., iper_phi = 0, z_save = entry point,
+            !and boole_pusher_failed = .true. Leaving the grid also gives ind_tetr_inout = -1, but with
+            !boole_pusher_failed = .false.
 !
             use tetra_physics_mod, only: tetra_physics,particle_charge,particle_mass
             use gorilla_diag_mod,  only: diag_pusher_tetry_poly
-            use pusher_tetra_func_mod, only: pusher_handover2neighbour
+            use pusher_tetra_func_mod, only: pusher_handover2neighbour, particle_bounces_across_deactivated_face
             use gorilla_settings_mod, only: i_precomp, boole_guess, optional_quantities_type, boole_array_optional_quantities, &
                                     &  boole_adaptive_time_steps, i_time_tracing_option
 !
@@ -202,6 +207,7 @@ endif
             logical, intent(out)                                  :: boole_t_finished
             integer,intent(out)                                   :: iper_phi
             type(optional_quantities_type), intent(out), optional :: optional_quantities
+            logical, intent(out), optional                        :: boole_pusher_failed
 !
             logical, dimension(4)                                 :: boole_faces
             integer                                               :: i,j,k
@@ -217,6 +223,22 @@ endif
             double precision                                      :: t_remain_new, normal_velocity_function
 !
             call initialize_pusher_tetra_poly(ind_tetr_inout,x,iface,vpar,t_remain_in)
+!
+            !Defined results for an early return (particle removed)
+            z_save = z_init(1:3)
+            t_pass = 0.d0
+            boole_t_finished = .false.
+            iper_phi = 0
+            if(present(boole_pusher_failed)) boole_pusher_failed = .false.
+!
+            !Particle bouncing between two overlapping tetrahedra without advancing -> remove it
+            if(particle_bounces_across_deactivated_face(ind_tetr_inout,iface)) then
+                print *, 'Error: Particle bounces across a deactivated face (overlapping tetrahedra). Remove particle.'
+                ind_tetr_inout = -1
+                iface = -1
+                if(present(boole_pusher_failed)) boole_pusher_failed = .true.
+                return
+            endif
             !In case of first call of orbit integration -> initialize the intermediate_steps_array
             if (.not.(allocated(tau_steps_list).OR.allocated(intermediate_z0_list))) call manage_intermediate_steps_arrays(0)
 !
@@ -338,7 +360,10 @@ if(diag_pusher_tetry_poly) print *, 'Error in predicted integrator: normal veloc
 !
                             call prolonged_trajectory(poly_order,i_scaling,z,tau,ind_tetr_inout,iface, iface_new, &
                             & boole_face_correct, boole_analytical_approx) 
-                            if(.not.boole_analytical_approx) return
+                            if(.not.boole_analytical_approx) then
+                                if(present(boole_pusher_failed)) boole_pusher_failed = .true.
+                                return
+                            endif
                         endif
                     endif !Normal velocity is positive at exit point   
                 endif
@@ -382,6 +407,7 @@ if(diag_pusher_tetry_poly) print *, 'boole_face_correct',boole_face_correct
                     ind_tetr_inout = -1
                     iface = -1
                     call manage_intermediate_steps_arrays(1)
+                    if(present(boole_pusher_failed)) boole_pusher_failed = .true.
                     return
                 endif
 !
@@ -413,7 +439,10 @@ if(diag_pusher_tetry_poly) print *, 'prolonged trajectory was called in second a
 !
                         call prolonged_trajectory(poly_order,i_scaling,z,tau,ind_tetr_inout,iface, iface_new, boole_face_correct, &
                         & boole_analytical_approx) 
-                        if(.not.boole_analytical_approx) return
+                        if(.not.boole_analytical_approx) then
+                            if(present(boole_pusher_failed)) boole_pusher_failed = .true.
+                            return
+                        endif
                     endif !Normal velocity is positive at exit point   
                 endif
 !
@@ -436,6 +465,7 @@ if(diag_pusher_tetry_poly) print*, 'Called Troubleshooting'
                         ind_tetr_inout = -1
                         iface = -1
                         call manage_intermediate_steps_arrays(1)
+                        if(present(boole_pusher_failed)) boole_pusher_failed = .true.
                         return
                     endif
                 endif
@@ -611,6 +641,7 @@ endif
                         ind_tetr_inout = -1
                         iface = -1
                         call manage_intermediate_steps_arrays(1)
+                        if(present(boole_pusher_failed)) boole_pusher_failed = .true.
                         return
                     endif
 !

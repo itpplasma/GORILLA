@@ -326,8 +326,9 @@ subroutine calc_mesh(verts_per_ring, n_slices, points, n_tetras, &
     mask_r = ishft(iand(tetra_conf, 2), -1)
     mask_phi = ishft(iand(tetra_conf, 4), -2)
 
-    ! initialize neighbour_faces
+    ! initialize neighbour_faces and neighbours (outer faces keep -1)
     neighbour_faces = - 1
+    neighbours = - 1
 
     ! initialize periodic boundary for theta
     perbou_theta = 0
