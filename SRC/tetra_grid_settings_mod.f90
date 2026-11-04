@@ -27,7 +27,7 @@
     !Grid kind - Selection of grid kind
     !(1 ... rectangular, 2 ... field-aligned EFIT, 3 ... field-aligned VMEC,
     !  4 ... SOLEDGE3X-EIRENE, 5 ... analytic circular tokamak,
-    !  6 ... field-aligned Boozer chartmap)
+    !  6 ... field-aligned Boozer chartmap, 7 ... external triangles with vertex data (e.g. JOREK))
     integer,public,protected :: grid_kind
 !
     !For VMEC input, retain only harmonics with toroidal mode number n=0.
@@ -41,6 +41,9 @@
     !MESH_SOLEDGE3X_EIRENE filename
     character*64,public,protected :: knots_SOLEDGE3X_EIRENE_filename
     character*64,public,protected :: triangles_SOLEDGE3X_EIRENE_filename
+!
+    !Vertex data filename (grid_kind = 7): triangles and field data at the vertices (netCDF)
+    character*256,public,protected :: vertex_data_filename = ''
 !
     !Symmetry Flux Coordinates Annulus
     double precision,public,protected :: sfc_s_min
@@ -92,6 +95,7 @@
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
                             & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename, &
+                            & vertex_data_filename, &
                             & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
                             & q_exp_analytic_circ, q_profile_file_analytic_circ, &
                             & helical_pert_file_analytic_circ, &

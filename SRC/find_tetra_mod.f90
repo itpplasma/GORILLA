@@ -82,7 +82,7 @@ print*, 'grid_for_find_tetra started'
         if (c_factor.eq.0) c_factor = maxval((/nint((cmax-cmin)/(grid_size(3)*delta_a)),1/))
         nc = grid_size(3)*c_factor
 !
-        if (grid_kind.eq.4) then
+        if ((grid_kind.eq.4).or.(grid_kind.eq.7)) then
             na = 200*a_factor
             delta_a = (amax - amin)/na
             c_factor = maxval((/nint((cmax-cmin)/(200*delta_a)),1/))
@@ -452,7 +452,7 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
               endif  ! coord_system==1 vs coord_system==2 for grid_kind=5
 !
-            case(2,3,4,6) !field-aligned grids or SOLEDGE3X-EIRENE
+            case(2,3,4,6,7) !field-aligned grids, SOLEDGE3X-EIRENE or vertex data
 !
                 ind_b = 2 !(phi in cylindrical and flux coordinates)
                 if (coord_system.eq.2) ind_b = 3

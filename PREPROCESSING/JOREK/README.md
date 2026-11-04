@@ -24,6 +24,24 @@ Requirements: `numpy`, `scipy`, `h5py`, `matplotlib` (plus `tqdm`, which the rea
 | `--n0-only` | take only the n = 0 part of a 3D restart |
 | `--fine-div`, `--grid` | resolution of the integration that gives A_Z (defaults are fine) |
 
+## Use in GORILLA (`grid_kind = 7`)
+
+```fortran
+&TETRA_GRID_NML
+grid_kind = 7 ,
+vertex_data_filename = 'jorek2D.nc' ,
+n2 = 60 ,               ! number of toroidal slices
+boole_n_field_periods = .true. ,
+...
+/
+```
+
+GORILLA reads the triangles and the vertex data (`SRC/vertex_data_mod.f90`),
+extrudes the triangles toroidally into prisms and splits them into tetrahedra
+(the same algorithm as for the SOLEDGE3X-EIRENE grid). Only cylindrical
+coordinates (`coord_system = 1`) are supported. The electrostatic potential is
+`Phi` from the file plus the usual `eps_Phi * A_phi`.
+
 ## Mesh
 
 Each JOREK element is subdivided in (s,t) and every sub-quadrilateral is split
@@ -48,6 +66,7 @@ x = R cos(phi), y = -R sin(phi), so every phi component is negated.
 | `n` | cm^-3 | ion number density (rho n0) |
 | `T_i`, `T_e` | eV | temperatures |
 | `u_R`, `u_phi`, `u_Z` | cm/s | fluid velocity |
+| `mesh_label` | 1 | radial ring index of the vertex; orients the prisms in GORILLA |
 | `psi_eq` | G cm^2 | initial equilibrium flux, same sign convention as `A_phi` |
 
 Global attributes record the source file and its SHA-256, the time, the
@@ -70,3 +89,12 @@ interpolation cannot represent, so they are replaced by the equivalent gauge
   The median error converges at first order in 1/n_div. The largest errors
   appear where the JOREK solution varies on the scale of the mesh, typically
   near the boundary.
+
+### Why `mesh_label`
+
+GORILLA orients each prism by a label at the triangle vertices: the two vertices
+with the closest label form the base. With the poloidal flux as label this fails
+where the flux surfaces have moved away from the JOREK grid during the JOREK
+run (some prisms then cannot be connected). The exact ring index of the
+polar JOREK grid makes the classification unambiguous. For a non-polar grid the
+converter falls back to `psi_eq`.

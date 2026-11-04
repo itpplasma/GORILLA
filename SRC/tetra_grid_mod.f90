@@ -30,7 +30,7 @@
         use tetra_grid_settings_mod, only: boole_n_field_periods,n_field_periods_manual,grid_size,n1,n2,n3,grid_kind, &
                                          & n_field_periods,set_grid_size,set_n_field_periods, &
                                          & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi, &
-                                         & netcdf_filename, &
+                                         & netcdf_filename, vertex_data_filename, &
                                          & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, &
                                          & q0_analytic_circ, q1_analytic_circ, &
                                          & q_exp_analytic_circ, q_profile_file_analytic_circ, sfc_s_min, sfc_s_max
@@ -70,7 +70,7 @@
         if(boole_n_field_periods) then !Automatically
             !Select number of field periods depending on input equilibrium
             select case(grid_kind)
-                case(1,2,4,5) !2D EFIT & WEST equilibria
+                case(1,2,4,5,7) !2D EFIT & WEST equilibria, axisymmetric vertex data
                     call set_n_field_periods(1)
                 case(3,6) !3D VMEC or Boozer chartmap equilibria
                     !The correct value is assigned below (before subroutine 'make_grid_aligned' is called.)
@@ -159,6 +159,10 @@
                           & dBpdR,dBpdp,dBpdZ,dBzdR,dBzdp,dBzdZ)
 !
             call make_grid_SOLEDGE3X_EIRENE(grid_size)
+!
+          case(7) !external triangles with field data at the vertices
+!
+            call make_grid_vertex_data(grid_size, vertex_data_filename)
 
           case(5) !analytic circular tokamak — flux-surface-aligned mesh in (rho,theta,phi)
             ianalytic_circ = 1
@@ -457,6 +461,43 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
     enddo
   !
   end subroutine make_grid_SOLEDGE3X_EIRENE
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+  subroutine make_grid_vertex_data(grid_size, filename)
+!
+    !Extrude the triangle mesh of a vertex-data file (grid_kind = 7) toroidally into tetrahedra.
+    !The mesh label at the vertices (constant along the poloidal mesh lines) orients the prisms.
+!
+    use circular_mesh_SOLEDGE3X_EIRENE, only : calc_mesh_from_triangles, create_points_from_knots
+    use vertex_data_mod, only: load_vertex_data, triangles_2d, R_2d, Z_2d, mesh_label_2d
+!
+    implicit none
+!
+    integer, dimension(3), intent(in) :: grid_size
+    character(len=*), intent(in) :: filename
+    integer :: i, verts_per_slice, nphi
+    integer, allocatable, dimension(:, :) :: verts, neighbours, neighbour_faces, perbou_phi
+!
+    nphi = grid_size(2)
+!
+    call load_vertex_data(filename)
+    call create_points_from_knots(R_2d, Z_2d, nphi, verts_rphiz, verts_per_slice)
+!
+    nvert = verts_per_slice*nphi
+    call calc_mesh_from_triangles(nphi, verts_per_slice, transpose(triangles_2d), mesh_label_2d, ntetr, &
+                                  verts, neighbours, neighbour_faces, perbou_phi)
+!
+    allocate(tetra_grid(1:ntetr))
+!
+    do i=1,ntetr
+      tetra_grid(i)%ind_knot = verts(:, i)
+      tetra_grid(i)%neighbour_tetr = neighbours(:, i)
+      tetra_grid(i)%neighbour_face = neighbour_faces(:, i)
+      tetra_grid(i)%neighbour_perbou_phi(:) = perbou_phi(:, i)
+    enddo
+!
+  end subroutine make_grid_vertex_data
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

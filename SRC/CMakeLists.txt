@@ -9,6 +9,7 @@ add_library(GORILLA STATIC
 	gorilla_diag_mod.f90 
 	canonical_coordinates_mod.f90
 	boozer_chartmap_mod.f90
+	vertex_data_mod.f90
 	splint_vmec_data.f90
 	nctools_module.f90 
 	contrib/rkf45.f90 

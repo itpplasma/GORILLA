@@ -165,6 +165,7 @@
                                               & ieee_divide_by_zero, ieee_get_flag
       use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
       use field_divB0_mod, only: field
+      use vertex_data_mod, only: vertex_data_rphiz, n_vertices_2d, R_2d, Z_2d, A_phi_2d
 !
       integer, intent(in) :: ipert_in,coord_system_in
       double precision, intent(in),optional :: bmod_multiplier_in
@@ -196,6 +197,8 @@
       double precision, dimension(3,3) :: mat_gh
 !
       double precision :: b_x1_added, b_x2_added, b_x3_added
+      double precision :: phi_elec_vertex
+      integer :: i_axis_2d
       integer          :: triangle, n_fourier_modes
       complex, dimension(:,:), allocatable :: A_x1_mat, A_x2_mat, A_x3_mat, b_x1_mat, b_x2_mat, b_x3_mat
 !
@@ -257,9 +260,9 @@
       ipert = ipert_in
 !
       !Set coord_system in module according to coord_system_in
-      if( ((grid_kind.eq.1).or.(grid_kind.eq.4)).and.(coord_system_in.ne.1)) then
+      if( ((grid_kind.eq.1).or.(grid_kind.eq.4).or.(grid_kind.eq.7)).and.(coord_system_in.ne.1)) then
         print *, 'Error: Wrong coordinate system - Only RPhiZ-coordinates allowed for &
-                 &rectangular or SOLEDGE3X_EIRENE grid.'
+                 &rectangular, SOLEDGE3X_EIRENE or vertex-data grid.'
         stop
       elseif((grid_kind.eq.3 .or. grid_kind.eq.6).and.(coord_system_in.ne.2)) then
         print *, 'Error: Only (s,theta,phi) coordinates are allowed for direct flux grids.'
@@ -323,6 +326,10 @@
                 case(5)
                     mag_axis_R0 = R0_analytic_circ
                     mag_axis_Z0 = 0.0d0
+                case(7) !vertex with the extremal poloidal flux
+                    i_axis_2d = maxloc(abs(A_phi_2d), 1)
+                    mag_axis_R0 = R_2d(i_axis_2d)
+                    mag_axis_Z0 = Z_2d(i_axis_2d)
             end select
 !
         case(2) !sthetaphi --> Symmetry flux coordinate system
@@ -363,8 +370,15 @@
         select case(coord_system)
           case(1) !RphiZ --> Cylindrical coordinate system
 !
-            call vector_potential_rphiz(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),ipert_in,bmod_multiplier, &
+            if (grid_kind.eq.7) then
+              !Vertices of all toroidal slices are copies of the 2d-plane
+              call vertex_data_rphiz(mod(iv-1,n_vertices_2d)+1, &
+                              & A_x1(iv),A_x2(iv),A_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv),phi_elec_vertex)
+              Bmod(iv) = Bmod(iv)*bmod_multiplier
+            else
+              call vector_potential_rphiz(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),ipert_in,bmod_multiplier, &
                               & A_x1(iv),A_x2(iv),A_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv))
+            endif
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! add vector potential and magnetic field perturbations from Markus here !!!!!!!!!!!!!!!
             if (boole_pert_from_mephit) then
@@ -474,9 +488,11 @@
                 !Do nothing, phi_elec is set from outside and should not be overwritten
               else
                 call set_weak_electric_potential(iv)
+                if (grid_kind.eq.7) phi_elec(iv) = phi_elec(iv) + phi_elec_vertex
               endif
             else
               call set_weak_electric_potential(iv)
+              if (grid_kind.eq.7) phi_elec(iv) = phi_elec(iv) + phi_elec_vertex
             endif
         endif
 !
@@ -552,7 +568,7 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
           if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_sthetaphi(3,iv) .eq. 0.d0)) then !if(tetra in last phi_slice & phi .eq. 0)
             p_x3(i) = 2.d0*pi/n_field_periods
           endif
-        case(4) !SOLEDGE3X_EIRENE grid
+        case(4,7) !SOLEDGE3X_EIRENE or vertex-data grid
                 !R,Phi,Z --> Cylindrical coordinate system
                 if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_rphiz(2,iv) .eq. 0.d0)) then
                 p_x2(i) = 2.d0*pi
@@ -1111,7 +1127,7 @@ enddo
 
           if (len_trim(er_profile_file) > 0) then
               ! The profile needs psif from field(), not set for VMEC or chartmap grids.
-              if (grid_kind == 3 .or. grid_kind == 6) error stop &
+              if (grid_kind == 3 .or. grid_kind == 6 .or. grid_kind == 7) error stop &
                   'er_profile_file requires grid_kind 1, 2, 4 or 5'
               call get_electric_potential(verts_rphiz(1,vertex), verts_rphiz(2,vertex), &
                   verts_rphiz(3,vertex), phi_elec(vertex))

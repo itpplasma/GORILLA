@@ -5,6 +5,7 @@ integer, dimension(:,:), allocatable :: triangles_SOLEDGE3X_EIRENE
 integer :: n_triangles
 double precision, parameter :: pi = 3.14159265358979d0
 public :: calc_mesh_SOLEDGE3X_EIRENE, create_points_SOLEDGE3X_EIRENE
+public :: create_points_from_knots, calc_mesh_from_triangles
 
 contains
 
@@ -21,7 +22,7 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
     character(70) :: filename_knots
     double precision, dimension(:,:),allocatable :: knots_SOLEDGE3X_EIRENE
 !
-    integer :: n_verts,phi_position, i
+    integer :: i
 !
     !Load SOLEDGE3X_EIRENE mesh data
 !
@@ -36,23 +37,8 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
     enddo
     close(file_id_knots)
 !
-    !Number of vertices per 2d-plane
-    verts_per_slice = shape_knots(1)
-!
-    !Total number of vertices  
-    n_verts = verts_per_slice*n_slices
-!
-    if (allocated(points_rphiz)) deallocate(points_rphiz)
-    allocate(points_rphiz(3, n_verts))
-!    
-    !Fill first slice of point matrix with 2d-SOLEDGE3X_EIRENE-knots
-    points_rphiz(1, :verts_per_slice) = knots_SOLEDGE3X_EIRENE(:,1)
-    points_rphiz(2, :verts_per_slice) = 0.d0
-    points_rphiz(3, :verts_per_slice) = knots_SOLEDGE3X_EIRENE(:,2)
-!     
-    !Extruding the 2D grid into toroidal direction by simply copying coordinates and changing phi value 
-    phi_position = 2 !In coordinate system (R,Phi,Z) --> Phi is at second position
-    call extrude_points(verts_per_slice, n_slices,phi_position, points_rphiz)
+    call create_points_from_knots(knots_SOLEDGE3X_EIRENE(:,1), knots_SOLEDGE3X_EIRENE(:,2), n_slices, &
+                                  points_rphiz, verts_per_slice)
 !
     deallocate(knots_SOLEDGE3X_EIRENE)
 !
@@ -60,32 +46,53 @@ end subroutine create_points_SOLEDGE3X_EIRENE
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+subroutine create_points_from_knots(knots_r, knots_z, n_slices, points_rphiz, verts_per_slice)
+!
+    double precision, dimension(:), intent(in) :: knots_r, knots_z
+    integer, intent(in) :: n_slices
+    double precision, dimension(:, :), allocatable, intent(out) :: points_rphiz !(r, phi, z)
+    integer, intent(out) :: verts_per_slice
+!
+    integer :: n_verts, phi_position
+!
+    !Number of vertices per 2d-plane
+    verts_per_slice = size(knots_r)
+!
+    !Total number of vertices  
+    n_verts = verts_per_slice*n_slices
+!
+    if (allocated(points_rphiz)) deallocate(points_rphiz)
+    allocate(points_rphiz(3, n_verts))
+!    
+    !Fill first slice of point matrix with the 2d-knots
+    points_rphiz(1, :verts_per_slice) = knots_r
+    points_rphiz(2, :verts_per_slice) = 0.d0
+    points_rphiz(3, :verts_per_slice) = knots_z
+!     
+    !Extruding the 2D grid into toroidal direction by simply copying coordinates and changing phi value 
+    phi_position = 2 !In coordinate system (R,Phi,Z) --> Phi is at second position
+    call extrude_points(verts_per_slice, n_slices,phi_position, points_rphiz)
+!
+end subroutine create_points_from_knots
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
 subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n_tetras, & 
                      verts, neighbours, neighbour_faces, perbou_phi)
 !
     use tetra_grid_settings_mod, only: triangles_SOLEDGE3X_EIRENE_filename
-    use circular_mesh, only: wrap_idx_inplace
     use gorilla_diag_mod, only: diag_mesh_SOLEDGE3X_EIRENE
 !
     integer, intent(in) :: n_slices,verts_per_slice
     double precision, dimension(:,:), intent(in) :: points_rphiz 
     integer, intent(out) :: n_tetras
-    integer :: i,j,f
     integer, dimension(:, :), allocatable, intent(out) :: verts, neighbours, neighbour_faces, perbou_phi
 !
     double precision, dimension(verts_per_slice) :: A_phi_vec
-!
-    integer :: file_id_triangles, iunit
+    integer :: i, file_id_triangles, iunit
     integer, dimension(2) :: shape_triangles
     character(70) :: filename_triangles
-    integer, dimension(:,:), allocatable :: triangle_type, old_triangle_type
-!
-    integer, dimension(4, 6) :: tetra_conf, mask_theta, mask_phi, mask_r
-    integer, dimension(4, 3) :: slice_offset, base_a_mask, base_b_mask, free_mask
-    integer :: n_verts, mask_idx,prism_orientation, slice,&
-                & cur_triangle, cur_stand_alone_vertex, tetra_idx, tetras_per_slice, &
-                free_index, base_a_index, base_b_index
-    integer, dimension(:), allocatable :: count_connected, count_connected_repaired
+    integer, dimension(:,:), allocatable :: triangles
 !         
     !Compute A_phi (psif) for every vertex in 2d-plane
     do i = 1,verts_per_slice
@@ -105,14 +112,52 @@ endif
     !Load triangles (triples of vertex indices)
     open(newunit=file_id_triangles, file=filename_triangles, status='unknown')
     read(file_id_triangles,*) shape_triangles
-    allocate(triangles_SOLEDGE3X_EIRENE(shape_triangles(1),shape_triangles(2)))
+    allocate(triangles(shape_triangles(1),shape_triangles(2)))
     do i = 1,shape_triangles(1)
-        read(file_id_triangles,*) triangles_SOLEDGE3X_EIRENE(i,:)
+        read(file_id_triangles,*) triangles(i,:)
     enddo
     close(file_id_triangles)
 !
+    call calc_mesh_from_triangles(n_slices, verts_per_slice, triangles, A_phi_vec, n_tetras, &
+                                  verts, neighbours, neighbour_faces, perbou_phi)
+!
+    deallocate(triangles)
+!
+end subroutine calc_mesh_SOLEDGE3X_EIRENE
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+subroutine calc_mesh_from_triangles(n_slices, verts_per_slice, triangles, A_phi_vec, n_tetras, & 
+                     verts, neighbours, neighbour_faces, perbou_phi)
+!
+    ! Extrude a 2d triangle mesh (triangles(n_triangles,3), one-based vertex indices) into prisms
+    ! split into tetrahedra. A_phi_vec is a flux label at the vertices of the 2d-plane, used to
+    ! orient the prisms.
+!
+    use circular_mesh, only: wrap_idx_inplace
+    use gorilla_diag_mod, only: diag_mesh_SOLEDGE3X_EIRENE
+!
+    integer, intent(in) :: n_slices,verts_per_slice
+    integer, dimension(:,:), intent(in) :: triangles
+    double precision, dimension(:), intent(in) :: A_phi_vec
+    integer, intent(out) :: n_tetras
+    integer :: i,f
+    integer, dimension(:, :), allocatable, intent(out) :: verts, neighbours, neighbour_faces, perbou_phi
+!
+    integer, dimension(:,:), allocatable :: triangle_type, old_triangle_type
+!
+    integer, dimension(4, 6) :: tetra_conf, mask_theta, mask_phi, mask_r
+    integer, dimension(4, 3) :: slice_offset, base_a_mask, base_b_mask, free_mask
+    integer :: n_verts, mask_idx,prism_orientation, slice,&
+                & cur_triangle, cur_stand_alone_vertex, tetra_idx, tetras_per_slice, &
+                free_index, base_a_index, base_b_index
+    integer, dimension(:), allocatable :: count_connected, count_connected_repaired
+!
+    if (allocated(triangles_SOLEDGE3X_EIRENE)) deallocate(triangles_SOLEDGE3X_EIRENE)
+    allocate(triangles_SOLEDGE3X_EIRENE, source=triangles)
+!
     !Number of triagles in 2d-plane
-    n_triangles = shape_triangles(1)
+    n_triangles = size(triangles, dim=1)
 !  
     !Compute triangle types (top/bottom with respect to psi) and "stand-alone" vertex
     allocate(triangle_type(n_triangles,2))
@@ -299,7 +344,7 @@ end if ! repair_report
 !
     deallocate(triangles_SOLEDGE3X_EIRENE, triangle_type,old_triangle_type,count_connected)
 !
-end subroutine calc_mesh_SOLEDGE3X_EIRENE
+end subroutine calc_mesh_from_triangles
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

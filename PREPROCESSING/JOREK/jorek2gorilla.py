@@ -143,6 +143,39 @@ def build_triangles(n_elements: int, n_div: int, vertex_of_sample: np.ndarray) -
     return triangles[distinct]
 
 
+def ring_labels(n_elements: int, n_div: int, vertex_of_sample: np.ndarray, n_vertices: int):
+    """Radial ring index of every vertex for a polar JOREK grid, or None.
+
+    Elements whose s=0 side collapses onto one vertex touch the axis (ring
+    index 0). The radial neighbour of an element is the one whose s=0 side
+    consists of the same vertices as its s=1 side. GORILLA uses the label to
+    orient the prisms: the two vertices of a triangle on the same ring form
+    its base.
+    """
+    sides = vertex_of_sample.reshape(n_elements, n_div + 1, n_div + 1)
+    inner_side = {frozenset(sides[e, 0, :]): e for e in range(n_elements)}
+    element_ring = np.full(n_elements, -1)
+    frontier = [e for e in range(n_elements) if len(set(sides[e, 0, :])) == 1]
+    element_ring[frontier] = 0
+    while frontier:
+        following = []
+        for e in frontier:
+            outer = inner_side.get(frozenset(sides[e, n_div, :]))
+            if outer is not None and element_ring[outer] < 0:
+                element_ring[outer] = element_ring[e] + 1
+                following.append(outer)
+        frontier = following
+    if np.any(element_ring < 0):
+        return None
+    sample_ring = (element_ring[:, None, None] * n_div + np.arange(n_div + 1)[None, :, None]
+                   + np.zeros((1, 1, n_div + 1), dtype=int)).ravel()
+    label = np.full(n_vertices, -1)
+    label[vertex_of_sample] = sample_ring
+    if np.any(label[vertex_of_sample] != sample_ring):
+        return None
+    return label.astype(float)
+
+
 def signed_areas(R, Z, triangles):
     r = R[triangles]
     z = Z[triangles]
@@ -301,6 +334,10 @@ def main() -> None:
         spread[name] = deviation.max() / max(np.abs(flat).max(), np.finfo(float).tiny)
 
     triangles = build_triangles(n_elements, args.n_div, vertex_of_sample)
+    mesh_label = ring_labels(n_elements, args.n_div, vertex_of_sample, n_vertices)
+    if mesh_label is None:
+        print("grid is not polar: using psi_eq as mesh label")
+        mesh_label = -averaged["psi_eq"]
     R = averaged["R"]
     Z = averaged["Z"]
     areas = signed_areas(R, Z, triangles)
@@ -353,6 +390,8 @@ def main() -> None:
         "u_phi": (-averaged["u_phi"] * si_scale["u_phi"] * CM_PER_M, "cm/s",
                   "fluid velocity, phi (right-handed)"),
         "u_Z": (averaged["uZ"] * si_scale["uZ"] * CM_PER_M, "cm/s", "fluid velocity, Z"),
+        "mesh_label": (mesh_label, "1",
+                       "label constant along the poloidal mesh lines (radial ring index), orients the prisms"),
         "psi_eq": (-averaged["psi_eq"] * GAUSS_PER_TESLA * CM_PER_M**2, "G cm^2",
                    "initial equilibrium flux, same sign convention as A_phi"),
     }
