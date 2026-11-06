@@ -121,6 +121,12 @@
             call load_boole_array_optional_quantities
 !
             !Dependencies of input parameters
+            !The polynomial pusher provides series coefficients up to 4th order (work arrays are sized for that)
+            if( (ipusher.eq.2).and.((poly_order.lt.1).or.(poly_order.gt.4)) ) then
+                print *, 'ERROR: poly_order must be between 1 and 4 in gorilla.inp.'
+                stop
+            endif
+!
             if( i_time_tracing_option.eq.2 ) then
                 if (ipusher.ne.2) then
                     print *, 'ERROR: When Hamiltonian time tracing is activated, set ipusher to 2 in gorilla.inp.'
