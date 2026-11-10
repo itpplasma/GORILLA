@@ -27,7 +27,7 @@ module vertex_data_mod
     real(dp), dimension(:), allocatable, public, protected :: Phi_2d, n_2d, T_i_2d, T_e_2d
     real(dp), dimension(:), allocatable, public, protected :: mesh_label_2d
 !
-    public :: load_vertex_data, vertex_data_rphiz
+    public :: load_vertex_data, vertex_data_rphiz, vertex_data_profiles
 !
 contains
 !
@@ -98,6 +98,39 @@ contains
         phi_elec = Phi_2d(iv_2d)
 !
     end subroutine vertex_data_rphiz
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+    subroutine vertex_data_profiles(ind_tetr, r, z, dens, temp_i, temp_e)
+!
+        ! Density [cm^-3] and temperatures [eV] at (r,z) inside tetrahedron ind_tetr, linearly
+        ! interpolated over the triangle of the prism the tetrahedron belongs to (exact for the
+        ! axisymmetric vertex data). Relies on the tetrahedron ordering of calc_mesh_from_triangles:
+        ! three tetrahedra per prism, prisms in the order of the triangles, slice after slice.
+!
+        integer, intent(in) :: ind_tetr
+        real(dp), intent(in) :: r, z
+        real(dp), intent(out) :: dens, temp_i, temp_e
+        integer :: i_triangle, k1, k2, k3
+        real(dp) :: det, l1, l2, l3
+!
+        if (n_triangles_2d == 0) error stop 'vertex_data_profiles: no vertex data loaded (grid_kind = 7 required)'
+!
+        i_triangle = mod((ind_tetr-1)/3, n_triangles_2d) + 1
+        k1 = triangles_2d(1, i_triangle)
+        k2 = triangles_2d(2, i_triangle)
+        k3 = triangles_2d(3, i_triangle)
+!
+        det = (R_2d(k2)-R_2d(k1))*(Z_2d(k3)-Z_2d(k1)) - (R_2d(k3)-R_2d(k1))*(Z_2d(k2)-Z_2d(k1))
+        l2 = ((r-R_2d(k1))*(Z_2d(k3)-Z_2d(k1)) - (R_2d(k3)-R_2d(k1))*(z-Z_2d(k1)))/det
+        l3 = ((R_2d(k2)-R_2d(k1))*(z-Z_2d(k1)) - (r-R_2d(k1))*(Z_2d(k2)-Z_2d(k1)))/det
+        l1 = 1.0_dp - l2 - l3
+!
+        dens = l1*n_2d(k1) + l2*n_2d(k2) + l3*n_2d(k3)
+        temp_i = l1*T_i_2d(k1) + l2*T_i_2d(k2) + l3*T_i_2d(k3)
+        temp_e = l1*T_e_2d(k1) + l2*T_e_2d(k2) + l3*T_e_2d(k3)
+!
+    end subroutine vertex_data_profiles
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
