@@ -1,7 +1,38 @@
 !
 module pusher_tetra_func_mod
 !
+    implicit none
+!
+    !Detection of particles that alternate between two tetrahedra across a face deactivated by
+    !check_tetra_overlaps (overlapping tetrahedra): such a particle has no entry face (iface = -1)
+    !and can be handed back and forth without advancing in time
+    integer, parameter, private :: n_bounces_max = 10
+    integer, private            :: bounce_tetr_previous = 0, bounce_tetr_before_previous = 0, n_bounces = 0
+    !$OMP THREADPRIVATE(bounce_tetr_previous,bounce_tetr_before_previous,n_bounces)
+!
 contains
+!
+    function particle_bounces_across_deactivated_face(ind_tetr,iface) result(boole_bounces)
+!
+      !Call once at the start of every push of a particle in tetrahedron ind_tetr, entered through face iface.
+      !Returns .true. if the particle entered without entry face (iface = -1) and alternated between
+      !the same two tetrahedra n_bounces_max times in a row.
+!
+      integer, intent(in) :: ind_tetr,iface
+      logical             :: boole_bounces
+!
+      if((iface.eq.-1).and.(ind_tetr.eq.bounce_tetr_before_previous).and.(ind_tetr.ne.bounce_tetr_previous)) then
+        n_bounces = n_bounces + 1
+      else
+        n_bounces = 0
+      endif
+      bounce_tetr_before_previous = bounce_tetr_previous
+      bounce_tetr_previous = ind_tetr
+!
+      boole_bounces = (n_bounces.ge.n_bounces_max)
+      if(boole_bounces) n_bounces = 0
+!
+    end function particle_bounces_across_deactivated_face
 !
     subroutine pusher_handover2neighbour(ind_tetr,ind_tetr_out,iface_inout,x,iper_phi)
 !    

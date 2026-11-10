@@ -56,4 +56,38 @@ target_link_libraries(test_radial_electric_projection_driver.x
 add_test(NAME radial_electric_projection_oracle
   COMMAND test_radial_electric_projection_driver.x)
 
+add_executable(test_prescribed_er_driver.x
+  SRC/TESTS/test_prescribed_er_driver.f90
+)
+target_link_libraries(test_prescribed_er_driver.x GORILLA netcdff netcdf lapack)
+add_test(NAME prescribed_er_oracle COMMAND test_prescribed_er_driver.x)
+set_tests_properties(prescribed_er_oracle PROPERTIES
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_executable(test_hamiltonian_time_driver.x
+  SRC/TESTS/test_hamiltonian_time_driver.f90
+)
+target_link_libraries(test_hamiltonian_time_driver.x GORILLA netcdff netcdf lapack)
+add_test(NAME hamiltonian_time_oracle COMMAND test_hamiltonian_time_driver.x)
+
+add_executable(test_analytic_circ_flux_driver.x
+  SRC/TESTS/test_analytic_circ_flux_driver.f90
+)
+target_link_libraries(test_analytic_circ_flux_driver.x GORILLA netcdff netcdf lapack)
+add_test(NAME analytic_circ_flux_oracle COMMAND test_analytic_circ_flux_driver.x
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(test_analytic_circ_mesh_driver.x
+  SRC/TESTS/test_analytic_circ_mesh_driver.f90
+)
+target_link_libraries(test_analytic_circ_mesh_driver.x GORILLA netcdff netcdf lapack)
+foreach(cs 1 2)
+  foreach(b0sign 1 -1)
+    set(mesh_dir ${CMAKE_CURRENT_BINARY_DIR}/analytic_circ_mesh_cs${cs}_b${b0sign})
+    file(MAKE_DIRECTORY ${mesh_dir})
+    add_test(NAME analytic_circ_mesh_cs${cs}_b${b0sign}
+      COMMAND test_analytic_circ_mesh_driver.x ${cs} ${b0sign}
+      WORKING_DIRECTORY ${mesh_dir})
+  endforeach()
+endforeach()
+
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
