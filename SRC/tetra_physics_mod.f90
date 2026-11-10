@@ -148,7 +148,7 @@
       use hamiltonian_time_coefficients_mod, only: hamiltonian_time_coefficients
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
                                 & set_verts_sthetaphi,verts_xyz
-      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,R0_analytic_circ
+      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,R0_analytic_circ,boole_ext_mesh_efit
       use constants, only: pi
       use field_mod, only: ipert
       use various_functions_mod, only: dmatinv3
@@ -318,8 +318,14 @@
                     mag_axis_R0 = 170.80689536175018d0
                     mag_axis_Z0 = 8.9514398817462517d0
                 case(4)
-                    mag_axis_R0 = 240.0d0
-                    mag_axis_Z0 = 0.0d0
+                    if (boole_ext_mesh_efit) then
+                        !EFIT mesh (same hard-coded AUG axis as grid_kind = 2)
+                        mag_axis_R0 = 170.80689536175018d0
+                        mag_axis_Z0 = 8.9514398817462517d0
+                    else
+                        mag_axis_R0 = 240.0d0
+                        mag_axis_Z0 = 0.0d0
+                    endif
                 case(5)
                     mag_axis_R0 = R0_analytic_circ
                     mag_axis_Z0 = 0.0d0

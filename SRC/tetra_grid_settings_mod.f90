@@ -62,6 +62,10 @@
     !Axisymmetric equilibrium type (reader variable)
     integer, public, protected :: iaxieq_in
 !
+    !grid_kind = 4 (external knots/triangles mesh): .false. -> WEST equilibrium format (iaxieq = 1, default),
+    !.true. -> EFIT g-file (iaxieq = 0), e.g. an EFIT mesh extended beyond the separatrix to the limiter
+    logical, public, protected :: boole_ext_mesh_efit = .false.
+!
     !Analytic field circular axisymetric geometry (reader variable)
     integer, public, protected :: ianalytic_circ = 0
     double precision, public, protected :: R0_analytic_circ = 0.d0
@@ -88,7 +92,7 @@
     NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual, &
                             & sfc_s_min,sfc_s_max, &
                             & i_radial_spacing, &
-                            & boole_axisymmetric_only, &
+                            & boole_axisymmetric_only, boole_ext_mesh_efit, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
                             & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename, &
@@ -118,8 +122,12 @@
 !
             !Set axisymmetric equilibrium type
             select case(grid_kind)
-                case(4) !Axisymmetric equilibrium of WEST
-                    iaxieq_in = 1
+                case(4) !External mesh: WEST equilibrium or EFIT g-file
+                    if (boole_ext_mesh_efit) then
+                        iaxieq_in = 0
+                    else
+                        iaxieq_in = 1
+                    endif
                 case(5) !Analytic field circular axisymmetric geometry tokamak
                     ianalytic_circ = 1
                 case default
