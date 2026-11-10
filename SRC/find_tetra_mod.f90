@@ -308,6 +308,8 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
         integer :: iper_phi
         integer :: n_plane_conv, l, counter_vnorm_pos, iface_new, iface_new_save, i_tetra_try, i
         integer :: hexahedron_index, shifted_hexahedron_index, ntetr_searched
+        integer :: a, b, c !box indices of x; local (not the module variables) because find_tetra is called from
+                           !OpenMP threads, which otherwise overwrite each other's indices and search the wrong box
         real(dp) :: perpinv
         real(dp) ::hr,hphi,hz,vnorm,vperp2
         real(dp) :: rho_ac_local, theta_ac_local   ! for grid_kind=5 flux-aligned mesh
