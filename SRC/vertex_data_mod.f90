@@ -11,6 +11,8 @@ module vertex_data_mod
 !   n, T_i, T_e                   density [cm^-3] and temperatures [eV]
 !   mesh_label (optional)         label constant along the poloidal mesh lines, orients the prisms
 !                                 (default: A_phi)
+!   dn_dA_phi, dT_i_dA_phi,       flux-function gradients of n, T_i, T_e with respect to A_phi
+!   dT_e_dA_phi (optional)        [cm^-3/(G cm^2), eV/(G cm^2)], e.g. from PREPROCESSING/JOREK/profile_gradients.py
 !
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use netcdf
@@ -26,6 +28,8 @@ module vertex_data_mod
     real(dp), dimension(:), allocatable, public, protected :: B_R_2d, B_phi_2d, B_Z_2d, Bmod_2d
     real(dp), dimension(:), allocatable, public, protected :: Phi_2d, n_2d, T_i_2d, T_e_2d
     real(dp), dimension(:), allocatable, public, protected :: mesh_label_2d
+    real(dp), dimension(:), allocatable, public, protected :: dn_dA_phi_2d, dT_i_dA_phi_2d, dT_e_dA_phi_2d
+    logical, public, protected :: boole_profile_gradients = .false.
 !
     public :: load_vertex_data, vertex_data_rphiz, vertex_data_profiles
 !
@@ -66,6 +70,12 @@ contains
         else
             allocate(mesh_label_2d, source=A_phi_2d)
         end if
+        boole_profile_gradients = (nf90_inq_varid(ncid, 'dn_dA_phi', varid) == nf90_noerr)
+        if (boole_profile_gradients) then
+            call read_vertex_variable(ncid, 'dn_dA_phi', dn_dA_phi_2d)
+            call read_vertex_variable(ncid, 'dT_i_dA_phi', dT_i_dA_phi_2d)
+            call read_vertex_variable(ncid, 'dT_e_dA_phi', dT_e_dA_phi_2d)
+        end if
 !
         call check_nc(nf90_close(ncid), 'close '//trim(filename))
 !
@@ -101,16 +111,18 @@ contains
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-    subroutine vertex_data_profiles(ind_tetr, r, z, dens, temp_i, temp_e)
+    subroutine vertex_data_profiles(ind_tetr, r, z, dens, temp_i, temp_e, ddens, dtemp_i, dtemp_e)
 !
         ! Density [cm^-3] and temperatures [eV] at (r,z) inside tetrahedron ind_tetr, linearly
         ! interpolated over the triangle of the prism the tetrahedron belongs to (exact for the
         ! axisymmetric vertex data). Relies on the tetrahedron ordering of calc_mesh_from_triangles:
         ! three tetrahedra per prism, prisms in the order of the triangles, slice after slice.
+        ! Optionally also their derivatives with respect to A_phi (requires the gradient variables).
 !
         integer, intent(in) :: ind_tetr
         real(dp), intent(in) :: r, z
         real(dp), intent(out) :: dens, temp_i, temp_e
+        real(dp), intent(out), optional :: ddens, dtemp_i, dtemp_e
         integer :: i_triangle, k1, k2, k3
         real(dp) :: det, l1, l2, l3
 !
@@ -129,6 +141,14 @@ contains
         dens = l1*n_2d(k1) + l2*n_2d(k2) + l3*n_2d(k3)
         temp_i = l1*T_i_2d(k1) + l2*T_i_2d(k2) + l3*T_i_2d(k3)
         temp_e = l1*T_e_2d(k1) + l2*T_e_2d(k2) + l3*T_e_2d(k3)
+!
+        if (present(ddens) .or. present(dtemp_i) .or. present(dtemp_e)) then
+            if (.not. boole_profile_gradients) error stop &
+                'vertex_data_profiles: vertex data file has no dn_dA_phi, dT_i_dA_phi, dT_e_dA_phi'
+            if (present(ddens)) ddens = l1*dn_dA_phi_2d(k1) + l2*dn_dA_phi_2d(k2) + l3*dn_dA_phi_2d(k3)
+            if (present(dtemp_i)) dtemp_i = l1*dT_i_dA_phi_2d(k1) + l2*dT_i_dA_phi_2d(k2) + l3*dT_i_dA_phi_2d(k3)
+            if (present(dtemp_e)) dtemp_e = l1*dT_e_dA_phi_2d(k1) + l2*dT_e_dA_phi_2d(k2) + l3*dT_e_dA_phi_2d(k3)
+        end if
 !
     end subroutine vertex_data_profiles
 !
@@ -168,6 +188,8 @@ contains
         if (allocated(triangles_2d)) deallocate(triangles_2d)
         if (allocated(R_2d)) deallocate(R_2d, Z_2d, A_R_2d, A_phi_2d, A_Z_2d, B_R_2d, B_phi_2d, &
                                         B_Z_2d, Bmod_2d, Phi_2d, n_2d, T_i_2d, T_e_2d, mesh_label_2d)
+        if (allocated(dn_dA_phi_2d)) deallocate(dn_dA_phi_2d, dT_i_dA_phi_2d, dT_e_dA_phi_2d)
+        boole_profile_gradients = .false.
         n_vertices_2d = 0
         n_triangles_2d = 0
 !
