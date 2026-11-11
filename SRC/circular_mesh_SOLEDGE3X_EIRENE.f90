@@ -18,7 +18,7 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
 !
     integer :: file_id_knots
     integer, dimension(2) :: shape_knots
-    character(70) :: filename_knots
+    character(256) :: filename_knots
     double precision, dimension(:,:),allocatable :: knots_SOLEDGE3X_EIRENE
 !
     integer :: n_verts,phi_position, i
@@ -28,7 +28,7 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
     filename_knots = knots_SOLEDGE3X_EIRENE_filename
 !
     !Load knots -> no internal grid generation in 2D needed
-    open(newunit=file_id_knots, file=filename_knots, status='unknown')
+    open(newunit=file_id_knots, file=trim(filename_knots), status='unknown')
     read(file_id_knots,*) shape_knots
     allocate(knots_SOLEDGE3X_EIRENE(shape_knots(1),shape_knots(2)))
     do i = 1,shape_knots(1)
@@ -77,7 +77,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
 !
     integer :: file_id_triangles, iunit
     integer, dimension(2) :: shape_triangles
-    character(70) :: filename_triangles
+    character(256) :: filename_triangles
     integer, dimension(:,:), allocatable :: triangle_type, old_triangle_type
 !
     integer, dimension(4, 6) :: tetra_conf, mask_theta, mask_phi, mask_r
@@ -103,7 +103,7 @@ endif
     filename_triangles = triangles_SOLEDGE3X_EIRENE_filename
 !
     !Load triangles (triples of vertex indices)
-    open(newunit=file_id_triangles, file=filename_triangles, status='unknown')
+    open(newunit=file_id_triangles, file=trim(filename_triangles), status='unknown')
     read(file_id_triangles,*) shape_triangles
     allocate(triangles_SOLEDGE3X_EIRENE(shape_triangles(1),shape_triangles(2)))
     do i = 1,shape_triangles(1)

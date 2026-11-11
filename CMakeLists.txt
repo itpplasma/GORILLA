@@ -42,6 +42,12 @@ add_executable(test_gorilla_main.x
 
 target_link_libraries(test_gorilla_main.x GORILLA netcdff netcdf lapack)
 
+# Core dump for PREPROCESSING/EFIT_EDGE_MESH (grid_kind 2 extended to the wall)
+add_executable(dump_mesh_2d.x
+  PREPROCESSING/EFIT_EDGE_MESH/dump_mesh_2d.f90
+)
+target_link_libraries(dump_mesh_2d.x GORILLA netcdff netcdf lapack)
+
 add_executable(test_boozer_chartmap_driver.x
   SRC/TESTS/test_boozer_chartmap_driver.f90
 )
@@ -89,5 +95,17 @@ foreach(cs 1 2)
       WORKING_DIRECTORY ${mesh_dir})
   endforeach()
 endforeach()
+
+# grid_kind 2 on the AUG test equilibrium in cylindrical coordinates: no folds with
+# theta_geom_flux = 2, X-point clustering, magnetic axis from the g-file
+add_executable(test_efit_grid_driver.x
+  SRC/TESTS/test_efit_grid_driver.f90
+)
+target_link_libraries(test_efit_grid_driver.x GORILLA netcdff netcdf lapack)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/efit_grid)
+add_test(NAME efit_grid
+  COMMAND test_efit_grid_driver.x ${CMAKE_CURRENT_SOURCE_DIR}/MHD_EQUILIBRIA
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/efit_grid)
+set_tests_properties(efit_grid PROPERTIES PASS_REGULAR_EXPRESSION "PASS" FAIL_REGULAR_EXPRESSION "FAIL:")
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})

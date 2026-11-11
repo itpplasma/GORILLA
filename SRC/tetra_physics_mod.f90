@@ -148,7 +148,8 @@
       use hamiltonian_time_coefficients_mod, only: hamiltonian_time_coefficients
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
                                 & set_verts_sthetaphi,verts_xyz
-      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,R0_analytic_circ
+      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,R0_analytic_circ,boole_ext_mesh_efit, &
+                                         & boole_extend_to_wall
       use constants, only: pi
       use field_mod, only: ipert
       use various_functions_mod, only: dmatinv3
@@ -202,6 +203,11 @@
       !Deallocate any pre-existing module arrays so a fresh grid can be built without external bookkeeping.
       !phi_elec is preserved when the caller asks for it (self-consistent electric field workflow),
       !in which case the caller is responsible for it being correctly sized for the current nvert.
+      !grid_kind = 2 extended to the wall: there are no flux coordinates outside the separatrix
+      if (boole_extend_to_wall .and. coord_system_in .ne. 1) then
+        print *, "Error: boole_extend_to_wall = .true. (grid_kind = 2 extended to the wall) needs coord_system = 1"
+        error stop
+      endif
       if (allocated(tetra_physics))    deallocate(tetra_physics)
       if (allocated(tetra_skew_coord)) deallocate(tetra_skew_coord)
       if (allocated(hamiltonian_time)) deallocate(hamiltonian_time)
@@ -312,14 +318,22 @@
       !Store cylindrical coordinates and bmod of magnetic axis
       select case(coord_system)
         case(1) !RphiZ --> Cylindrical coordinate system (then only used for safety margin calculation of tau_estimate)
-            print *, 'Magnetic axis for cylindrical coordinates are NOT computed. Magnetic axis is HARD CODED!!!'
             select case(grid_kind)
                 case(2)
-                    mag_axis_R0 = 170.80689536175018d0
-                    mag_axis_Z0 = 8.9514398817462517d0
+                    !EFIT field-aligned grid: magnetic axis (rmaxis, zmaxis) from the g-file header
+                    !(before: hard-coded AUG values 170.8069, 8.9514 cm, also used for other equilibria)
+                    call gfile_magnetic_axis(mag_axis_R0, mag_axis_Z0)
+                    print *, 'Magnetic axis from the g-file: R0, Z0 [cm] =', mag_axis_R0, mag_axis_Z0
                 case(4)
-                    mag_axis_R0 = 240.0d0
-                    mag_axis_Z0 = 0.0d0
+                    if (boole_ext_mesh_efit) then
+                        !EFIT mesh: magnetic axis (rmaxis, zmaxis) from the g-file header
+                        call gfile_magnetic_axis(mag_axis_R0, mag_axis_Z0)
+                        print *, 'Magnetic axis from the g-file: R0, Z0 [cm] =', mag_axis_R0, mag_axis_Z0
+                    else
+                        print *, 'Magnetic axis for cylindrical coordinates is NOT computed: HARD CODED (WEST)!'
+                        mag_axis_R0 = 240.0d0
+                        mag_axis_Z0 = 0.0d0
+                    endif
                 case(5)
                     mag_axis_R0 = R0_analytic_circ
                     mag_axis_Z0 = 0.0d0
@@ -1542,9 +1556,38 @@ enddo
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+      subroutine gfile_magnetic_axis(R0, Z0)
+!
+        !Magnetic axis from an EFIT g-file: line 3 holds rmaxis, zmaxis, simag, sibry, bcentr (5e16.9, in m)
+        use tetra_grid_settings_mod, only: g_file_filename
+!
+        implicit none
+!
+        double precision, intent(out) :: R0, Z0
+        double precision, dimension(5) :: line2
+        integer :: iu, ios
+!
+        open(newunit=iu, file=trim(g_file_filename), status='old', action='read', iostat=ios)
+        if (ios .eq. 0) read(iu, *, iostat=ios)
+        if (ios .eq. 0) read(iu, '(5e16.9)', iostat=ios) line2
+        if (ios .eq. 0) read(iu, '(2e16.9)', iostat=ios) R0, Z0
+        if (ios .ne. 0) then
+          print *, 'Error: cannot read the magnetic axis from the g-file ', trim(g_file_filename)
+          error stop
+        endif
+        close(iu)
+        R0 = R0 * 100.d0  !m -> cm
+        Z0 = Z0 * 100.d0
+!
+      end subroutine gfile_magnetic_axis
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
       subroutine check_tetra_overlaps
 !
         use tetra_grid_mod, only: ntetr, tetra_grid, set_neighbour_face, verts_sthetaphi
+        use tetra_grid_settings_mod, only: grid_kind, theta_geom_flux, theta_xpoint_clustering
+        use gorilla_settings_mod, only: coord_system_check => coord_system
         use constants, only: pi
 !
         implicit none
@@ -1585,6 +1628,30 @@ enddo
           print *, 'Some normal vectors are invalid: &
           & Some opposing normal vectors of neighbouring tetrahedra with shared face are pointing in the "same" direction.'
           print *, 'Error counter: ', counter_wrong_cases
+!
+          !grid_kind = 2: overlapping tetrahedra mean the field-aligned grid folds in the coordinates
+          !used for the physics. Near the separatrix this depends on how the poloidal points are placed:
+          !theta_geom_flux = 1 (equidistant in the flux angle) folds in cylindrical coordinates,
+          !theta_geom_flux = 2 (equidistant in the geometrical angle) folds in flux coordinates.
+          !Orbits would silently stop at the invalid faces, so the run is stopped.
+          if (grid_kind .eq. 2) then
+            print *, 'Error: the grid_kind = 2 mesh overlaps itself (folded tetrahedra), coord_system =', &
+                     coord_system_check, ', theta_geom_flux =', theta_geom_flux
+            if (coord_system_check .eq. 1 .and. theta_geom_flux .eq. 1) then
+              print *, '  Use theta_geom_flux = 2 in tetra_grid.inp for cylindrical coordinates (poloidal points', &
+                       ' equidistant in the geometrical angle); with theta_geom_flux = 1 the outer rings fold', &
+                       ' near the separatrix.'
+            elseif (coord_system_check .eq. 2 .and. theta_geom_flux .eq. 2) then
+              print *, '  Use theta_geom_flux = 1 in tetra_grid.inp for flux coordinates (poloidal points', &
+                       ' equidistant in the flux angle); with theta_geom_flux = 2 the outer rings fold in (s,theta).'
+            elseif (theta_xpoint_clustering .gt. 0.d0) then
+              print *, '  Reduce theta_xpoint_clustering (currently', theta_xpoint_clustering, ')', &
+                       ' or reduce sfc_s_max / increase n3.'
+            else
+              print *, '  Reduce sfc_s_max or increase n3.'
+            endif
+            error stop
+          endif
         endif
 !        
       end subroutine check_tetra_overlaps
