@@ -1,7 +1,8 @@
 ! grid_kind 2 on the AUG test equilibrium (MHD_EQUILIBRIA/g_file_for_test):
 !   fold_cs1      coord_system 1 + theta_geom_flux 1 folds near the separatrix -> run stops with a hint
 !   fold_cs2      coord_system 2 + theta_geom_flux 2 folds                     -> run stops with a hint
-!   clustering    theta_xpoint_clustering: no folds, much finer spacing of the last ring at the X-point
+!   clustering    theta_xpoint_clustering: no folds, much finer spacing of the last ring at the X-point;
+!                 magnetic axis (coord_system 1) from the g-file
 !   wall_missing  boole_extend_to_wall without a mesh                           -> run stops, prints the command
 !   wall          boole_extend_to_wall with a mesh built by make_edge_mesh.sh: core flags, valid faces,
 !                 magnetic axis from the g-file
@@ -81,6 +82,10 @@ contains
         d_mean = d_mean/nring
         d_x = 0.5_dp*(dist(idx(i0), idx(modulo(i0, nring) + 1)) + dist(idx(i0), idx(modulo(i0 - 2, nring) + 1)))
         print '(a,f8.3,a,f8.3,a)', ' last ring: spacing at the X-point ', d_x, ' cm, mean ', d_mean, ' cm'
+        if (abs(mag_axis_R0 - 170.8519220_dp) > 1.0e-6_dp .or. abs(mag_axis_Z0 - 8.922428638_dp) > 1.0e-6_dp) then
+            print *, 'FAIL: magnetic axis', mag_axis_R0, mag_axis_Z0
+            error stop 1
+        end if
         if (d_x > 0.35_dp*d_mean) then
             print *, 'FAIL: clustering did not refine the X-point region'
             error stop 1

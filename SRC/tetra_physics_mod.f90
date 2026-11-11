@@ -320,9 +320,10 @@
         case(1) !RphiZ --> Cylindrical coordinate system (then only used for safety margin calculation of tau_estimate)
             select case(grid_kind)
                 case(2)
-                    print *, 'Magnetic axis for cylindrical coordinates is NOT computed: HARD CODED (AUG)!'
-                    mag_axis_R0 = 170.80689536175018d0
-                    mag_axis_Z0 = 8.9514398817462517d0
+                    !EFIT field-aligned grid: magnetic axis (rmaxis, zmaxis) from the g-file header
+                    !(before: hard-coded AUG values 170.8069, 8.9514 cm, also used for other equilibria)
+                    call gfile_magnetic_axis(mag_axis_R0, mag_axis_Z0)
+                    print *, 'Magnetic axis from the g-file: R0, Z0 [cm] =', mag_axis_R0, mag_axis_Z0
                 case(4)
                     if (boole_ext_mesh_efit) then
                         !EFIT mesh: magnetic axis (rmaxis, zmaxis) from the g-file header
