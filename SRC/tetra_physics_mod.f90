@@ -318,17 +318,18 @@
       !Store cylindrical coordinates and bmod of magnetic axis
       select case(coord_system)
         case(1) !RphiZ --> Cylindrical coordinate system (then only used for safety margin calculation of tau_estimate)
-            print *, 'Magnetic axis for cylindrical coordinates are NOT computed. Magnetic axis is HARD CODED!!!'
             select case(grid_kind)
                 case(2)
+                    print *, 'Magnetic axis for cylindrical coordinates is NOT computed: HARD CODED (AUG)!'
                     mag_axis_R0 = 170.80689536175018d0
                     mag_axis_Z0 = 8.9514398817462517d0
                 case(4)
                     if (boole_ext_mesh_efit) then
-                        !EFIT mesh (same hard-coded AUG axis as grid_kind = 2)
-                        mag_axis_R0 = 170.80689536175018d0
-                        mag_axis_Z0 = 8.9514398817462517d0
+                        !EFIT mesh: magnetic axis (rmaxis, zmaxis) from the g-file header
+                        call gfile_magnetic_axis(mag_axis_R0, mag_axis_Z0)
+                        print *, 'Magnetic axis from the g-file: R0, Z0 [cm] =', mag_axis_R0, mag_axis_Z0
                     else
+                        print *, 'Magnetic axis for cylindrical coordinates is NOT computed: HARD CODED (WEST)!'
                         mag_axis_R0 = 240.0d0
                         mag_axis_Z0 = 0.0d0
                     endif
@@ -1551,6 +1552,33 @@ enddo
         end select
 !
       end function metric_determinant
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+      subroutine gfile_magnetic_axis(R0, Z0)
+!
+        !Magnetic axis from an EFIT g-file: line 3 holds rmaxis, zmaxis, simag, sibry, bcentr (5e16.9, in m)
+        use tetra_grid_settings_mod, only: g_file_filename
+!
+        implicit none
+!
+        double precision, intent(out) :: R0, Z0
+        double precision, dimension(5) :: line2
+        integer :: iu, ios
+!
+        open(newunit=iu, file=trim(g_file_filename), status='old', action='read', iostat=ios)
+        if (ios .eq. 0) read(iu, *, iostat=ios)
+        if (ios .eq. 0) read(iu, '(5e16.9)', iostat=ios) line2
+        if (ios .eq. 0) read(iu, '(2e16.9)', iostat=ios) R0, Z0
+        if (ios .ne. 0) then
+          print *, 'Error: cannot read the magnetic axis from the g-file ', trim(g_file_filename)
+          error stop
+        endif
+        close(iu)
+        R0 = R0 * 100.d0  !m -> cm
+        Z0 = Z0 * 100.d0
+!
+      end subroutine gfile_magnetic_axis
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
