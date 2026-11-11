@@ -12,6 +12,7 @@
 #   DUMP_X       dump_mesh_2d.x (default: $GORILLA_DIR/BUILD/dump_mesh_2d.x)
 #   GFILE        g-file, relative to the run directory (default MHD_EQUILIBRIA/g_file_for_test)
 #   PYTHON       python with numpy scipy matplotlib contourpy triangle (default: python3)
+#   CORE_EXTRA   extra TETRA_GRID_NML entries for the core, e.g. 'theta_xpoint_clustering = 0.5 ,'
 # example: make_edge_mesh.sh mesh_100x120 100 120 1e-3 -- --fill-axis --xref-radius 12 --plot
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -19,6 +20,7 @@ GORILLA_DIR=${GORILLA_DIR:-$(cd "$HERE/../.." && pwd)}
 DUMP_X=${DUMP_X:-$GORILLA_DIR/BUILD/dump_mesh_2d.x}
 GFILE=${GFILE:-MHD_EQUILIBRIA/g_file_for_test}
 PYTHON=${PYTHON:-python3}
+CORE_EXTRA=${CORE_EXTRA:-}
 
 OUT=$1; N1=$2; N3=$3; shift 3
 SMIN=0.1
@@ -40,6 +42,7 @@ cat > "$RUN/tetra_grid.inp" <<EOF
  netcdf_filename = 'MHD_EQUILIBRIA/netcdf_file_for_test.nc' ,
  boole_n_field_periods = .true. , n_field_periods_manual = 1 ,
  boole_write_mesh_obj = .false. ,
+ $CORE_EXTRA
  filename_mesh_rphiz = 'mesh_rphiz.obj' , filename_mesh_sthetaphi = 'mesh_sthetaphi.obj' ,
 /
 EOF

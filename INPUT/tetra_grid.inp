@@ -46,12 +46,23 @@
  !Option for $\theta$-variable being used in grid
  ! 1 ... theta scaling in symmetry flux coordinates
  ! 2 ... theta scaling in geometrical theta angle
+ ! grid_kind = 2 near the separatrix: use 1 with coord_system = 2 and 2 with coord_system = 1
+ ! (the other combinations fold; GORILLA then stops at the overlap check)
  theta_geom_flux = 1 ,
 !
  !Option for $\theta$-variable origin
  ! .true. $\theta$-variable starts at the line between O- and X-Point
  ! .false. $\theta$-variable starts at the line between O-Point and intersection between O-Point-[1,0]-straight-line and separatrix
  theta0_at_xpoint = .true. ,
+!
+ !grid_kind = 2: cluster the poloidal grid points toward the X-point (needs theta0_at_xpoint = .true.)
+ ! theta_xpoint_clustering a: 0 ... off (default), a in [0,1): point spacing reduced by up to the factor (1-a)
+ ! theta_xpoint_clustering_width w in (0,0.25]: width of the clustered region as a fraction of a full turn
+ ! (Gaussian). Spacing at the X-point ~ (1-a)/(1-a*w*sqrt(pi)) * mean spacing, elsewhere 1/(1-a*w*sqrt(pi)) *.
+ ! Note: use theta_geom_flux = 2 with coord_system = 1 and theta_geom_flux = 1 with coord_system = 2;
+ ! the other combinations fold near the separatrix and GORILLA stops at the overlap check.
+ theta_xpoint_clustering = 0.d0 ,
+ theta_xpoint_clustering_width = 0.1d0 ,
 !
 !------------------------------------------------------------------------------------------------------------!
 !

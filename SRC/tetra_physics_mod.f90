@@ -1551,6 +1551,8 @@ enddo
       subroutine check_tetra_overlaps
 !
         use tetra_grid_mod, only: ntetr, tetra_grid, set_neighbour_face, verts_sthetaphi
+        use tetra_grid_settings_mod, only: grid_kind, theta_geom_flux, theta_xpoint_clustering
+        use gorilla_settings_mod, only: coord_system_check => coord_system
         use constants, only: pi
 !
         implicit none
@@ -1591,6 +1593,30 @@ enddo
           print *, 'Some normal vectors are invalid: &
           & Some opposing normal vectors of neighbouring tetrahedra with shared face are pointing in the "same" direction.'
           print *, 'Error counter: ', counter_wrong_cases
+!
+          !grid_kind = 2: overlapping tetrahedra mean the field-aligned grid folds in the coordinates
+          !used for the physics. Near the separatrix this depends on how the poloidal points are placed:
+          !theta_geom_flux = 1 (equidistant in the flux angle) folds in cylindrical coordinates,
+          !theta_geom_flux = 2 (equidistant in the geometrical angle) folds in flux coordinates.
+          !Orbits would silently stop at the invalid faces, so the run is stopped.
+          if (grid_kind .eq. 2) then
+            print *, 'Error: the grid_kind = 2 mesh overlaps itself (folded tetrahedra), coord_system =', &
+                     coord_system_check, ', theta_geom_flux =', theta_geom_flux
+            if (coord_system_check .eq. 1 .and. theta_geom_flux .eq. 1) then
+              print *, '  Use theta_geom_flux = 2 in tetra_grid.inp for cylindrical coordinates (poloidal points', &
+                       ' equidistant in the geometrical angle); with theta_geom_flux = 1 the outer rings fold', &
+                       ' near the separatrix.'
+            elseif (coord_system_check .eq. 2 .and. theta_geom_flux .eq. 2) then
+              print *, '  Use theta_geom_flux = 1 in tetra_grid.inp for flux coordinates (poloidal points', &
+                       ' equidistant in the flux angle); with theta_geom_flux = 2 the outer rings fold in (s,theta).'
+            elseif (theta_xpoint_clustering .gt. 0.d0) then
+              print *, '  Reduce theta_xpoint_clustering (currently', theta_xpoint_clustering, ')', &
+                       ' or reduce sfc_s_max / increase n3.'
+            else
+              print *, '  Reduce sfc_s_max or increase n3.'
+            endif
+            error stop
+          endif
         endif
 !        
       end subroutine check_tetra_overlaps

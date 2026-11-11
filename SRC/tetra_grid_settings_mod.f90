@@ -59,6 +59,14 @@
     !Option for $\theta$-variable origin
     logical, public, protected :: theta0_at_xpoint
 !
+    !grid_kind = 2: cluster the poloidal grid points toward the X-point (needs theta0_at_xpoint).
+    !The local point spacing (as a fraction of theta) is proportional to 1 - a*exp(-(t/w)^2), t = distance
+    !to the X-point direction in units of a full turn, a = theta_xpoint_clustering in [0,1),
+    !w = theta_xpoint_clustering_width in (0,0.25]. Spacing at the X-point: (1-a)/(1-a*w*sqrt(pi))
+    !times the mean spacing; far from it: 1/(1-a*w*sqrt(pi)) times the mean spacing.
+    double precision, public, protected :: theta_xpoint_clustering = 0.d0
+    double precision, public, protected :: theta_xpoint_clustering_width = 0.1d0
+!
     !Axisymmetric equilibrium type (reader variable)
     integer, public, protected :: iaxieq_in
 !
@@ -94,6 +102,7 @@
                             & i_radial_spacing, &
                             & boole_axisymmetric_only, boole_ext_mesh_efit, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
+                            & theta_xpoint_clustering, theta_xpoint_clustering_width, &
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
                             & knots_SOLEDGE3X_EIRENE_filename, triangles_SOLEDGE3X_EIRENE_filename, &
                             & R0_analytic_circ, a_analytic_circ, B0_analytic_circ, q0_analytic_circ, q1_analytic_circ, &
@@ -118,6 +127,26 @@
                 print *, 'Error: sfc_s_max must satisfy sfc_s_min < sfc_s_max <= 1.0d0'
                 print *, '  sfc_s_min =', sfc_s_min, '  sfc_s_max =', sfc_s_max
                 error stop
+            endif
+!
+            if (theta_xpoint_clustering .ne. 0.d0) then
+                if (theta_xpoint_clustering .lt. 0.d0 .or. theta_xpoint_clustering .ge. 1.d0) then
+                    print *, 'Error: theta_xpoint_clustering must satisfy 0 <= theta_xpoint_clustering < 1'
+                    error stop
+                endif
+                if (theta_xpoint_clustering_width .le. 0.d0 .or. theta_xpoint_clustering_width .gt. 0.25d0) then
+                    print *, 'Error: theta_xpoint_clustering_width must satisfy 0 < width <= 0.25'
+                    error stop
+                endif
+                if (grid_kind .ne. 2) then
+                    print *, 'Error: theta_xpoint_clustering is only implemented for grid_kind = 2'
+                    error stop
+                endif
+                if (.not. theta0_at_xpoint) then
+                    print *, 'Error: theta_xpoint_clustering needs theta0_at_xpoint = .true. ', &
+                             '(theta = 0 must point to the X-point)'
+                    error stop
+                endif
             endif
 !
             !Set axisymmetric equilibrium type
