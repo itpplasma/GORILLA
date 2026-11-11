@@ -173,9 +173,23 @@ def main():
     ap.add_argument("--hmax", type=float, default=4.0, help="max vertex spacing along contours [cm]")
     ap.add_argument("--hgrad", type=float, default=0.15, help="growth of spacing with distance from X-point")
     ap.add_argument("--minangle", type=float, default=0.0, help="Triangle quality: min angle [deg] (0 = off)")
+    ap.add_argument("--leg-aspect", type=float, default=0.5,
+                    help="min contour spacing on the leg cuts in units of the local vertex spacing h")
+    ap.add_argument("--leg-cuts", type=float, nargs="+", default=[0.25, 0.5, 0.75, 0.95],
+                    help="positions of the cuts along each leg (fraction of the leg length from the X-point)")
     ap.add_argument("--no-legs", action="store_true", help="do not add the separatrix legs as constraints")
     ap.add_argument("--core", choices=["native", "cdt"], default="native",
                     help="native: keep grid_kind 2 triangles inside the last ring; cdt: re-triangulate")
+    ap.add_argument("--xref-radius", type=float, default=0.0,
+                    help="refine the edge triangles within this distance of the X-point [cm] (0 = off)")
+    ap.add_argument("--xref-h", type=float, default=0.5, help="target triangle size at the X-point [cm]")
+    ap.add_argument("--fill-axis", action="store_true",
+                    help="close the hole inside the innermost grid_kind 2 ring (axis point + triangles)")
+    ap.add_argument("--gap-min", type=float, default=0.07,
+                    help="every contour keeps a gap >= gap_min*h to its neighbour level everywhere "
+                         "(0.07 ~ 8 deg minimum angle between contours)")
+    ap.add_argument("--snap", type=float, default=0.3,
+                    help="contour end points closer than snap*h to a limiter corner are moved onto it")
     ap.add_argument("--plot", action="store_true")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
@@ -213,8 +227,40 @@ def main():
         d = np.linalg.norm(np.atleast_2d(p) - xpt, axis=1)
         return np.clip(a.hmin + a.hgrad * d, a.hmin, a.hmax)
 
-    # ---- contour levels: SOL measured along the outboard midplane from the last ring,
-    #      PFR measured downward from the X-point.
+    # ---- contour lines on a fine grid (needed first: the separatrix legs define the cuts)
+    Rg = np.linspace(lim[:, 0].min() - 2, lim[:, 0].max() + 2, 900)
+    Zg = np.linspace(lim[:, 1].min() - 2, lim[:, 1].max() + 2, 1600)
+    RR, ZZ = np.meshgrid(Rg, Zg)
+    PN = eq.psin(RR, ZZ)
+    gen = contourpy.contour_generator(Rg, Zg, PN, line_type="Separate")
+
+    # separatrix legs: psi_N = 1 below the X-point, away from the X-point, reaching the limiter
+    legs = []
+    for line in gen.lines(1.0):
+        if len(line) < 3:
+            continue
+        dx = np.linalg.norm(line - xpt, axis=1)
+        below = (line[:, 1] < xpt[1] - 0.5 * a.hmin) & (dx > 3 * a.hmin)
+        idx = np.where(below)[0]
+        if len(idx) == 0:
+            continue
+        breaks = np.where(np.diff(idx) > 1)[0]
+        for part in np.split(idx, breaks + 1):
+            sub = line[part]
+            if len(sub) < 3:
+                continue
+            for pts, sh, eh in clip_polyline(sub, lim, lim_path):
+                if sh is None and eh is None:
+                    continue
+                legs.append((pts, sh, eh))
+
+    # ---- contour levels.
+    # Each level is placed so that its distance to the previous level is at least
+    #   * d_k (d1 * growth^k, capped at dmax) on the outboard midplane (SOL; measured from the
+    #     last core ring) and on a vertical line below the X-point (PFR), and
+    #   * max(d_k, leg_aspect * h) on cuts normal to each separatrix leg (SOL and PFR side),
+    #     h = local vertex spacing along the contours.
+    # The leg cuts stop the contours from bunching along the legs (thin triangles).
     zmid = eq.zaxis
     rr = np.linspace(eq.raxis, eq.lim[:, 0].max() + 30, 4000)
     pn_mid = eq.psin(rr, np.full_like(rr, zmid))
@@ -230,42 +276,120 @@ def main():
     print("outboard midplane: R_ring=%.3f R_sep=%.3f; last inner radial spacing %.3f cm; d1=%.3f" %
           (r_ring, r_sep, d_last, d1))
 
-    # SOL levels: until beyond the max psi_N inside the limiter
+    def monotone_cut(p0, direc, length, sign):
+        """psi_N along p0 + u*direc, u in [0, length], kept while inside the limiter and
+        monotone (increasing for sign=+1, decreasing for -1). Returns (u, psin) or None."""
+        u = np.linspace(0, length, 2000)
+        P = p0[None, :] + u[:, None] * direc[None, :]
+        pn = eq.psin(P[:, 0], P[:, 1])
+        ins = lim_path.contains_points(P)
+        ok = ins & np.concatenate([[True], sign * np.diff(pn) > 0])
+        n = len(ok) if ok.all() else int(np.argmin(ok))
+        if n < 5:
+            return None
+        return u[:n], pn[:n]
+
+    cuts = {"sol": [], "pfr": []}  # (u, psin, required spacing as function of d_k, name)
+    um = rr - r_ring
+    msk = um >= 0
+    cuts["sol"].append((um[msk], pn_mid[msk], lambda d: d, "outboard midplane"))
+    c = monotone_cut(np.asarray(xpt, float), np.array([0.0, -1.0]), xpt[1] - eq.lim[:, 1].min(), -1)
+    if c is not None:  # vertical line below the X-point, inside the limiter
+        cuts["pfr"].append((c[0], c[1], lambda d: d, "below X-point"))
+    for il, (pts, sh, eh) in enumerate(legs):
+        sarc = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])
+        # parametrise from the X-point end
+        if np.linalg.norm(pts[0] - xpt) > np.linalg.norm(pts[-1] - xpt):
+            pts, sarc = pts[::-1], sarc[-1] - sarc[::-1]
+        for f in a.leg_cuts:
+            sf = f * sarc[-1]
+            p = np.array([np.interp(sf, sarc, pts[:, 0]), np.interp(sf, sarc, pts[:, 1])])
+            j = min(max(np.searchsorted(sarc, sf), 1), len(pts) - 1)
+            t = pts[j] - pts[j - 1]
+            t = t / np.linalg.norm(t)
+            nrm = np.array([-t[1], t[0]])
+            hloc = float(hfun(p)[0])
+            for side, sgn in (("sol", +1), ("pfr", -1)):
+                # normal direction in which psi_N increases (sol) / decreases (pfr)
+                test = float(eq.psin(*(p + 0.2 * nrm)))
+                direc = nrm if (test - 1.0) * sgn > 0 else -nrm
+                c = monotone_cut(p, direc, 40.0, sgn)
+                if c is not None:
+                    cuts[side].append((c[0], c[1], (lambda hh: (lambda d: max(d, a.leg_aspect * hh)))(hloc),
+                                       "leg %d at %.0f%%" % (il, 100 * f)))
+
+    def lim_dist(P):
+        """distance of points P (n,2) to the limiter polygon"""
+        a0, ab = lim[:-1], lim[1:] - lim[:-1]
+        best = np.full(len(P), np.inf)
+        for k in range(len(a0)):
+            t = np.clip(((P - a0[k]) @ ab[k]) / (ab[k] @ ab[k]), 0, 1)
+            best = np.minimum(best, np.linalg.norm(a0[k] + t[:, None] * ab[k] - P, axis=1))
+        return best
+
+    def level_points(lv):
+        """points of the psi_N = lv contour inside the limiter, outside the core ring, and
+        more than h away from the limiter (contours are trimmed there anyway)"""
+        L = [ln for ln in gen.lines(lv) if len(ln) > 1]
+        if not L:
+            return np.zeros((0, 2))
+        P = np.vstack(L)
+        P = P[lim_path.contains_points(P) & ~ring_path.contains_points(P)]
+        if len(P):
+            P = P[lim_dist(P) > hfun(P)]
+        return P
+
+    from scipy.spatial import cKDTree
+
+    def spacing_ok(lv, prev):
+        """min over the contour of dist(contour lv, contour prev) / (gap_min * h) >= 1 ?"""
+        A, B = level_points(lv), level_points(prev)
+        if len(A) == 0 or len(B) == 0:
+            return True
+        dist, _ = cKDTree(B).query(A)
+        return np.min(dist / (a.gap_min * hfun(A))) >= 1.0
+
+    def choose_levels(side, start_level, stop):
+        sgn = 1 if side == "sol" else -1
+        levels, d, prev = [], d1, start_level
+        while True:
+            cand = []
+            for u, pn, req, name in cuts[side]:
+                if (prev - pn[-1]) * sgn >= 0:
+                    continue  # previous level already beyond the end of this cut
+                # previous level before the start of the cut (e.g. the core ring): measure from the start
+                upos = 0.0 if (prev - pn[0]) * sgn <= 0 else np.interp(prev * sgn, pn * sgn, u)
+                target = upos + req(d)
+                if target > u[-1]:
+                    continue
+                cand.append(np.interp(target, u, pn))
+            if not cand:
+                break
+            lv = float(max(cand) if sgn > 0 else min(cand))
+            if os.environ.get("MESHDBG"): print(side, "prev %.5f d %.3f" % (prev, d), "cand", np.round(cand, 5))
+            # widen the step until the new contour keeps its distance to the previous one
+            # everywhere (not only on the cuts); the first level is checked against the separatrix
+            ref = prev if (prev - 1.0) * sgn > 0 else 1.0
+            for _ in range(40):
+                if (lv - stop) * sgn > 0 or spacing_ok(lv, ref):
+                    break
+                lv = ref + (lv - ref) * 1.15
+            if (lv - stop) * sgn > 0:
+                break
+            if abs(lv - 1.0) > 1e-4:
+                levels.append(lv)
+            prev = lv
+            d = min(d * a.growth, a.dmax)
+        return levels
+
     pmax = max(eq.psin(lim[:, 0], lim[:, 1]).max(), 1.0) + 1e-3
-    sol_levels, d, rpos = [], d1, r_ring
-    # first SOL contour at distance d1 from the ring, then geometric
-    while True:
-        rpos = rpos + d
-        lv = float(eq.psin(rpos, zmid))
-        if lv > pmax:
-            break
-        if lv > 1.0 + 1e-4:
-            sol_levels.append(lv)
-        d = min(d * a.growth, a.dmax)
-    # PFR levels: along a vertical line downward from the X-point
-    zz = np.linspace(xpt[1], eq.lim[:, 1].min() - 5, 3000)
-    pn_v = eq.psin(np.full_like(zz, xpt[0]), zz)
     pmin = eq.psin(lim[:, 0], lim[:, 1]).min()
-    pfr_levels, d, zpos = [], d1, xpt[1]
-    while True:
-        zpos -= d
-        if zpos < zz[-1]:
-            break
-        lv = float(np.interp(zpos, zz[::-1], pn_v[::-1]))
-        if lv < pmin:
-            break
-        if lv < 1.0 - 1e-4:
-            pfr_levels.append(lv)
-        d = min(d * a.growth, a.dmax)
+    sol_levels = choose_levels("sol", float(psin_ring.mean()), pmax)
+    pfr_levels = choose_levels("pfr", 1.0, pmin)
+    print("cuts: SOL %d, PFR %d (leg cuts at %s of each of %d legs)" %
+          (len(cuts["sol"]), len(cuts["pfr"]), a.leg_cuts, len(legs)))
     print("SOL levels (%d):" % len(sol_levels), np.round(sol_levels, 4))
     print("PFR levels (%d):" % len(pfr_levels), np.round(pfr_levels, 4))
-
-    # ---- contour lines on a fine grid
-    Rg = np.linspace(lim[:, 0].min() - 2, lim[:, 0].max() + 2, 900)
-    Zg = np.linspace(lim[:, 1].min() - 2, lim[:, 1].max() + 2, 1600)
-    RR, ZZ = np.meshgrid(Rg, Zg)
-    PN = eq.psin(RR, ZZ)
-    gen = contourpy.contour_generator(Rg, Zg, PN, line_type="Separate")
 
     constraint_lines = []  # (points, start_hit, end_hit, label)
 
@@ -295,27 +419,8 @@ def main():
     for lv in pfr_levels:
         add_level(lv, "pfr")
     if not a.no_legs:
-        # separatrix legs: psi_N = 1 contour below the X-point, away from the X-point itself
-        lv = 1.0
-        for line in gen.lines(lv):
-            if len(line) < 3:
-                continue
-            dx = np.linalg.norm(line - xpt, axis=1)
-            below = (line[:, 1] < xpt[1] - 0.5 * a.hmin) & (dx > 3 * a.hmin)
-            # split into runs where below is true
-            idx = np.where(below)[0]
-            if len(idx) == 0:
-                continue
-            breaks = np.where(np.diff(idx) > 1)[0]
-            for part in np.split(idx, breaks + 1):
-                sub = line[part]
-                if len(sub) < 3:
-                    continue
-                for pts, sh, eh in clip_polyline(sub, lim, lim_path):
-                    # keep only legs that reach the limiter (one end hit)
-                    if sh is None and eh is None:
-                        continue
-                    constraint_lines.append((pts, sh, eh, "leg"))
+        for pts, sh, eh in legs:
+            constraint_lines.append((pts, sh, eh, "leg"))
 
     # ---- assemble the PSLG
     if a.core == "native":
@@ -377,11 +482,35 @@ def main():
         n_lines += 1
     print("constraint lines used: %d" % n_lines)
 
+    # contour end points that land closer than snap*h to a limiter corner are moved onto the
+    # corner (otherwise corner + end point form a needle triangle)
+    nedge = len(lim) - 1
+    snapped = set()
+    for k in range(nedge):
+        L = np.linalg.norm(lim[k + 1] - lim[k])
+        moved = []
+        for u, vid in list(lim_extra[k]):
+            hh = float(hfun(verts[vid])[0])
+            if u * L < a.snap * hh and k not in snapped:
+                verts[vid] = lim[k].copy()
+                snapped.add(k)
+                moved.append(((u, vid), k, 0.0))
+            elif (1 - u) * L < a.snap * hh and (k + 1) % nedge not in snapped:
+                verts[vid] = lim[k + 1].copy()
+                snapped.add((k + 1) % nedge)
+                moved.append(((u, vid), (k + 1) % nedge, 0.0))
+        for item, knew, unew in moved:
+            lim_extra[k].remove(item)
+            lim_extra[knew].append((unew, item[1]))
+    if snapped:
+        print("contour end points snapped to limiter corners: %d" % len(snapped))
+
     # limiter polygon, resampled, with contour end points inserted
     lim_ids = []
     for k in range(len(lim) - 1):
         pa, pb = lim[k], lim[k + 1]
-        stops = [(0.0, None)] + sorted(lim_extra[k]) + [(1.0, None)]
+        ex = sorted(lim_extra[k])
+        stops = ([] if ex and ex[0][0] == 0.0 else [(0.0, None)]) + ex + [(1.0, None)]
         for (u0, i0), (u1, i1) in zip(stops[:-1], stops[1:]):
             # start vertex
             if i0 is None:
@@ -446,6 +575,37 @@ def main():
     if nbad:
         raise SystemExit("PSLG has crossing segments; aborting before Triangle")
 
+    if a.xref_radius > 0:
+        # X-point refinement: free (non-contour) points on circles around the X-point with
+        # spacing h_x(r) = xref_h + hgrad * r, kept only where they are at least 0.5 h_x away
+        # from every existing vertex and constraint segment (no slivers against contours),
+        # inside the limiter and outside the core ring.
+        A0, AB = V[S[:, 0]], V[S[:, 1]] - V[S[:, 0]]
+        L2 = np.maximum(np.einsum("ij,ij->i", AB, AB), 1e-30)
+        tree = cKDTree(V)
+        new_pts = [] if ring_path.contains_point(xpt) else [xpt.copy()]
+        r = a.xref_h
+        while r < a.xref_radius:
+            hx = a.xref_h + a.hgrad * r
+            n = max(int(np.ceil(2 * np.pi * r / hx)), 6)
+            ph = 2 * np.pi * (np.arange(n) + 0.5 * (len(new_pts) % 2)) / n
+            for q in xpt + r * np.column_stack([np.cos(ph), np.sin(ph)]):
+                if not lim_path.contains_point(q) or ring_path.contains_point(q):
+                    continue
+                if tree.query(q)[0] < 0.5 * hx:
+                    continue
+                t = np.clip(((q - A0) * AB).sum(1) / L2, 0, 1)
+                if np.min(np.linalg.norm(A0 + t[:, None] * AB - q, axis=1)) < 0.5 * hx:
+                    continue
+                if new_pts and np.min(np.linalg.norm(np.array(new_pts) - q, axis=1)) < 0.7 * hx:
+                    continue
+                new_pts.append(q)
+            r += hx
+        if new_pts:
+            V = np.vstack([V, new_pts])
+        print("X-point refinement (r < %.1f cm, h = %.2f cm at the X-point): %d free points added"
+              % (a.xref_radius, a.xref_h, len(new_pts)))
+
     pslg = dict(vertices=V, segments=S, segment_markers=seg_marks[:, None],
                 holes=np.array([[eq.raxis, eq.zaxis]]))
     opts = "pY" + ("q%g" % a.minangle if a.minangle > 0 else "")
@@ -464,11 +624,34 @@ def main():
     else:
         RZ_all, T_all = Vo, To
         region = np.where(ring_path.contains_points(RZ_all[T_all].mean(axis=1)), 0, 1)
+    hole_RZ = RZ_in[np.isclose(s_in, s_in.min())]
+    if a.fill_axis:
+        # close the hole around the magnetic axis (only meaningful in cylindrical coordinates):
+        # innermost ring + axis point, triangulated with interior Steiner points only (Y)
+        ids = np.where(np.isclose(s_in, s_in.min()))[0]
+        P = RZ_in[ids]
+        pa = 0.5 * np.sum(P[:, 0] * np.roll(P[:, 1], -1) - np.roll(P[:, 0], -1) * P[:, 1])
+        if pa < 0:
+            ids, P = ids[::-1], P[::-1]
+        n = len(P)
+        hv = dict(vertices=np.vstack([P, [[eq.raxis, eq.zaxis]]]),
+                  segments=np.array([(k, (k + 1) % n) for k in range(n)]))
+        ho = triangle.triangulate(hv, "pYq25")
+        assert np.allclose(ho["vertices"][:n], P)
+        m = np.empty(len(ho["vertices"]), int)
+        m[:n] = ids
+        m[n:] = len(RZ_all) + np.arange(len(ho["vertices"]) - n)
+        RZ_all = np.vstack([RZ_all, ho["vertices"][n:]])
+        T_all = np.vstack([T_all, m[ho["triangles"]]])
+        region = np.concatenate([region, np.full(len(ho["triangles"]), 2)])
+        hole_RZ = None
+        print("axis hole filled: %d triangles, %d new vertices (incl. the axis)"
+              % (len(ho["triangles"]), len(ho["vertices"]) - n))
     nfold = len(__import__("fold_check").folds(RZ_all, T_all))
     print("folded edges in final mesh: %d" % nfold)
     if nfold:
         raise SystemExit("final mesh folds")
-    report = check_mesh(RZ_all, T_all, eq, RZ_in[np.isclose(s_in, s_in.min())])
+    report = check_mesh(RZ_all, T_all, eq, hole_RZ)
     # orient all triangles counter-clockwise
     T_all = orient_ccw(RZ_all, T_all)
 
@@ -483,7 +666,7 @@ def main():
         for t in T_all + 1:
             f.write("%d %d %d\n" % tuple(t))
     np.savetxt(os.path.join(a.outdir, "triangle_region.dat"), region, fmt="%d",
-               header="0 = grid_kind 2 inner mesh, 1 = edge extension")
+               header="0 = grid_kind 2 inner mesh, 1 = edge extension, 2 = axis fill")
     with open(os.path.join(a.outdir, "mesh_report.txt"), "w") as f:
         f.write(" ".join(sys.argv) + "\n")
         for k, v in report.items():
@@ -565,7 +748,7 @@ def check_mesh(P, T, eq, hole_RZ):
     lim = eq.lim
     A_lim = 0.5 * abs(np.sum(lim[:, 0] * np.roll(lim[:, 1], -1) - np.roll(lim[:, 0], -1) * lim[:, 1]))
     H = hole_RZ
-    A_hole = 0.5 * abs(np.sum(H[:, 0] * np.roll(H[:, 1], -1) - np.roll(H[:, 0], -1) * H[:, 1]))
+    A_hole = 0.0 if H is None else 0.5 * abs(np.sum(H[:, 0] * np.roll(H[:, 1], -1) - np.roll(H[:, 0], -1) * H[:, 1]))
     rep["area_limiter_minus_hole_cm2"] = "%.3f" % (A_lim - A_hole)
     return rep
 
@@ -577,11 +760,14 @@ def plot_mesh(P, T, region, eq, outdir, lines):
     from matplotlib.collections import PolyCollection
     for name, box in (("full", None), ("xpoint", (120, 165, -125, -80)), ("outboard", (195, 225, -20, 40))):
         fig, ax = plt.subplots(figsize=(7, 10) if box is None else (8, 8))
-        for reg, col in ((0, "tab:blue"), (1, "tab:red")):
+        for reg, col in ((0, "tab:blue"), (1, "tab:red"), (2, "tab:orange")):
             m = region == reg
             pc = PolyCollection(P[T[m]], facecolors="none", edgecolors=col, linewidths=0.25)
             ax.add_collection(pc)
         ax.plot(*eq.lim.T, "k-", lw=1)
+        for pts, sh, eh, label in lines:
+            ax.plot(*pts.T, "-", color={"leg": "k", "sol": "tab:green", "pfr": "tab:purple"}.get(label, "y"),
+                    lw=0.8 if label == "leg" else 0.5, alpha=0.8)
         ax.plot(*eq.xpt, "kx")
         ax.set_aspect("equal")
         if box:
@@ -591,7 +777,7 @@ def plot_mesh(P, T, region, eq, outdir, lines):
             ax.autoscale_view()
         ax.set_xlabel("R [cm]")
         ax.set_ylabel("Z [cm]")
-        ax.set_title("AUG mesh: grid_kind 2 core (blue) + edge extension (red)")
+        ax.set_title("core (blue) + edge (red); contours: SOL green, PFR purple, legs black", fontsize=9)
         fig.tight_layout()
         fig.savefig(os.path.join(outdir, "mesh_%s.png" % name), dpi=150)
         plt.close(fig)
