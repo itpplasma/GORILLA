@@ -396,7 +396,16 @@
 !
             if (theta_geom_flux .ne. 2) print *, '  Note: the extended mesh runs in cylindrical coordinates; ', &
                 'use theta_geom_flux = 2 (theta_geom_flux = 1 folds near the separatrix).'
-            print *, '  Build a matching mesh once (about 10 s), from this run directory:'
+            print *, ''
+            print *, '  Why: with boole_extend_to_wall = .true. the mesh beyond the separatrix is not built by GORILLA'
+            print *, '  itself but once, beforehand, by a Python generator, and stored in edge_mesh_dir. Each run'
+            print *, '  checks that this stored mesh was built with exactly its own settings.'
+            print *, '  What to do: 1. paste the two lines below into a shell in this run directory; replace <GORILLA>'
+            print *, '  by the path of your GORILLA source tree. The mesh is built into edge_mesh_dir (about 10 s).'
+            if (exists) print *, '  This replaces the mesh there; set another edge_mesh_dir to keep it.'
+            print *, '  2. start this run again; it finds the mesh and uses it. Later runs with the same settings'
+            print *, '  reuse it without rebuilding.'
+            print *, ''
             write(line, '(a)') '    GFILE=$PWD/'//trim(g_file_filename)
             if (sfc_s_max .ne. 1.d0 .or. i_radial_spacing .ne. 1 .or. theta_xpoint_clustering .gt. 0.d0 &
                 .or. theta_geom_flux .ne. 2 .or. .not. theta0_at_xpoint) then
@@ -416,7 +425,10 @@
             write(line, '(a,a,i0,a,i0,a,g0,a,a)') '    <GORILLA>/PREPROCESSING/EFIT_EDGE_MESH/make_edge_mesh.sh ', &
                 trim(edge_mesh_dir)//' ', n1, ' ', n3, ' ', sfc_s_min, ' -- ', trim(collapse_blanks(edge_mesh_options))
             print *, trim(line)
-            print *, '  (see PREPROCESSING/EFIT_EDGE_MESH/README.md; DUMP_X and PYTHON may need to be set)'
+            print *, ''
+            print *, '  If the script fails: set PYTHON to a python with numpy, scipy, matplotlib, contourpy and'
+            print *, '  triangle (pip install), and DUMP_X if GORILLA was not built in <GORILLA>/BUILD.'
+            print *, '  Details: <GORILLA>/PREPROCESSING/EFIT_EDGE_MESH/README.md'
             error stop
 !
             contains
