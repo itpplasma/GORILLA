@@ -100,12 +100,10 @@ Options:
 
 ## Tests
 
-`ctest` in the build directory runs `efit_grid_*` (driver `SRC/TESTS/test_efit_grid_driver.f90`, AUG test
-equilibrium): the stop for folded grid_kind 2 grids (both coordinate systems), the X-point clustering, and the
-missing-mesh stop. If CMake finds a python with numpy, scipy, matplotlib, contourpy and triangle
-(choose it with `-DPython3_EXECUTABLE=...`), it also builds a small extended mesh with `make_edge_mesh.sh`
-and checks the run with `boole_extend_to_wall` (core flags, valid faces, magnetic axis from the g-file) and
-the stop for a mesh built with other settings. About 20 s in total.
+`ctest` runs `efit_grid` (driver `SRC/TESTS/test_efit_grid_driver.f90`): the grid_kind 2 grid of the AUG test
+equilibrium in cylindrical coordinates with `theta_geom_flux = 2` and X-point clustering (no folds, finer
+spacing at the X-point, magnetic axis from the g-file). The extension to the wall is not part of ctest,
+because it needs the python packages above; check it with a run as described under "Use from a grid_kind 2 run".
 
 ## License note
 

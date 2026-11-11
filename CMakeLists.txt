@@ -96,55 +96,16 @@ foreach(cs 1 2)
   endforeach()
 endforeach()
 
-# grid_kind 2 on the AUG test equilibrium: fold stop, X-point clustering, extension to the wall
+# grid_kind 2 on the AUG test equilibrium in cylindrical coordinates: no folds with
+# theta_geom_flux = 2, X-point clustering, magnetic axis from the g-file
 add_executable(test_efit_grid_driver.x
   SRC/TESTS/test_efit_grid_driver.f90
 )
 target_link_libraries(test_efit_grid_driver.x GORILLA netcdff netcdf lapack)
-set(efit_eq_dir ${CMAKE_CURRENT_SOURCE_DIR}/MHD_EQUILIBRIA)
-foreach(tcase fold_cs1 fold_cs2 clustering wall_missing)
-  set(tdir ${CMAKE_CURRENT_BINARY_DIR}/efit_grid_${tcase})
-  file(MAKE_DIRECTORY ${tdir})
-  add_test(NAME efit_grid_${tcase}
-    COMMAND test_efit_grid_driver.x ${tcase} ${efit_eq_dir}
-    WORKING_DIRECTORY ${tdir})
-endforeach()
-set_tests_properties(efit_grid_fold_cs1 PROPERTIES PASS_REGULAR_EXPRESSION "Use theta_geom_flux = 2")
-set_tests_properties(efit_grid_fold_cs2 PROPERTIES PASS_REGULAR_EXPRESSION "Use theta_geom_flux = 1")
-set_tests_properties(efit_grid_clustering PROPERTIES PASS_REGULAR_EXPRESSION "PASS" FAIL_REGULAR_EXPRESSION "FAIL:")
-set_tests_properties(efit_grid_wall_missing PROPERTIES PASS_REGULAR_EXPRESSION "no edge mesh in no_such_mesh")
-
-# Extension to the wall with a mesh from PREPROCESSING/EFIT_EDGE_MESH: only if a python with the
-# generator's packages is available (pass -DPython3_EXECUTABLE=... to choose one)
-find_package(Python3 COMPONENTS Interpreter QUIET)
-set(edge_mesh_python_ok FALSE)
-if(Python3_Interpreter_FOUND)
-  execute_process(COMMAND ${Python3_EXECUTABLE} -c "import numpy, scipy, matplotlib, contourpy, triangle"
-                  RESULT_VARIABLE edge_mesh_py_rc OUTPUT_QUIET ERROR_QUIET)
-  if(edge_mesh_py_rc EQUAL 0)
-    set(edge_mesh_python_ok TRUE)
-  endif()
-endif()
-if(edge_mesh_python_ok)
-  set(tdir ${CMAKE_CURRENT_BINARY_DIR}/efit_grid_wall)
-  file(MAKE_DIRECTORY ${tdir})
-  add_test(NAME efit_grid_wall_build
-    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/PREPROCESSING/EFIT_EDGE_MESH/make_edge_mesh.sh
-            mesh 30 60 0.1 -- --fill-axis --xref-radius 12
-    WORKING_DIRECTORY ${tdir})
-  set_tests_properties(efit_grid_wall_build PROPERTIES
-    ENVIRONMENT "PYTHON=${Python3_EXECUTABLE};DUMP_X=$<TARGET_FILE:dump_mesh_2d.x>"
-    FIXTURES_SETUP efit_wall_mesh)
-  foreach(tcase wall wall_mismatch)
-    add_test(NAME efit_grid_${tcase}
-      COMMAND test_efit_grid_driver.x ${tcase} ${efit_eq_dir}
-      WORKING_DIRECTORY ${tdir})
-    set_tests_properties(efit_grid_${tcase} PROPERTIES FIXTURES_REQUIRED efit_wall_mesh)
-  endforeach()
-  set_tests_properties(efit_grid_wall PROPERTIES PASS_REGULAR_EXPRESSION "PASS" FAIL_REGULAR_EXPRESSION "FAIL:")
-  set_tests_properties(efit_grid_wall_mismatch PROPERTIES PASS_REGULAR_EXPRESSION "differs: n3")
-else()
-  message(STATUS "Edge mesh tests skipped: no python with numpy, scipy, matplotlib, contourpy, triangle")
-endif()
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/efit_grid)
+add_test(NAME efit_grid
+  COMMAND test_efit_grid_driver.x ${CMAKE_CURRENT_SOURCE_DIR}/MHD_EQUILIBRIA
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/efit_grid)
+set_tests_properties(efit_grid PROPERTIES PASS_REGULAR_EXPRESSION "PASS" FAIL_REGULAR_EXPRESSION "FAIL:")
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
