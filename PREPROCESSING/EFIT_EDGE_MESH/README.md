@@ -98,6 +98,14 @@ Options:
 * `--minangle`: Triangle's global quality refinement. Its Steiner points are not on contours,
   so it is off by default.
 
+## Magnetic topology
+
+Only lower single null equilibria are supported. Before building the mesh, the generator looks for all
+points inside the wall contour where grad psi = 0 and stops with a description of what it found unless
+there is exactly one O-point (the magnetic axis of the g-file) and exactly one X-point, which lies on the
+plasma boundary (psi_N = 1) below the axis. Rejected: limited plasmas (no X-point inside the wall), upper
+single null, double null or a second separatrix inside the wall, and islands (additional O-points).
+
 ## Tests
 
 `ctest` runs `efit_grid` (driver `SRC/TESTS/test_efit_grid_driver.f90`): the grid_kind 2 grid of the AUG test
