@@ -97,3 +97,19 @@ Options:
   tiny.
 * `--minangle`: Triangle's global quality refinement. Its Steiner points are not on contours,
   so it is off by default.
+
+## Tests
+
+`ctest` in the build directory runs `efit_grid_*` (driver `SRC/TESTS/test_efit_grid_driver.f90`, AUG test
+equilibrium): the stop for folded grid_kind 2 grids (both coordinate systems), the X-point clustering, and the
+missing-mesh stop. If CMake finds a python with numpy, scipy, matplotlib, contourpy and triangle
+(choose it with `-DPython3_EXECUTABLE=...`), it also builds a small extended mesh with `make_edge_mesh.sh`
+and checks the run with `boole_extend_to_wall` (core flags, valid faces, magnetic axis from the g-file) and
+the stop for a mesh built with other settings. About 20 s in total.
+
+## License note
+
+The generator uses the `triangle` python package, a wrapper of J. R. Shewchuk's Triangle. Triangle is free
+for research and other non-commercial use; commercial use needs a license from its author. It is not part
+of GORILLA and is installed separately (`pip install triangle`).
+
