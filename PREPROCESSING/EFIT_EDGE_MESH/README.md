@@ -22,11 +22,33 @@ for 30x60 and 232 for the example_4 grid (100x30). GORILLA's own check reports
 With `theta_geom_flux = 2` the core has no folds. The generator refuses a folded core;
 `--core cdt` re-triangulates the core instead and keeps its vertices.
 
+## Use from a grid_kind 2 run (recommended)
+
+Set in `tetra_grid.inp` (with `coord_system = 1` in `gorilla.inp`):
+
+    grid_kind = 2 , n1 = 100 , n2 = 60 , n3 = 120 , sfc_s_min = 1.d-3 ,
+    theta_geom_flux = 2 , theta0_at_xpoint = .true. ,
+    theta_xpoint_clustering = 0.9 , theta_xpoint_clustering_width = 0.1 ,   ! optional
+    boole_extend_to_wall = .true. ,
+    edge_mesh_dir = 'mesh' ,
+    edge_mesh_options = '--fill-axis --xref-radius 12' ,
+
+The first run stops and prints the `make_edge_mesh.sh` command that builds a matching mesh into
+`edge_mesh_dir` (about 10 s). Afterwards every run checks that `edge_mesh_dir/edge_mesh.nml` matches
+the grid_kind 2 settings, the g-file (first line and size) and `edge_mesh_options`, and uses the mesh
+through the external-mesh path (internally grid_kind 4 with the EFIT g-file). Several runs can share
+one mesh directory. In the run, `tetra_grid_mod` provides `verts_s_theta_core` (s, theta of the core
+vertices, -1 outside) and `tetra_in_core` (tetrahedra of the flux-aligned core).
+
+Files in the mesh directory: `knots_aug_edge.dat`, `triangles_aug_edge.dat` (mesh),
+`edge_mesh_core.dat` (core s, theta and triangle regions), `edge_mesh.nml` (settings record),
+`mesh_report.txt`, `generator.log`, `core/` (the grid_kind 2 core run).
+
 ## One step
 
 `make_edge_mesh.sh OUTDIR N1 N3 [SFC_S_MIN] [-- generator options]` builds the core with
 GORILLA (grid_kind 2, theta_geom_flux 2) and runs the generator. It needs `dump_mesh_2d.x`
-(step 1 below; path via `DUMP_X`) and a python with the packages below (`PYTHON`). Example:
+(built with GORILLA as `BUILD/dump_mesh_2d.x`; other path via `DUMP_X`) and a python with the packages below (`PYTHON`). Example:
 
     make_edge_mesh.sh mesh_100x120 100 120 1e-3 -- --fill-axis --xref-radius 12 --plot
 
@@ -35,12 +57,11 @@ Timing for AUG g26884 on one core: 30x60 3 s + 3 s, 100x120 5 s + 5 s, 200x240 4
 
 ## Recipe (individual steps)
 
-1. Build GORILLA, then compile the dump driver against it:
-   `gfortran -O2 $GORILLA_INC -I BUILD/SRC dump_mesh_2d.f90 -o dump_mesh_2d.x BUILD/SRC/libGORILLA.a $GORILLA_LINK -lnetcdff -lnetcdf -llapack -fopenmp`
+1. Build GORILLA; this also builds the dump driver `BUILD/dump_mesh_2d.x`.
 2. In a run directory with `field_divB0.inp` and `preload_for_SYNCH.inp` (as in
    EXAMPLES/example_4) and a `tetra_grid.inp` with `grid_kind = 2`, `theta_geom_flux = 2`,
    and the n1/n3 wanted for the core (n2 does not matter), run `dump_mesh_2d.x`. It writes
-   `verts_2d.dat` and `tets_slice1.dat`.
+   `verts_2d.dat`, `tets_slice1.dat` and `core_settings.nml`.
 3. `python aug_edge_mesh.py DUMPDIR GFILE OUTDIR [--plot]`. Needs numpy, scipy,
    matplotlib, contourpy and triangle (pip). It writes `knots_aug_edge.dat`,
    `triangles_aug_edge.dat`, `triangle_region.dat` (0 = core, 1 = edge) and

@@ -10,7 +10,8 @@
 # environment:
 #   GORILLA_DIR  GORILLA source/build tree (default: the tree this script is in)
 #   DUMP_X       dump_mesh_2d.x (default: $GORILLA_DIR/BUILD/dump_mesh_2d.x)
-#   GFILE        g-file, relative to the run directory (default MHD_EQUILIBRIA/g_file_for_test)
+#   GFILE        g-file: absolute path, or relative to the GORILLA tree's MHD_EQUILIBRIA link
+#                (default MHD_EQUILIBRIA/g_file_for_test)
 #   PYTHON       python with numpy scipy matplotlib contourpy triangle (default: python3)
 #   CORE_EXTRA   extra TETRA_GRID_NML entries for the core, e.g. 'theta_xpoint_clustering = 0.5 ,'
 # example: make_edge_mesh.sh mesh_100x120 100 120 1e-3 -- --fill-axis --xref-radius 12 --plot
@@ -33,6 +34,8 @@ RUN=$OUT/core
 EX=$GORILLA_DIR/EXAMPLES/example_4
 cp "$EX/field_divB0.inp" "$EX/preload_for_SYNCH.inp" "$EX/gorilla.inp" "$RUN/"
 ln -sfn "$GORILLA_DIR/MHD_EQUILIBRIA" "$RUN/MHD_EQUILIBRIA"
+# an absolute g-file path is linked into the core directory (GORILLA file names are limited to 64 characters)
+case "$GFILE" in /*) ln -sfn "$GFILE" "$RUN/g_file_linked"; GFILE=g_file_linked ;; esac
 cat > "$RUN/tetra_grid.inp" <<EOF
 &TETRA_GRID_NML
  grid_kind = 2 , n1 = $N1 , n2 = 4 , n3 = $N3 ,

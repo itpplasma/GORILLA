@@ -1,8 +1,9 @@
 ! Build the GORILLA grid from tetra_grid.inp and dump the first toroidal slice:
 !   verts_2d.dat : i, R, Z, (s, theta if available)
 !   tets_slice1.dat : 4 knot indices of every tetrahedron in the first slice
+!   core_settings.nml : grid_kind 2 settings and g-file signature (edge mesh settings record)
 program dump_mesh_2d
-  use tetra_grid_settings_mod, only: load_tetra_grid_inp, n2, grid_kind
+  use tetra_grid_settings_mod, only: load_tetra_grid_inp, n2, grid_kind, write_edge_mesh_core_record
   use tetra_grid_mod, only: make_tetra_grid, verts_rphiz, verts_sthetaphi, tetra_grid, ntetr, nvert
   implicit none
   integer :: i, iu, nvs, nts
@@ -25,5 +26,6 @@ program dump_mesh_2d
     write(iu,'(4i10)') tetra_grid(i)%ind_knot
   end do
   close(iu)
+  call write_edge_mesh_core_record('core_settings.nml')
   print *, 'dumped', nvs, 'verts/slice,', nts, 'tets/slice, grid_kind', grid_kind
 end program

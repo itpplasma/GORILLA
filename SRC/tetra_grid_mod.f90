@@ -19,6 +19,13 @@
     double precision,  dimension(:,:), allocatable, public, protected :: verts_xyz
     double precision,  dimension(:,:), allocatable, public, protected :: verts_sthetaphi
     double precision,  dimension(:), allocatable, public, protected :: verts_theta_vmec
+!
+    !grid_kind = 2 extended to the wall (boole_extend_to_wall): flux coordinates of the flux-aligned core.
+    !verts_s_theta_core(:,i) = (s, theta) of vertex i, (-1,-1) for vertices outside the core (edge, axis fill);
+    !tetra_in_core(i) = .true. if tetrahedron i belongs to the grid_kind 2 core. Inside such a tetrahedron, s
+    !and theta can be interpolated linearly from its vertices (theta: mind the 2 pi seam at theta = 0).
+    double precision,  dimension(:,:), allocatable, public, protected :: verts_s_theta_core
+    logical,  dimension(:), allocatable, public, protected :: tetra_in_core
     integer, public, protected :: ntetr,nvert
     double precision, public, protected :: Rmin,Rmax,Zmin,Zmax
 !
@@ -430,6 +437,7 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
   !
     use constants, only: pi
     use circular_mesh_SOLEDGE3X_EIRENE, only : calc_mesh_SOLEDGE3X_EIRENE, create_points_SOLEDGE3X_EIRENE
+    use tetra_grid_settings_mod, only: boole_extend_to_wall
 !
     implicit none
 !
@@ -455,8 +463,63 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
       tetra_grid(i)%neighbour_face = neighbour_faces(:, i)
       tetra_grid(i)%neighbour_perbou_phi(:) = perbou_phi(:, i)
     enddo
+!
+    if (boole_extend_to_wall) call load_edge_mesh_core(verts_per_slice, nphi)
   !
   end subroutine make_grid_SOLEDGE3X_EIRENE
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+  subroutine load_edge_mesh_core(verts_per_slice, nphi)
+!
+    !Reads edge_mesh_dir/edge_mesh_core.dat written by the edge generator:
+    !  line 1: number of 2D vertices, number of triangles
+    !  then one line "s theta" per 2D vertex (-1 -1 outside the grid_kind 2 core)
+    !  then one region number per triangle (0 = core, 1 = edge, 2 = axis fill)
+    !The external-mesh reader extrudes each triangle into 3 tetrahedra per slice, triangle by triangle, and
+    !copies the vertices slice by slice, which gives the mapping below.
+!
+    use tetra_grid_settings_mod, only: edge_mesh_dir
+!
+    implicit none
+!
+    integer, intent(in) :: verts_per_slice, nphi
+    integer :: iu, nv2, ntri, i, k, itri, ios
+    double precision, dimension(:,:), allocatable :: st
+    integer, dimension(:), allocatable :: region
+!
+    open(newunit=iu, file=trim(edge_mesh_dir)//'/edge_mesh_core.dat', status='old', action='read', iostat=ios)
+    if (ios .ne. 0) then
+      print *, 'Error: cannot open ', trim(edge_mesh_dir)//'/edge_mesh_core.dat'
+      error stop
+    endif
+    read(iu,*) nv2, ntri
+    if (nv2 .ne. verts_per_slice .or. 3*ntri*nphi .ne. ntetr) then
+      print *, 'Error: edge_mesh_core.dat does not match the mesh files (vertices, triangles):', nv2, ntri
+      error stop
+    endif
+    allocate(st(2, nv2), region(ntri))
+    do i = 1, nv2
+      read(iu,*) st(:, i)
+    enddo
+    do i = 1, ntri
+      read(iu,*) region(i)
+    enddo
+    close(iu)
+!
+    if (allocated(verts_s_theta_core)) deallocate(verts_s_theta_core)
+    if (allocated(tetra_in_core)) deallocate(tetra_in_core)
+    allocate(verts_s_theta_core(2, nvert), tetra_in_core(ntetr))
+    do k = 0, nphi - 1
+      verts_s_theta_core(:, k*nv2 + 1 : (k+1)*nv2) = st
+    enddo
+    do i = 1, ntetr
+      itri = mod(i - 1, 3*ntri) / 3 + 1
+      tetra_in_core(i) = (region(itri) .eq. 0)
+    enddo
+    print *, 'Extended mesh: ', count(tetra_in_core), ' of ', ntetr, ' tetrahedra in the flux-aligned core'
+!
+  end subroutine load_edge_mesh_core
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
@@ -896,6 +959,8 @@ b: do ind_tetr=1,ntetr
     if (allocated(verts_xyz)) deallocate(verts_xyz)
     if (allocated(verts_sthetaphi)) deallocate(verts_sthetaphi)
     if (allocated(verts_theta_vmec)) deallocate(verts_theta_vmec)
+    if (allocated(verts_s_theta_core)) deallocate(verts_s_theta_core)
+    if (allocated(tetra_in_core)) deallocate(tetra_in_core)
 !
     end subroutine deallocate_tetra_grid
 !

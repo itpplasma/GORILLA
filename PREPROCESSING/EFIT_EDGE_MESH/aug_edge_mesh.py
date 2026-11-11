@@ -46,6 +46,7 @@ def load_inner(dumpdir):
     tris = np.array(sorted(tris))
     RZ = v[:, 1:3]
     s = v[:, 3]
+    load_inner.theta = v[:, 4]
     return RZ, s, tris
 
 
@@ -196,6 +197,7 @@ def main():
 
     eq = Equilibrium(a.gfile)
     RZ_in, s_in, tri_in = load_inner(a.dumpdir)
+    theta_in = load_inner.theta
     nin = len(RZ_in)
 
     # ---- outer ring of the inner mesh (= the one with the largest s)
@@ -667,6 +669,28 @@ def main():
             f.write("%d %d %d\n" % tuple(t))
     np.savetxt(os.path.join(a.outdir, "triangle_region.dat"), region, fmt="%d",
                header="0 = grid_kind 2 inner mesh, 1 = edge extension, 2 = axis fill")
+    # flux coordinates of the core vertices (the first nin vertices are the grid_kind 2 vertices in
+    # dump order) and the region of every triangle, for GORILLA (boole_extend_to_wall)
+    st = -np.ones((len(RZ_all), 2))
+    st[:nin, 0] = s_in
+    st[:nin, 1] = theta_in
+    with open(os.path.join(a.outdir, "edge_mesh_core.dat"), "w") as f:
+        f.write("%d %d\n" % (len(RZ_all), len(T_all)))
+        for v in st:
+            f.write("%.16e %.16e\n" % (v[0], v[1]))
+        for r in region:
+            f.write("%d\n" % r)
+    # settings record: core settings from the dump + the generator options that change the mesh
+    rec = os.path.join(a.dumpdir, "core_settings.nml")
+    if os.path.exists(rec):
+        opts = " ".join(x for x in sys.argv[4:] if x != "--plot")
+        lines = open(rec).read().rstrip().splitlines()
+        assert lines[-1].strip() == "/"
+        lines.insert(-1, " generator_options = '%s' ," % opts.replace("'", ""))
+        with open(os.path.join(a.outdir, "edge_mesh.nml"), "w") as f:
+            f.write("\n".join(lines) + "\n")
+    else:
+        print("note: no core_settings.nml in the dump dir (old dump tool?); edge_mesh.nml not written")
     with open(os.path.join(a.outdir, "mesh_report.txt"), "w") as f:
         f.write(" ".join(sys.argv) + "\n")
         for k, v in report.items():

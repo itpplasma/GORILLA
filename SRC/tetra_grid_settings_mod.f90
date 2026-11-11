@@ -39,8 +39,8 @@
     character*100,public,protected :: netcdf_filename
 !
     !MESH_SOLEDGE3X_EIRENE filename
-    character*64,public,protected :: knots_SOLEDGE3X_EIRENE_filename
-    character*64,public,protected :: triangles_SOLEDGE3X_EIRENE_filename
+    character(256),public,protected :: knots_SOLEDGE3X_EIRENE_filename
+    character(256),public,protected :: triangles_SOLEDGE3X_EIRENE_filename
 !
     !Symmetry Flux Coordinates Annulus
     double precision,public,protected :: sfc_s_min
@@ -74,6 +74,17 @@
     !.true. -> EFIT g-file (iaxieq = 0), e.g. an EFIT mesh extended beyond the separatrix to the limiter
     logical, public, protected :: boole_ext_mesh_efit = .false.
 !
+    !grid_kind = 2 extended to the wall (g-file limiter contour): the flux-aligned grid_kind 2 core plus
+    !an edge mesh out to the wall, built once by PREPROCESSING/EFIT_EDGE_MESH/make_edge_mesh.sh into
+    !edge_mesh_dir. The run checks that the stored settings (edge_mesh_dir/edge_mesh.nml) match the
+    !grid_kind 2 settings of tetra_grid.inp, the g-file and edge_mesh_options, and then uses the mesh via
+    !the external-mesh path (internally grid_kind = 4 with an EFIT g-file). Needs coord_system = 1.
+    logical, public, protected :: boole_extend_to_wall = .false.
+    character(256), public, protected :: edge_mesh_dir = 'edge_mesh'
+    character(512), public, protected :: edge_mesh_options = ''
+    !grid_kind requested in tetra_grid.inp (differs from grid_kind if boole_extend_to_wall)
+    integer, public, protected :: grid_kind_input
+!
     !Analytic field circular axisymetric geometry (reader variable)
     integer, public, protected :: ianalytic_circ = 0
     double precision, public, protected :: R0_analytic_circ = 0.d0
@@ -101,6 +112,7 @@
                             & sfc_s_min,sfc_s_max, &
                             & i_radial_spacing, &
                             & boole_axisymmetric_only, boole_ext_mesh_efit, &
+                            & boole_extend_to_wall, edge_mesh_dir, edge_mesh_options, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
                             & theta_xpoint_clustering, theta_xpoint_clustering_width, &
                             & g_file_filename,convex_wall_filename,netcdf_filename, &
@@ -112,6 +124,7 @@
                             & helical_pert_m_analytic_circ, helical_pert_n_analytic_circ
 !
     public :: load_tetra_grid_inp,set_grid_size,set_n_field_periods,set_n2,set_n3
+    public :: write_edge_mesh_core_record
 !
     contains
 !
@@ -147,6 +160,22 @@
                              '(theta = 0 must point to the X-point)'
                     error stop
                 endif
+            endif
+!
+            grid_kind_input = grid_kind
+!
+            if (boole_extend_to_wall) then
+                if (grid_kind .ne. 2) then
+                    print *, 'Error: boole_extend_to_wall = .true. needs grid_kind = 2'
+                    error stop
+                endif
+                call check_edge_mesh_record()
+                !Use the extended mesh through the external-mesh reader with the EFIT g-file
+                grid_kind = 4
+                boole_ext_mesh_efit = .true.
+                knots_SOLEDGE3X_EIRENE_filename = trim(edge_mesh_dir)//'/knots_aug_edge.dat'
+                triangles_SOLEDGE3X_EIRENE_filename = trim(edge_mesh_dir)//'/triangles_aug_edge.dat'
+                print *, 'grid_kind = 2 extended to the wall: using the mesh in ', trim(edge_mesh_dir)
             endif
 !
             !Set axisymmetric equilibrium type
@@ -227,7 +256,227 @@
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-  end module tetra_grid_settings_mod
+  !
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine gfile_signature(header, nbytes)
+            !First line and size of the g-file: identifies the equilibrium the edge mesh was built for
+            character(256), intent(out) :: header
+            integer(8), intent(out) :: nbytes
+            integer :: iu, ios
+            logical :: exists
+!
+            header = ''
+            nbytes = -1
+            inquire(file=trim(g_file_filename), exist=exists, size=nbytes)
+            if (.not. exists) return
+            open(newunit=iu, file=trim(g_file_filename), status='old', action='read', iostat=ios)
+            if (ios .ne. 0) return
+            read(iu, '(a)', iostat=ios) header
+            close(iu)
+            header = quote_free(header)
+        end subroutine gfile_signature
+!
+        function quote_free(str) result(out)
+            !replace quotes (namelist string delimiters) by blanks
+            character(*), intent(in) :: str
+            character(len(str)) :: out
+            integer :: i
+            out = str
+            do i = 1, len(out)
+                if (out(i:i) .eq. "'" .or. out(i:i) .eq. '"') out(i:i) = ' '
+            enddo
+        end function quote_free
+!
+        function collapse_blanks(str) result(out)
+            !trim and collapse runs of blanks to one blank (for comparing option strings)
+            character(*), intent(in) :: str
+            character(len(str)) :: out
+            integer :: i, k
+            logical :: prev_blank
+            out = ''
+            k = 0
+            prev_blank = .true.
+            do i = 1, len_trim(str)
+                if (str(i:i) .eq. ' ') then
+                    if (prev_blank) cycle
+                    prev_blank = .true.
+                else
+                    prev_blank = .false.
+                endif
+                k = k + 1
+                out(k:k) = str(i:i)
+            enddo
+            out = trim(out)
+        end function collapse_blanks
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine write_edge_mesh_core_record(filename)
+            !Written by the core dump of make_edge_mesh.sh: grid_kind 2 settings the core was built with.
+            !The edge generator adds generator_options and stores it as edge_mesh_dir/edge_mesh.nml.
+            character(*), intent(in) :: filename
+            character(256) :: header
+            integer(8) :: nbytes
+            integer :: iu
+!
+            call gfile_signature(header, nbytes)
+            open(newunit=iu, file=filename, status='replace', action='write')
+            write(iu, '(a)') '&EDGE_MESH_NML'
+            write(iu, '(a,i0,a)') ' n1 = ', n1, ' ,'
+            write(iu, '(a,i0,a)') ' n3 = ', n3, ' ,'
+            write(iu, '(a,es25.17,a)') ' sfc_s_min = ', sfc_s_min, ' ,'
+            write(iu, '(a,es25.17,a)') ' sfc_s_max = ', sfc_s_max, ' ,'
+            write(iu, '(a,i0,a)') ' i_radial_spacing = ', i_radial_spacing, ' ,'
+            write(iu, '(a,i0,a)') ' theta_geom_flux = ', theta_geom_flux, ' ,'
+            write(iu, '(a,l1,a)') ' theta0_at_xpoint = ', theta0_at_xpoint, ' ,'
+            write(iu, '(a,es25.17,a)') ' theta_xpoint_clustering = ', theta_xpoint_clustering, ' ,'
+            write(iu, '(a,es25.17,a)') ' theta_xpoint_clustering_width = ', theta_xpoint_clustering_width, ' ,'
+            write(iu, '(a,a,a)') " gfile_header = '", trim(header), "' ,"
+            write(iu, '(a,i0,a)') ' gfile_size = ', nbytes, ' ,'
+            write(iu, '(a)') '/'
+            close(iu)
+        end subroutine write_edge_mesh_core_record
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+        subroutine check_edge_mesh_record()
+            !Compare edge_mesh_dir/edge_mesh.nml with the settings of this run; stop with the command
+            !that builds a matching mesh if the files are missing or differ.
+            integer :: r_n1, r_n3, r_i_radial_spacing, r_theta_geom_flux
+            double precision :: r_sfc_s_min, r_sfc_s_max, r_theta_xpoint_clustering, r_theta_xpoint_clustering_width
+            logical :: r_theta0_at_xpoint
+            character(256) :: r_gfile_header, header
+            integer(8) :: r_gfile_size, nbytes
+            character(512) :: r_generator_options
+            namelist /EDGE_MESH_NML/ r_n1, r_n3, r_sfc_s_min, r_sfc_s_max, r_i_radial_spacing, r_theta_geom_flux, &
+                                     r_theta0_at_xpoint, r_theta_xpoint_clustering, r_theta_xpoint_clustering_width, &
+                                     r_gfile_header, r_gfile_size, r_generator_options
+            character(1024) :: line
+            character(512) :: fname
+            logical :: exists, ok
+            integer :: iu, ios, nmis
+!
+            fname = trim(edge_mesh_dir)//'/edge_mesh.nml'
+            inquire(file=trim(fname), exist=exists)
+            ok = exists
+            nmis = 0
+            if (exists) then
+                !the record uses the names of tetra_grid.inp; read it through a copy with r_ prefixes
+                call read_record(trim(fname), ios)
+                if (ios .ne. 0) then
+                    print *, 'Error: cannot read ', trim(fname)
+                    ok = .false.
+                else
+                    call gfile_signature(header, nbytes)
+                    call cmp_i('n1', r_n1, n1)
+                    call cmp_i('n3', r_n3, n3)
+                    call cmp_d('sfc_s_min', r_sfc_s_min, sfc_s_min)
+                    call cmp_d('sfc_s_max', r_sfc_s_max, sfc_s_max)
+                    call cmp_i('i_radial_spacing', r_i_radial_spacing, i_radial_spacing)
+                    call cmp_i('theta_geom_flux', r_theta_geom_flux, theta_geom_flux)
+                    if (r_theta0_at_xpoint .neqv. theta0_at_xpoint) call mismatch('theta0_at_xpoint')
+                    call cmp_d('theta_xpoint_clustering', r_theta_xpoint_clustering, theta_xpoint_clustering)
+                    if (theta_xpoint_clustering .gt. 0.d0) call cmp_d('theta_xpoint_clustering_width', &
+                        r_theta_xpoint_clustering_width, theta_xpoint_clustering_width)
+                    if (trim(adjustl(r_gfile_header)) .ne. trim(adjustl(header)) .or. r_gfile_size .ne. nbytes) &
+                        call mismatch('g-file (header line or size of '//trim(g_file_filename)//')')
+                    if (collapse_blanks(r_generator_options) .ne. collapse_blanks(edge_mesh_options)) then
+                        call mismatch('edge_mesh_options')
+                        print *, '    mesh: ', trim(collapse_blanks(r_generator_options))
+                        print *, '    run : ', trim(collapse_blanks(edge_mesh_options))
+                    endif
+                    ok = (nmis .eq. 0)
+                endif
+            else
+                print *, 'Error: boole_extend_to_wall = .true., but there is no edge mesh in ', trim(edge_mesh_dir)
+            endif
+!
+            if (ok) return
+!
+            if (theta_geom_flux .ne. 2) print *, '  Note: the extended mesh runs in cylindrical coordinates; ', &
+                'use theta_geom_flux = 2 (theta_geom_flux = 1 folds near the separatrix).'
+            print *, '  Build a matching mesh once (about 10 s), from this run directory:'
+            write(line, '(a)') '    GFILE=$PWD/'//trim(g_file_filename)
+            if (sfc_s_max .ne. 1.d0 .or. i_radial_spacing .ne. 1 .or. theta_xpoint_clustering .gt. 0.d0 &
+                .or. theta_geom_flux .ne. 2 .or. .not. theta0_at_xpoint) then
+                write(line, '(a)') trim(line)//' CORE_EXTRA="'
+                if (sfc_s_max .ne. 1.d0) write(line, '(a,g0,a)') trim(line)//' sfc_s_max = ', sfc_s_max, ' ,'
+                if (i_radial_spacing .ne. 1) write(line, '(a,i0,a)') trim(line)//' i_radial_spacing = ', &
+                    i_radial_spacing, ' ,'
+                if (theta_geom_flux .ne. 2) write(line, '(a,i0,a)') trim(line)//' theta_geom_flux = ', &
+                    theta_geom_flux, ' ,'
+                if (.not. theta0_at_xpoint) write(line, '(a)') trim(line)//' theta0_at_xpoint = .false. ,'
+                if (theta_xpoint_clustering .gt. 0.d0) write(line, '(a,g0,a,g0,a)') &
+                    trim(line)//' theta_xpoint_clustering = ', theta_xpoint_clustering, &
+                    ' , theta_xpoint_clustering_width = ', theta_xpoint_clustering_width, ' ,'
+                write(line, '(a)') trim(line)//'"'
+            endif
+            print *, trim(line)//' \'
+            write(line, '(a,a,i0,a,i0,a,g0,a,a)') '    <GORILLA>/PREPROCESSING/EFIT_EDGE_MESH/make_edge_mesh.sh ', &
+                trim(edge_mesh_dir)//' ', n1, ' ', n3, ' ', sfc_s_min, ' -- ', trim(collapse_blanks(edge_mesh_options))
+            print *, trim(line)
+            print *, '  (see PREPROCESSING/EFIT_EDGE_MESH/README.md; DUMP_X and PYTHON may need to be set)'
+            error stop
+!
+            contains
+!
+            subroutine read_record(fn, ios_out)
+                !copy the record to a scratch unit with r_-prefixed names and read the namelist from it
+                character(*), intent(in) :: fn
+                integer, intent(out) :: ios_out
+                integer :: iin, iscr, ios2, k
+                character(1024) :: ln
+                open(newunit=iin, file=fn, status='old', action='read', iostat=ios_out)
+                if (ios_out .ne. 0) return
+                open(newunit=iscr, status='scratch', action='readwrite')
+                do
+                    read(iin, '(a)', iostat=ios2) ln
+                    if (ios2 .ne. 0) exit
+                    ln = adjustl(ln)
+                    k = index(ln, '=')
+                    if (ln(1:1) .ne. '&' .and. ln(1:1) .ne. '/' .and. k .gt. 1) ln = 'r_'//trim(ln)
+                    write(iscr, '(a)') trim(ln)
+                enddo
+                close(iin)
+                rewind(iscr)
+                r_generator_options = ''
+                r_gfile_header = ''
+                r_theta_xpoint_clustering = 0.d0
+                r_theta_xpoint_clustering_width = 0.1d0
+                read(iscr, nml=EDGE_MESH_NML, iostat=ios_out)
+                close(iscr)
+            end subroutine read_record
+!
+            subroutine mismatch(what)
+                character(*), intent(in) :: what
+                if (nmis .eq. 0) print *, 'Error: the edge mesh in ', trim(edge_mesh_dir), &
+                    ' was built with different settings:'
+                nmis = nmis + 1
+                print *, '  differs: ', what
+            end subroutine mismatch
+!
+            subroutine cmp_i(what, a, b)
+                character(*), intent(in) :: what
+                integer, intent(in) :: a, b
+                if (a .ne. b) then
+                    call mismatch(what)
+                    print *, '    mesh:', a, '  run:', b
+                endif
+            end subroutine cmp_i
+!
+            subroutine cmp_d(what, a, b)
+                character(*), intent(in) :: what
+                double precision, intent(in) :: a, b
+                if (abs(a - b) .gt. 1.d-12 * max(abs(a), abs(b), 1.d-300)) then
+                    call mismatch(what)
+                    print *, '    mesh:', a, '  run:', b
+                endif
+            end subroutine cmp_d
+!
+        end subroutine check_edge_mesh_record
+!
+end module tetra_grid_settings_mod
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !

@@ -64,6 +64,14 @@
  theta_xpoint_clustering = 0.d0 ,
  theta_xpoint_clustering_width = 0.1d0 ,
 !
+ !grid_kind = 2 extended to the wall (g-file limiter contour), needs coord_system = 1 and theta_geom_flux = 2.
+ ! The edge mesh is built once into edge_mesh_dir by PREPROCESSING/EFIT_EDGE_MESH/make_edge_mesh.sh; the run checks
+ ! that it matches n1, n3, sfc_s_min/max, i_radial_spacing, theta settings, the g-file and edge_mesh_options, and
+ ! otherwise stops and prints the command that builds a matching mesh.
+ boole_extend_to_wall = .false. ,
+ edge_mesh_dir = 'edge_mesh' ,
+ edge_mesh_options = '--fill-axis' ,
+!
 !------------------------------------------------------------------------------------------------------------!
 !
  !Switch for writing object file with mesh data

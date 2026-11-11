@@ -42,6 +42,12 @@ add_executable(test_gorilla_main.x
 
 target_link_libraries(test_gorilla_main.x GORILLA netcdff netcdf lapack)
 
+# Core dump for PREPROCESSING/EFIT_EDGE_MESH (grid_kind 2 extended to the wall)
+add_executable(dump_mesh_2d.x
+  PREPROCESSING/EFIT_EDGE_MESH/dump_mesh_2d.f90
+)
+target_link_libraries(dump_mesh_2d.x GORILLA netcdff netcdf lapack)
+
 add_executable(test_boozer_chartmap_driver.x
   SRC/TESTS/test_boozer_chartmap_driver.f90
 )

@@ -148,7 +148,8 @@
       use hamiltonian_time_coefficients_mod, only: hamiltonian_time_coefficients
       use tetra_grid_mod, only: tetra_grid,verts_rphiz,verts_sthetaphi,verts_theta_vmec,ntetr,nvert, &
                                 & set_verts_sthetaphi,verts_xyz
-      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,R0_analytic_circ,boole_ext_mesh_efit
+      use tetra_grid_settings_mod, only: grid_kind,grid_size,n_field_periods,R0_analytic_circ,boole_ext_mesh_efit, &
+                                         & boole_extend_to_wall
       use constants, only: pi
       use field_mod, only: ipert
       use various_functions_mod, only: dmatinv3
@@ -202,6 +203,11 @@
       !Deallocate any pre-existing module arrays so a fresh grid can be built without external bookkeeping.
       !phi_elec is preserved when the caller asks for it (self-consistent electric field workflow),
       !in which case the caller is responsible for it being correctly sized for the current nvert.
+      !grid_kind = 2 extended to the wall: there are no flux coordinates outside the separatrix
+      if (boole_extend_to_wall .and. coord_system_in .ne. 1) then
+        print *, "Error: boole_extend_to_wall = .true. (grid_kind = 2 extended to the wall) needs coord_system = 1"
+        error stop
+      endif
       if (allocated(tetra_physics))    deallocate(tetra_physics)
       if (allocated(tetra_skew_coord)) deallocate(tetra_skew_coord)
       if (allocated(hamiltonian_time)) deallocate(hamiltonian_time)
