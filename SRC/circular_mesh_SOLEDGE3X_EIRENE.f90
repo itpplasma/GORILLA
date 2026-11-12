@@ -667,10 +667,11 @@ end subroutine vector_potential_rz
 !
         integer, dimension(:), allocatable :: error_triangles
         integer, dimension(:,:), allocatable :: neighbour_triangles, auxillary_array
-        integer :: n_error, n_repair, k, q, l, m, n, cur_triangle, tetra_idx, n_match
+        integer :: n_error, n_repair, n_unconnected, n_indirect, k, q, l, m, n, cur_triangle, tetra_idx, n_match
         integer, dimension(3) :: cur_neighbours
         integer, dimension(4,12) :: old_neighbours, old_neighbour_faces
         logical :: match
+        logical, dimension(:), allocatable :: repaired_directly
 !
         print*, 'Start repair routine!'
 !
@@ -697,6 +698,8 @@ end subroutine vector_potential_rz
         error_triangles = auxillary_array(:n_error,1)
         neighbour_triangles = auxillary_array(:n_error,2:4)
         deallocate(auxillary_array)
+        allocate(repaired_directly(n_error))
+        repaired_directly = .false.
 !
         ! We go over all problem triangles seperatly (PARENT LOOP) and try to fix them LOCALLY
         n_repair = 0
@@ -746,6 +749,7 @@ end subroutine vector_potential_rz
                     end do CHILD
 !
                 n_repair = n_repair + 1
+                repaired_directly(k) = .true.
                 cycle PARENT ! if all match checks were past -> now it sits right -> go for next problem triangle
 !                
                 end do ROTATE 
@@ -763,7 +767,46 @@ end subroutine vector_potential_rz
             end do
         end do PARENT !n_error
 !
-        write(*,'(A,I3,A,I3,A)') ' Repaired ', n_repair, ' / ', n_error, ' prisms!'
+        ! Final check. A prism that fails above is not necessarily left broken: its mismatch can be with a neighbour that
+        ! is itself on the error list further down, and that neighbour's repair then adapts to it. So check every prism
+        ! of the error list again against all its neighbours. Only these prisms can still be unconnected: a successful
+        ! repair is checked against all neighbours of the repaired prism, and a failed one is reset to its original state.
+        ! Two neighbouring prisms share tetrahedron faces only if they split their common side face along the same
+        ! diagonal, so "match" means the side face is conforming. connect_prisms only (re)sets entries of faces that
+        ! are really shared, so calling it here does not change a correct mesh.
+        n_unconnected = 0
+        n_indirect = 0
+        n_repair = 0
+        do k = 1, n_error
+            cur_triangle = error_triangles(k)
+            cur_neighbours = neighbour_triangles(k,:)
+            match = .true.
+            do q = 1, 3
+                if (cur_neighbours(q) == -1) cycle
+                call connect_prisms_SOLEDGE3X_EIRENE(cur_triangle,cur_neighbours(q),verts,neighbours,neighbour_faces,match)
+                if (.not. match) then
+                    print *, 'Prism ', cur_triangle, ' (triangle vertices ', triangles_SOLEDGE3X_EIRENE(cur_triangle,:), &
+                             ') does not connect to its neighbour prism ', cur_neighbours(q)
+                    exit
+                end if
+            end do
+            if (.not. match) then
+                n_unconnected = n_unconnected + 1
+            elseif (repaired_directly(k)) then
+                n_repair = n_repair + 1
+            else
+                n_indirect = n_indirect + 1
+            end if
+        end do
+!
+        write(*,'(A,I0,A,I0,A,I0,A,I0,A)') ' Prism repair: ', n_error, ' prisms with mismatched faces: ', n_repair, &
+            ' repaired directly, ', n_indirect, ' by the repair of a neighbour, ', &
+            n_unconnected, ' still unconnected'
+        if (n_unconnected > 0) then
+            print *, 'Error: the triangle mesh cannot be split into conforming tetrahedra by the prism repair.'
+            print *, 'Particles would be lost at the unconnected faces. Check the triangles listed above.'
+            error stop
+        end if
 !
     end subroutine repair
 !
