@@ -16,14 +16,34 @@ endif()
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 find_package(netCDF REQUIRED)
+find_package(OpenMP REQUIRED COMPONENTS Fortran)
 
 if ("$ENV{GORILLA_COVERAGE}" STREQUAL "TRUE")
 	find_package(PFUNIT REQUIRED)
 	enable_testing()
 endif()
 
-add_compile_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp)
-add_link_options(-g -fbacktrace -ffpe-trap=zero,overflow,invalid -fbounds-check -fopenmp)
+# Keep performance builds free of runtime checks unless explicitly requested.
+if(CMAKE_BUILD_TYPE MATCHES "^(Release|MinSizeRel)$")
+  set(_runtime_checks_default OFF)
+else()
+  set(_runtime_checks_default ON)
+endif()
+option(GORILLA_RUNTIME_CHECKS
+  "Fortran bounds checks, FPE traps and backtraces" ${_runtime_checks_default})
+
+if(GORILLA_RUNTIME_CHECKS)
+  if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(
+      "$<$<COMPILE_LANGUAGE:Fortran>:-g;-fbacktrace;-ffpe-trap=zero,overflow,invalid;-fbounds-check>")
+  elseif(CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC|PGI")
+    add_compile_options("$<$<COMPILE_LANGUAGE:Fortran>:-g;-C;-Ktrap=inv,divz,ovf>")
+  else()
+    message(FATAL_ERROR "GORILLA_RUNTIME_CHECKS is not supported for "
+                        "${CMAKE_Fortran_COMPILER_ID}; use a supported compiler "
+                        "or set GORILLA_RUNTIME_CHECKS=OFF.")
+  endif()
+endif()
 
 add_link_options(-L/usr/local/lib)
 if(APPLE AND ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "arm64")
