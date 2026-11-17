@@ -1,0 +1,26 @@
+name: Examples setup
+description: >-
+  Fortran, MATLAB and Python dependencies of the MATLAB and Python examples;
+  shared by the nightly job and its bisection.
+runs:
+  using: composite
+  steps:
+    - name: Dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gfortran liblapack-dev libnetcdff-dev
+    - name: Set up MATLAB
+      uses: matlab-actions/setup-matlab@v3
+      with:
+        install-system-dependencies: true
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+    - name: Install PYTHON dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install f90nml numpy matplotlib jupyter jupyterlab
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi

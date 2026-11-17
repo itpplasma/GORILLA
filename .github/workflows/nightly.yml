@@ -1,0 +1,85 @@
+name: nightly
+
+# The slow tier once a night on main: the MATLAB and Python examples, plotting
+# scripts and tutorials (about 10 minutes), which the merge queue no longer
+# runs. When the job fails, the triage job bisects its command
+# (ci/nightly-jobs.json) between the last green nightly and this commit and
+# files or updates one issue labelled nightly-failure; the next green nightly
+# closes it.
+
+on:
+  schedule:
+    - cron: "29 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  examples:
+    name: MATLAB and Python examples
+    runs-on: [self-hosted, itp-ubuntu24]
+    timeout-minutes: 60
+    env:
+      FC: /usr/bin/gfortran
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/examples-setup
+      - run: python3 ci/nightly_triage.py run "MATLAB and Python examples"
+      - name: Archive MATLAB results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: MATLAB-RESULTS
+          path: MATLAB/data_plots
+      - name: Archive PYTHON results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: PYTHON-RESULTS
+          path: PYTHON/data_plots
+
+  triage:
+    name: Bisect failing jobs and report
+    needs: [examples]
+    if: failure()
+    runs-on: [self-hosted, itp-ubuntu24]
+    timeout-minutes: 600
+    env:
+      FC: /usr/bin/gfortran
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/examples-setup
+      - name: Bisect and file or update the nightly-failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ci/nightly_triage.py failure
+
+  close:
+    name: Close the nightly-failure issue
+    needs: [examples]
+    runs-on: [self-hosted, itp-light]
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Close the issue once the nightly is green
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ci/nightly_triage.py success
