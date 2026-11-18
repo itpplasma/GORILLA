@@ -232,6 +232,16 @@ module orbit_timestep_gorilla_mod
                         !mass charge ratio
                         cm_over_e= 184.d0*clight*amp/(74.d0*echarge)
 !
+                    case(5) !hydrogen ion (proton)
+                        !electric charge of particle
+                        particle_charge = echarge
+!
+                        !mass of particle
+                        particle_mass = amp
+!
+                        !mass charge ratio
+                        cm_over_e = clight*amp/echarge
+!
                     case default
                         print *, 'ERROR: Invalid ispecies option selected. Check gorilla.inp.'
                         stop

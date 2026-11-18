@@ -975,6 +975,7 @@ subroutine stretch_coords(r,z,rm,zm)
   use input_files, only : iunit,convexfile
   implicit none
   integer icall, i, j, nrz ! number of points "convex wall" in input file
+  integer ios
   integer, parameter :: nrzmx=100 ! possible max. of nrz
   integer, parameter :: nrhotht=360
   real(kind=8), parameter :: pi = 3.14159265358979d0
@@ -990,13 +991,25 @@ subroutine stretch_coords(r,z,rm,zm)
       nrz = 0
       rad_w = 0.
       zet_w = 0.
-      open(newunit=iunit,file=trim(convexfile))
+      ! status='old': a missing wall file must not be created empty. Without
+      ! wall points R0 and the wall radius are 0, and every (R,Z) is mapped
+      ! onto rho ~ 1.6 cm around R = 0, so the field is evaluated at one point.
+      open(newunit=iunit,file=trim(convexfile),status='old',action='read',iostat=ios)
+      if(ios .ne. 0) then
+        print *, 'stretch_coords: cannot open convex wall file ', trim(convexfile)
+        error stop 'stretch_coords: convex wall file missing'
+      endif
       do i=1,nrzmx
         read(iunit,*,END=10)rad_w(i),zet_w(i)
         nrz = nrz + 1
       enddo
 10   continue
       close(iunit)
+      if(nrz .lt. 3) then
+        print *, 'stretch_coords: convex wall file ', trim(convexfile), ' has ', nrz, &
+                 ' points, at least 3 are needed'
+        error stop 'stretch_coords: convex wall file has too few points'
+      endif
 
       nrz = nrz+1
       rad_w(nrz) = rad_w(1)

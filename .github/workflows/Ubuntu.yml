@@ -1,22 +1,25 @@
 name: Ubuntu
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     types: [opened, synchronize, reopened, labeled]
+  merge_group:
 
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   Ubuntu-coverage:
-    # Full tier: upper layers of a PR stack skip it unless labeled full-ci.
-    if: github.event_name != 'pull_request' || github.event.pull_request.base.ref == github.event.repository.default_branch || contains(github.event.pull_request.labels.*.name, 'full-ci')
-    runs-on: ubuntu-24.04
-    
+    # Required validation runs after admission to the merge queue.
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]')
+    runs-on: [self-hosted, itp-ubuntu24]
+
     env:
-      FC: gfortran
-      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7/
+      FC: /usr/bin/gfortran
+      PFUNIT_DIR: ${{ github.workspace }}/pFUnit/build/installed/PFUNIT-4.7/
 
     steps:
       - name: Checkout
@@ -25,8 +28,8 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install gfortran liblapack-dev libnetcdff-dev
-          sudo apt install lcov
+          sudo apt-get install -y gfortran liblapack-dev libnetcdff-dev
+          sudo apt-get install -y lcov
 
       - name: Install pFUnit
         run: |
@@ -42,19 +45,19 @@ jobs:
       - name: Build
         run: |
           ./build_coverage.sh
-        
+
       - name: Archive code coverage results
         uses: actions/upload-artifact@v7
         with:
           name: code-coverage-report
           path: BUILD/COVERAGE/
-          
+
   Ubuntu:
-    runs-on: ubuntu-24.04
-    
+    runs-on: [self-hosted, itp-ubuntu24]
+
     env:
-      FC: gfortran
-      PFUNIT_DIR: /home/runner/work/GORILLA/GORILLA/pFUnit/build/installed/PFUNIT-4.7
+      FC: /usr/bin/gfortran
+      PFUNIT_DIR: ${{ github.workspace }}/pFUnit/build/installed/PFUNIT-4.7
 
     steps:
       - name: Checkout
@@ -63,21 +66,23 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install gfortran liblapack-dev libnetcdff-dev
+          sudo apt-get install -y gfortran liblapack-dev libnetcdff-dev
 
       - name: Build
         run: |
           make
-          
+
       - name: Run examples
         run: |
           for i in 1 2 3 4 5 6 7; do
             (cd EXAMPLES/example_$i && ./test_gorilla_main.x)
           done
-          
+
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v3
-        
+        with:
+          install-system-dependencies: true
+
       - name: Run MATLAB scripts
         uses: matlab-actions/run-command@v3
         with:
@@ -106,7 +111,7 @@ jobs:
         with:
           name: MATLAB-RESULTS
           path: MATLAB/data_plots
-        
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -152,4 +157,9 @@ jobs:
           name: PYTHON-RESULTS
           path: PYTHON/data_plots
 
-          
+
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]')
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}

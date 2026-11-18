@@ -52,6 +52,10 @@ module pusher_tetra_poly_mod
     double precision, dimension(4), public, protected :: z_init
     double precision                    :: k1, k3
     double precision,parameter          :: eps_tau = 100.d0
+!
+    !Highest supported polynomial order (z_series_coef provides coefficients up to 4th order).
+    !Local coefficient work arrays are sized with it, so that the per-tetrahedron routines do not allocate.
+    integer, parameter, public          :: max_poly_order = 4
     double precision, dimension(4,4)    :: unity_matrix4 = reshape( [ 1.d0, 0.d0, 0.d0, 0.d0, &
                                 0.d0, 1.d0, 0.d0, 0.d0, & 
                                 0.d0, 0.d0, 1.d0, 0.d0, &
@@ -2180,25 +2184,22 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         double precision                                :: tau2_half,tau3_sixth,tau4_twentyfourth
         double precision, dimension(3)                  :: x0
         double precision                                :: vpar0
-        double precision, dimension(:,:), allocatable   :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable     :: vpar_coef,res_poly_coef
-        double precision, dimension(4,poly_order+1)     :: dummy_coef_mat !exists because of analytic_coeff_without_precomp syntax
-        logical, dimension(4)                           :: boole_faces_off = .false. !avoid root coefficients computation
-        double precision, dimension(:), allocatable     :: dtdtau_coef, omega_coef
-        integer                                         :: i
+        !Fixed-size work arrays (only the first n = poly_order+1 coefficients are used): no heap allocation per call
+        double precision, dimension(3,max_poly_order+1) :: x_coef,x_vpar_coef
+        double precision, dimension(max_poly_order+1)   :: vpar_coef,dtdtau_coef,omega_coef,prod_coef,vpar2_coef
+        integer                                         :: i,n
 !
         !recalculate polynomial coefficients (tensors) if more than one integration step was performed
         if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
 !
-        allocate(x_coef(3,poly_order+1))
-        allocate(vpar_coef(poly_order+1))
-        allocate(dtdtau_coef(poly_order+1))
-        allocate(x_vpar_coef(3,poly_order+1))
+        n = poly_order+1
 !
-        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
-        x_vpar_coef = poly_multiplication(vpar_coef,x_coef)
+        call z_series_coef(poly_order,z0,x_coef(:,1:n),vpar_coef(1:n))
+        do i = 1,3
+            call poly_multiplication_coef(vpar_coef(1:n),x_coef(i,1:n),x_vpar_coef(i,1:n))
+        enddo
 !
-        do i = 1,poly_order+1
+        do i = 1,n
             dtdtau_coef(i) = sum(hamiltonian_time(ind_tetr)%vec_mismatch_der * x_coef(:,i)) + &
                             & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * vpar_coef(i) + &
                             & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der * x_vpar_coef(:,i))
@@ -2207,36 +2208,36 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
         !Optional computation of Hamiltonian time
         if(boole_time_hamiltonian) then
-            optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + moment_integration(poly_order,tau,dtdtau_coef)&
-            &*dble(sign_rhs)
+            optional_quantities%t_hamiltonian = optional_quantities%t_hamiltonian + &
+            & moment_integration(poly_order,tau,dtdtau_coef(1:n))*dble(sign_rhs)
         endif
 !
         !Optional computation of gyrophase
         if(boole_gyrophase) then
-            allocate(omega_coef(poly_order+1))
-            do i = 1,poly_order+1
+            do i = 1,n
                 omega_coef(i) = 1.d0/cm_over_e * sum(tetra_physics(ind_tetr)%gb * x_coef(:,i))
             enddo
             omega_coef(1) = omega_coef(1) + 1.d0/cm_over_e * tetra_physics(ind_tetr)%bmod1
 !
+            call poly_multiplication_coef(dtdtau_coef(1:n),omega_coef(1:n),prod_coef(1:n))
             optional_quantities%gyrophase = optional_quantities%gyrophase -  dble(sign_rhs) * &
-                                          & moment_integration(poly_order,tau,poly_multiplication(dtdtau_coef,omega_coef))
-            deallocate(omega_coef)
+                                          & moment_integration(poly_order,tau,prod_coef(1:n))
         endif
 !
         !Optional computation of integral of v_par
-        if (boole_vpar_int) then 
+        if (boole_vpar_int) then
+                call poly_multiplication_coef(dtdtau_coef(1:n),vpar_coef(1:n),prod_coef(1:n))
                 optional_quantities%vpar_int = optional_quantities%vpar_int + dble(sign_rhs) * &
-                & moment_integration(poly_order,tau,poly_multiplication(dtdtau_coef,vpar_coef))
+                & moment_integration(poly_order,tau,prod_coef(1:n))
         endif
 !
         !Optional computation of integral of v_par**2
         if (boole_vpar2_int) then
+                call poly_multiplication_coef(vpar_coef(1:n),vpar_coef(1:n),vpar2_coef(1:n))
+                call poly_multiplication_coef(dtdtau_coef(1:n),vpar2_coef(1:n),prod_coef(1:n))
                 optional_quantities%vpar2_int = optional_quantities%vpar2_int + dble(sign_rhs) * &
-                & moment_integration(poly_order,tau,poly_multiplication(dtdtau_coef,poly_multiplication(vpar_coef,vpar_coef)))
+                & moment_integration(poly_order,tau,prod_coef(1:n))
         endif
-!
-        deallocate(vpar_coef,x_coef,x_vpar_coef)
 !
     end subroutine calc_optional_quantities
 !
@@ -2254,35 +2255,33 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         double precision, intent(inout)                 :: t_hamiltonian
 !
         double precision                                :: delta_t_hamiltonian
-        double precision, dimension(:,:), allocatable   :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable     :: vpar_coef
+        double precision, dimension(3,max_poly_order+1) :: x_coef,x_vpar_coef
+        double precision, dimension(max_poly_order+1) :: vpar_coef
+        integer :: n
 !
         !recalculate polynomial coefficients (tensors) if more than one integration step was performed
         if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
 
-        allocate(x_coef(3,poly_order+1))
-        allocate(vpar_coef(poly_order+1))
-        allocate(x_vpar_coef(3,poly_order+1))
+        n = poly_order+1
 !
-        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
+        call z_series_coef(poly_order,z0,x_coef(:,1:n),vpar_coef(1:n))
 !
-        call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
-        call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
-        call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
+        call poly_multiplication_coef(x_coef(1,1:n),vpar_coef(1:n),x_vpar_coef(1,1:n))
+        call poly_multiplication_coef(x_coef(2,1:n),vpar_coef(1:n),x_vpar_coef(2,1:n))
+        call poly_multiplication_coef(x_coef(3,1:n),vpar_coef(1:n),x_vpar_coef(3,1:n))
 !
         delta_t_hamiltonian = hamiltonian_time(ind_tetr)%h1_in_curlA * tau + &
-        & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * moment_integration(poly_order,tau,vpar_coef)+&
-        & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * moment_integration(poly_order,tau,x_coef) ) + &
+        & cm_over_e * hamiltonian_time(ind_tetr)%h1_in_curlh * moment_integration(poly_order,tau,vpar_coef(1:n))+&
+        & sum( hamiltonian_time(ind_tetr)%vec_mismatch_der * moment_integration(poly_order,tau,x_coef(:,1:n)) ) + &
         & cm_over_e * sum(hamiltonian_time(ind_tetr)%vec_parcurr_der *  &
-        & moment_integration(poly_order,tau,x_vpar_coef))
+        & moment_integration(poly_order,tau,x_vpar_coef(:,1:n)))
 !
         !Multiply delta_t_hamiltonian with appropriate sign (We require that tau remains positive inside the algorithm)
         delta_t_hamiltonian = delta_t_hamiltonian * dble(sign_rhs)
 !
         t_hamiltonian = t_hamiltonian + delta_t_hamiltonian
 !
-        deallocate(x_coef,vpar_coef,x_vpar_coef)
-!
+
     end subroutine calc_t_hamiltonian
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -2297,23 +2296,22 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         double precision, dimension(4), intent(in)      :: z0
         double precision, intent(in)                    :: tau
         double precision, intent(out)                   :: delta_t_hamiltonian
-        double precision, dimension(:,:), allocatable   :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable     :: vpar_coef
+        double precision, dimension(3,max_poly_order+1) :: x_coef,x_vpar_coef
+        double precision, dimension(max_poly_order+1) :: vpar_coef
+        integer :: n
         double precision                                :: a_coef, b_coef, c_coef, d_coef, e_coef
 
 !
         !recalculate polynomial coefficients (tensors) if more than one integration step was performed
         !if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
 !
-        allocate(x_coef(3,poly_order+1))
-        allocate(vpar_coef(poly_order+1))
-        allocate(x_vpar_coef(3,poly_order+1))
+        n = poly_order+1
 !
-        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
+        call z_series_coef(poly_order,z0,x_coef(:,1:n),vpar_coef(1:n))
 !
-        call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
-        call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
-        call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
+        call poly_multiplication_coef(x_coef(1,1:n),vpar_coef(1:n),x_vpar_coef(1,1:n))
+        call poly_multiplication_coef(x_coef(2,1:n),vpar_coef(1:n),x_vpar_coef(2,1:n))
+        call poly_multiplication_coef(x_coef(3,1:n),vpar_coef(1:n),x_vpar_coef(3,1:n))
 !
         !Input for Root Solver
         !f(tau) = a/24 * tau**4 + b/6 * tau**3 + c/2 * tau**2 + d * tau + e
@@ -2356,8 +2354,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         & tau**2 * d_coef + &
         & tau * e_coef
 !
-        deallocate(x_coef,vpar_coef,x_vpar_coef)
-!
+
     end subroutine calc_t_hamiltonian_by_order
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -2373,21 +2370,20 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
         double precision, intent(in)                            :: t_remain
         double precision, intent(out)                           :: tau_t_hamiltonian_root
         double precision                                        :: a_coef, b_coef, c_coef, d_coef, e_coef
-        double precision, dimension(:,:), allocatable           :: x_coef,x_vpar_coef
-        double precision, dimension(:), allocatable             :: vpar_coef
+        double precision, dimension(3,max_poly_order+1) :: x_coef,x_vpar_coef
+        double precision, dimension(max_poly_order+1) :: vpar_coef
+        integer :: n
 !
         !recalculate polynomial coefficients (tensors) if more than one integration step was performed
         !if (number_of_integration_steps .gt. 1) call set_integration_coef_manually(poly_order,z0)
 !
-        allocate(x_coef(3,poly_order+1))
-        allocate(vpar_coef(poly_order+1))
-        allocate(x_vpar_coef(3,poly_order+1))
+        n = poly_order+1
 !
-        call z_series_coef(poly_order,z0,x_coef,vpar_coef)
+        call z_series_coef(poly_order,z0,x_coef(:,1:n),vpar_coef(1:n))
 !
-        call poly_multiplication_coef(x_coef(1,:),vpar_coef(:),x_vpar_coef(1,:))
-        call poly_multiplication_coef(x_coef(2,:),vpar_coef(:),x_vpar_coef(2,:))
-        call poly_multiplication_coef(x_coef(3,:),vpar_coef(:),x_vpar_coef(3,:))
+        call poly_multiplication_coef(x_coef(1,1:n),vpar_coef(1:n),x_vpar_coef(1,1:n))
+        call poly_multiplication_coef(x_coef(2,1:n),vpar_coef(1:n),x_vpar_coef(2,1:n))
+        call poly_multiplication_coef(x_coef(3,1:n),vpar_coef(1:n),x_vpar_coef(3,1:n))
 !
         !Coefficient for Root Solver
         !t_hamiltonian(tau) = a * tau**5 + b * tau**4 + c * tau**3 + d * tau**2 + e * tau - t_remain == 0
@@ -2434,8 +2430,7 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !        & cm_over_e * sum (x_vpar_coef(:,5) * hamiltonian_time(ind_tetr)%vec_parcurr_der(:) ) &
 !        & )
 !
-        deallocate(x_coef,vpar_coef,x_vpar_coef)
-!
+
         !Manipulate coefficients for root solvers
         !f(tau) = b/24 * tau**4 + c/6 * tau**3 + d/2 * tau**2 + e * tau - t_remain == 0
 !
@@ -2516,19 +2511,13 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
         double precision, dimension(:),intent(out) :: res_poly_coef
 !
-        integer :: max_order,i,j,k,sz_1,sz_2,cur_order
-        integer,dimension(:),allocatable :: poly_order_vec_1,poly_order_vec_2
+        integer :: max_order,j,k,sz_1,sz_2,cur_order
 !
         sz_1 = size(poly_coef_1)
         sz_2 = size(poly_coef_2)
 !
         !Maximum order of the two polynomials - No higher order than that will be computed
-        max_order = maxval([sz_1,sz_2])
-!
-        allocate(poly_order_vec_1(sz_1),poly_order_vec_2(sz_2))
-!
-        poly_order_vec_1 = [(i, i = 0,sz_1-1,1)]
-        poly_order_vec_2 = [(i, i = 0,sz_2-1,1)]
+        max_order = max(sz_1,sz_2)
 !
         !Initialize coefficient result vector
         res_poly_coef = 0.d0
@@ -2540,7 +2529,8 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
             do k = 1,sz_2
 !
                 !Current order of term multiplication
-                cur_order = (poly_order_vec_1(j) + poly_order_vec_2(k))
+                !(coefficient index j belongs to order j-1)
+                cur_order = (j-1) + (k-1)
 !
                 !Check order of the multiplied term, and exit if max order is exceeded
                 if( cur_order.gt.(max_order-1) ) exit
@@ -2552,8 +2542,6 @@ if(diag_pusher_tetry_poly) print *, 'New quadratic solver is called.'
 !
         enddo
 !
-        deallocate(poly_order_vec_1,poly_order_vec_2)
-        
     end subroutine poly_multiplication_coef
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -3033,11 +3021,8 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting: Safety margin'
     pure function scalar_multiplication_without_precomp(scalar_coef_1,scalar_coef_2)
         implicit none
         double precision, dimension(:), intent(in)           :: scalar_coef_1,scalar_coef_2
-        double precision, dimension(:), allocatable          :: scalar_multiplication_without_precomp
-        integer                                              :: k
+        double precision, dimension(max(size(scalar_coef_1),size(scalar_coef_2))) :: scalar_multiplication_without_precomp
 !
-        k = maxval((/size(scalar_coef_1),size(scalar_coef_2)/))
-        allocate(scalar_multiplication_without_precomp(k))
         call poly_multiplication_coef(scalar_coef_1,scalar_coef_2,scalar_multiplication_without_precomp)
 !
     end function scalar_multiplication_without_precomp
@@ -3048,20 +3033,13 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting: Safety margin'
         implicit none
         double precision, dimension(:), intent(in)           :: scalar_coef
         double precision, dimension(:,:), intent(in)         :: vector_coef
-        double precision, dimension(:), allocatable          :: scalar_coef_res
-        integer                                              :: i,j,k
-        double precision, dimension(:,:), allocatable        :: vector_multiplication_without_precomp
+        double precision, dimension(size(vector_coef,1),max(size(vector_coef,2),size(scalar_coef))) &
+                                                             & :: vector_multiplication_without_precomp
+        integer                                              :: i
 !
-        j = size(vector_coef(:,1))
-        k = maxval((/size(vector_coef(1,:)),size(scalar_coef)/))
-        allocate(scalar_coef_res(k))
-        allocate(vector_multiplication_without_precomp(j,k))
-!
-        do i = 1,j
-                call poly_multiplication_coef(scalar_coef,vector_coef(i,:),scalar_coef_res)
-                vector_multiplication_without_precomp(i,:) = scalar_coef_res
+        do i = 1,size(vector_coef,1)
+                call poly_multiplication_coef(scalar_coef,vector_coef(i,:),vector_multiplication_without_precomp(i,:))
         enddo
-        deallocate(scalar_coef_res)
     end function vector_multiplication_without_precomp
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -3069,23 +3047,16 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting: Safety margin'
     pure function tensor_multiplication_without_precomp(vector_coef_1,vector_coef_2)
         implicit none
         double precision, dimension(:,:), intent(in)         :: vector_coef_1,vector_coef_2
-        integer                                              :: i,j,k,l,m
-        double precision, dimension(:), allocatable          :: scalar_coef_res
-        double precision, dimension(:,:,:), allocatable      :: tensor_multiplication_without_precomp
+        integer                                              :: i,j
+        double precision, dimension(size(vector_coef_1,1),size(vector_coef_2,1), &
+                                  & max(size(vector_coef_1,2),size(vector_coef_2,2))) :: tensor_multiplication_without_precomp
 !
-        k = size(vector_coef_1(:,1))
-        l = size(vector_coef_2(:,1))
-        m = maxval((/size(vector_coef_1(1,:)),size(vector_coef_2(1,:))/))
-        allocate(scalar_coef_res(m))
-        allocate(tensor_multiplication_without_precomp(k,l,m))
-!
-                do i = 1,k
-                    do j = 1,l
-                        call poly_multiplication_coef(vector_coef_1(i,:),vector_coef_2(j,:),scalar_coef_res)
-                        tensor_multiplication_without_precomp(i,j,:) = scalar_coef_res
+                do i = 1,size(vector_coef_1,1)
+                    do j = 1,size(vector_coef_2,1)
+                        call poly_multiplication_coef(vector_coef_1(i,:),vector_coef_2(j,:), &
+                                                    & tensor_multiplication_without_precomp(i,j,:))
                     enddo
                 enddo
-        deallocate(scalar_coef_res)
 !
     end function tensor_multiplication_without_precomp
 !
@@ -3138,13 +3109,11 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting: Safety margin'
         double precision, intent(in)                          :: tau
         double precision, dimension(:,:), intent(in)          :: vector_coef
 !
-        double precision, dimension(:), allocatable           :: vector_integral_without_precomp
+        double precision, dimension(size(vector_coef,1))      :: vector_integral_without_precomp
 !
-        integer                                               :: i,m
+        integer                                               :: i
 !
-        m = size(vector_coef(:,1))
-        allocate(vector_integral_without_precomp(m))
-        do i = 1,m
+        do i = 1,size(vector_coef,1)
         vector_integral_without_precomp(i) = moment_integration(poly_order,tau,vector_coef(i,:))
         enddo
 !
@@ -3163,15 +3132,11 @@ if(diag_pusher_tetry_poly) print *, 'Trouble shooting: Safety margin'
         double precision, intent(in)                    :: tau
         double precision, dimension(:,:,:), intent(in)  :: tensor_coef
 !
-        double precision, dimension(:,:), allocatable   :: tensor_integral_without_precomp
-        integer :: j,k,m,n
+        double precision, dimension(size(tensor_coef,1),size(tensor_coef,2)) :: tensor_integral_without_precomp
+        integer :: j,k
 !
-        m = size(tensor_coef(:,1,1))
-        n = size(tensor_coef(1,:,1))
-        allocate(tensor_integral_without_precomp(m,n))
-!
-        do j = 1,m
-            do k = 1,n
+        do j = 1,size(tensor_coef,1)
+            do k = 1,size(tensor_coef,2)
                 tensor_integral_without_precomp(j,k) = moment_integration(poly_order,tau,tensor_coef(j,k,:))
             enddo
         enddo

@@ -17,7 +17,7 @@
 !------------------------------------------------------------------------------------------------------------!
 !
  !particle species
- !1 ... electron, 2 ... deuterium ion, 3 ... alpha particle, 4 ... ionised tungsten
+ !1 ... electron, 2 ... deuterium ion, 3 ... alpha particle, 4 ... ionised tungsten, 5 ... hydrogen ion
  ispecies = 1 ,
 !
 !------------------------------------------------------------------------------------------------------------!

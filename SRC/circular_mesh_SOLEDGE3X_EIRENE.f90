@@ -19,7 +19,7 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
 !
     integer :: file_id_knots
     integer, dimension(2) :: shape_knots
-    character(70) :: filename_knots
+    character(256) :: filename_knots
     double precision, dimension(:,:),allocatable :: knots_SOLEDGE3X_EIRENE
 !
     integer :: i
@@ -29,7 +29,7 @@ subroutine create_points_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slic
     filename_knots = knots_SOLEDGE3X_EIRENE_filename
 !
     !Load knots -> no internal grid generation in 2D needed
-    open(newunit=file_id_knots, file=filename_knots, status='unknown')
+    open(newunit=file_id_knots, file=trim(filename_knots), status='unknown')
     read(file_id_knots,*) shape_knots
     allocate(knots_SOLEDGE3X_EIRENE(shape_knots(1),shape_knots(2)))
     do i = 1,shape_knots(1)
@@ -91,7 +91,7 @@ subroutine calc_mesh_SOLEDGE3X_EIRENE(n_slices, points_rphiz, verts_per_slice, n
     double precision, dimension(verts_per_slice) :: A_phi_vec
     integer :: i, file_id_triangles, iunit
     integer, dimension(2) :: shape_triangles
-    character(70) :: filename_triangles
+    character(256) :: filename_triangles
     integer, dimension(:,:), allocatable :: triangles
 !         
     !Compute A_phi (psif) for every vertex in 2d-plane
@@ -110,7 +110,7 @@ endif
     filename_triangles = triangles_SOLEDGE3X_EIRENE_filename
 !
     !Load triangles (triples of vertex indices)
-    open(newunit=file_id_triangles, file=filename_triangles, status='unknown')
+    open(newunit=file_id_triangles, file=trim(filename_triangles), status='unknown')
     read(file_id_triangles,*) shape_triangles
     allocate(triangles(shape_triangles(1),shape_triangles(2)))
     do i = 1,shape_triangles(1)
@@ -712,10 +712,11 @@ end subroutine vector_potential_rz
 !
         integer, dimension(:), allocatable :: error_triangles
         integer, dimension(:,:), allocatable :: neighbour_triangles, auxillary_array
-        integer :: n_error, n_repair, k, q, l, m, n, cur_triangle, tetra_idx, n_match
+        integer :: n_error, n_repair, n_unconnected, n_indirect, k, q, l, m, n, cur_triangle, tetra_idx, n_match
         integer, dimension(3) :: cur_neighbours
         integer, dimension(4,12) :: old_neighbours, old_neighbour_faces
         logical :: match
+        logical, dimension(:), allocatable :: repaired_directly
 !
         print*, 'Start repair routine!'
 !
@@ -742,6 +743,8 @@ end subroutine vector_potential_rz
         error_triangles = auxillary_array(:n_error,1)
         neighbour_triangles = auxillary_array(:n_error,2:4)
         deallocate(auxillary_array)
+        allocate(repaired_directly(n_error))
+        repaired_directly = .false.
 !
         ! We go over all problem triangles seperatly (PARENT LOOP) and try to fix them LOCALLY
         n_repair = 0
@@ -791,6 +794,7 @@ end subroutine vector_potential_rz
                     end do CHILD
 !
                 n_repair = n_repair + 1
+                repaired_directly(k) = .true.
                 cycle PARENT ! if all match checks were past -> now it sits right -> go for next problem triangle
 !                
                 end do ROTATE 
@@ -808,7 +812,46 @@ end subroutine vector_potential_rz
             end do
         end do PARENT !n_error
 !
-        write(*,'(A,I3,A,I3,A)') ' Repaired ', n_repair, ' / ', n_error, ' prisms!'
+        ! Final check. A prism that fails above is not necessarily left broken: its mismatch can be with a neighbour that
+        ! is itself on the error list further down, and that neighbour's repair then adapts to it. So check every prism
+        ! of the error list again against all its neighbours. Only these prisms can still be unconnected: a successful
+        ! repair is checked against all neighbours of the repaired prism, and a failed one is reset to its original state.
+        ! Two neighbouring prisms share tetrahedron faces only if they split their common side face along the same
+        ! diagonal, so "match" means the side face is conforming. connect_prisms only (re)sets entries of faces that
+        ! are really shared, so calling it here does not change a correct mesh.
+        n_unconnected = 0
+        n_indirect = 0
+        n_repair = 0
+        do k = 1, n_error
+            cur_triangle = error_triangles(k)
+            cur_neighbours = neighbour_triangles(k,:)
+            match = .true.
+            do q = 1, 3
+                if (cur_neighbours(q) == -1) cycle
+                call connect_prisms_SOLEDGE3X_EIRENE(cur_triangle,cur_neighbours(q),verts,neighbours,neighbour_faces,match)
+                if (.not. match) then
+                    print *, 'Prism ', cur_triangle, ' (triangle vertices ', triangles_SOLEDGE3X_EIRENE(cur_triangle,:), &
+                             ') does not connect to its neighbour prism ', cur_neighbours(q)
+                    exit
+                end if
+            end do
+            if (.not. match) then
+                n_unconnected = n_unconnected + 1
+            elseif (repaired_directly(k)) then
+                n_repair = n_repair + 1
+            else
+                n_indirect = n_indirect + 1
+            end if
+        end do
+!
+        write(*,'(A,I0,A,I0,A,I0,A,I0,A)') ' Prism repair: ', n_error, ' prisms with mismatched faces: ', n_repair, &
+            ' repaired directly, ', n_indirect, ' by the repair of a neighbour, ', &
+            n_unconnected, ' still unconnected'
+        if (n_unconnected > 0) then
+            print *, 'Error: the triangle mesh cannot be split into conforming tetrahedra by the prism repair.'
+            print *, 'Particles would be lost at the unconnected faces. Check the triangles listed above.'
+            error stop
+        end if
 !
     end subroutine repair
 !

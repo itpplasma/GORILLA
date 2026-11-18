@@ -105,7 +105,7 @@ tetra_grid.read();
         gorilla.GORILLANML.coord_system = 1;
 
     %particle species
-        %1 ... electron, 2 ... deuterium ion, 3 ... alpha particle, 4 ... ionised tungsten
+        %1 ... electron, 2 ... deuterium ion, 3 ... alpha particle, 4 ... ionised tungsten, 5 ... hydrogen ion
         gorilla.GORILLANML.ispecies = 4;
 
     %Switch for initial periodic coordinate particle re-location (modulo operation)

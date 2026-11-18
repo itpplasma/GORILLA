@@ -18,9 +18,8 @@ jobs:
   mirror:
     name: Push main and tags to EUFUS GitLab
     if: >-
-      github.repository == 'itpplasma/GORILLA' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-24.04
+      github.repository == 'itpplasma/GORILLA' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, itp-light]
     timeout-minutes: 10
     env:
       EUFUS_GITLAB_TOKEN: ${{ secrets.EUFUS_GITLAB_TOKEN }}
