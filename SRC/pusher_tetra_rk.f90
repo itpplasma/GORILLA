@@ -35,6 +35,7 @@ module pusher_tetra_rk_mod
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
     subroutine initialize_const_motion_rk(perpinv_in,perpinv2_in)
+        use tetra_physics_mod, only: particle_mass
 !
         implicit none
 !            
@@ -43,6 +44,11 @@ module pusher_tetra_rk_mod
         perpinv = perpinv_in
         perpinv2 = perpinv2_in
 !            
+            if (particle_mass .le. 0.d0) then
+                print *, 'Error: no particle species in this OpenMP thread. The parallel region needs', &
+                         ' COPYIN(cm_over_e,particle_charge,particle_mass), or call set_particle_species.'
+                error stop
+            endif
     end subroutine initialize_const_motion_rk
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

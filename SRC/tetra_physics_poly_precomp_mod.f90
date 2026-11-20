@@ -185,14 +185,15 @@ module tetra_physics_poly_precomp_mod
 !
             !$OMP PARALLEL &
             !$OMP& DO DEFAULT(NONE) &
-            !$OMP& SHARED(ntetr,tetra_physics,tetra_physics_poly4,cm_over_e) &
+            !$OMP& SHARED(ntetr,tetra_physics,tetra_physics_poly4) &
             !$OMP& PRIVATE(ind_tetr,alpmat,spalpmat,betmat,spbetmat,bvec,n,n_vec, &
             !$OMP& alp,bet,alp_alp,bet_bet,alp_bet,bet_alp,alp_alp_alp,alp_alp_bet,alp_bet_alp, &
             !$OMP& alp_bet_bet,bet_alp_alp,bet_alp_bet,bet_bet_alp,bet_bet_bet, &
             !$OMP& alp_alp_alp_alp,alp_alp_alp_bet,alp_alp_bet_alp,alp_alp_bet_bet, &
             !$OMP& alp_bet_alp_alp,alp_bet_alp_bet,alp_bet_bet_alp,alp_bet_bet_bet, & 
             !$OMP& bet_alp_alp_alp,bet_alp_alp_bet,bet_alp_bet_alp,bet_alp_bet_bet, &
-            !$OMP& bet_bet_alp_alp,bet_bet_alp_bet,bet_bet_bet_alp,bet_bet_bet_bet)
+            !$OMP& bet_bet_alp_alp,bet_bet_alp_bet,bet_bet_bet_alp,bet_bet_bet_bet) &
+            !$OMP& COPYIN(cm_over_e)
 
             !Loop over all tetrahedra
             do ind_tetr = 1,ntetr

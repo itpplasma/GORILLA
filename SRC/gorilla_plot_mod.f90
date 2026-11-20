@@ -33,7 +33,7 @@ module gorilla_plot_mod
 !
         subroutine gorilla_plot()
 !
-            use tetra_physics_mod, only: coord_system,particle_mass
+            use tetra_physics_mod, only: coord_system,particle_mass,particle_charge,cm_over_e
             use constants, only: ev2erg
             use supporting_functions_mod, only: sym_flux_in_cyl
 !
@@ -270,7 +270,8 @@ module gorilla_plot_mod
                     !$OMP& file_id_J_par, file_id_full_orbit, counter_lost_particles,start_pos_x1_beg,start_pos_x1_end, &
                     !$OMP& boole_poincare_phi_0,boole_poincare_vpar_0,vmod,start_pos_pitch_mat) &
                     !$OMP& PRIVATE(i_surf,ind_tetr,counter_phi_0_mappings,counter_vpar_0_mappings, counter_tetrahedron_passes, &
-                    !$OMP& x,vpar,vperp)
+                    !$OMP& x,vpar,vperp) &
+                    !$OMP& COPYIN(cm_over_e,particle_charge,particle_mass)
                     do i_surf = 1,n_start_pos
 !
                         !Starting velocities
@@ -312,7 +313,8 @@ module gorilla_plot_mod
                     !$OMP& file_id_J_par, file_id_full_orbit, counter_lost_particles,start_pos_x1_beg,start_pos_x1_end, &
                     !$OMP& boole_poincare_phi_0,boole_poincare_vpar_0,start_pitch_parameter,vmod,start_pos_x2,start_pos_x3) &
                     !$OMP& PRIVATE(x,vpar,vperp, i_surf,ind_tetr,counter_phi_0_mappings,counter_vpar_0_mappings, &
-                    !$OMP& counter_tetrahedron_passes)
+                    !$OMP& counter_tetrahedron_passes) &
+                    !$OMP& COPYIN(cm_over_e,particle_charge,particle_mass)
                     do i_surf = 1,n_surfaces
 !
                         !Starting velocities

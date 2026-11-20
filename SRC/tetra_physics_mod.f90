@@ -117,7 +117,14 @@
 !
 !---------------------------------------------------------------------------------------------------------
 !
-    double precision,public :: cm_over_e,particle_charge,particle_mass,mag_axis_R0,mag_axis_Z0
+    double precision,public :: mag_axis_R0,mag_axis_Z0
+!
+    !Particle species: one copy per OpenMP thread, so that markers traced in parallel can carry different species
+    !(e.g. charge-state changes along an orbit). Set with set_particle_species. A parallel region whose threads
+    !push particles must pass the values in with COPYIN(cm_over_e,particle_charge,particle_mass); a thread
+    !without them stops in the pusher (particle_mass = -1 marks "not set").
+    double precision,public :: cm_over_e = 0.d0, particle_charge = 0.d0, particle_mass = -1.d0
+    !$OMP THREADPRIVATE(cm_over_e,particle_charge,particle_mass)
     real(dp), dimension(:), allocatable :: phi_elec
     integer, public, protected :: coord_system
     integer, public, protected :: sign_sqg
@@ -509,12 +516,13 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
   !$OMP& DO DEFAULT(NONE) &
   !$OMP& SHARED(ntetr,tetra_grid,coord_system,verts_rphiz,grid_kind,verts_sthetaphi, &
   !$OMP& grid_size,A_x1,A_x2,A_x3,h_x1,h_x2,h_x3,Bmod,phi_elec,v_E_x1,v_E_x2,v_E_x3,v2_E_mod,boole_strong_electric_field, &
-  !$OMP& handover_processing_kind,hamiltonian_time,cm_over_e, &
+  !$OMP& handover_processing_kind,hamiltonian_time, &
   !$OMP& sqg,tetra_physics,tetra_skew_coord,navec,verts_xyz,mag_axis_R0,mag_axis_Z0,dR_ds,dZ_ds,n_field_periods) &
   !$OMP& PRIVATE(ind_tetr,i,j,k,l,iv,p_x1,p_x2,p_x3,A_phi,A_theta,dA_phi_ds, &
   !$OMP& dA_theta_ds,aiota,R,Z,alam,dR_ds1,dR_dt,dR_dp,dZ_ds1,dZ_dt,dZ_dp,dl_ds,dl_dt,dl_dp, &
   !$OMP& avec,cur_comp1,cur_comp2,cur_comp3,curCoordi,davec_dx1,davec_dx2,davec_dx3,met_det, &
-  !$OMP& vertex_indices,ierr,r_minor,mat_gh,vec_h_1)
+  !$OMP& vertex_indices,ierr,r_minor,mat_gh,vec_h_1) &
+  !$OMP& COPYIN(cm_over_e,particle_charge,particle_mass)
 !
   do ind_tetr=1,ntetr
 !
@@ -1702,4 +1710,45 @@ enddo
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-  end module tetra_physics_mod
+  !
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+  subroutine set_particle_species(mass, charge)
+!
+    !Set the particle species of the calling OpenMP thread: mass [g], charge [statC] (charge /= 0).
+    !Only the pusher settings that read cm_over_e at run time follow a change (see check_species_switch_allowed).
+!
+    use constants, only: clight
+!
+    double precision, intent(in) :: mass, charge
+!
+    if (mass .le. 0.d0 .or. charge .eq. 0.d0) then
+      print *, 'Error: set_particle_species needs mass > 0 and charge /= 0, got', mass, charge
+      error stop
+    endif
+    particle_mass = mass
+    particle_charge = charge
+    cm_over_e = clight*mass/charge
+!
+  end subroutine set_particle_species
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
+  subroutine check_species_switch_allowed()
+!
+    !Stop if the pusher settings bake cm_over_e into precomputed per-tetrahedron data, so that a species
+    !change along an orbit would not take effect: polynomial pusher with i_precomp /= 0, RK pusher with
+    !boole_newton_precalc, strong electric field (hamiltonian_time, curlvE terms).
+!
+    use gorilla_settings_mod, only: ipusher, i_precomp, boole_newton_precalc, boole_strong_electric_field
+!
+    if ((ipusher .eq. 2 .and. i_precomp .ne. 0) .or. (ipusher .eq. 1 .and. boole_newton_precalc) &
+        .or. boole_strong_electric_field) then
+      print *, 'Error: species changes along orbits need ipusher = 2 with i_precomp = 0 (or ipusher = 1 without', &
+               ' boole_newton_precalc) and boole_strong_electric_field = .false.'
+      error stop
+    endif
+!
+  end subroutine check_species_switch_allowed
+!
+end module tetra_physics_mod
