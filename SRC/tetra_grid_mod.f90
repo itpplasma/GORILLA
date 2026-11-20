@@ -26,6 +26,11 @@
     !and theta can be interpolated linearly from its vertices (theta: mind the 2 pi seam at theta = 0).
     double precision,  dimension(:,:), allocatable, public, protected :: verts_s_theta_core
     logical,  dimension(:), allocatable, public, protected :: tetra_in_core
+    !tetra_in_edge_region(i) = .true. if tetrahedron i lies outside the flux surface s_edge_region
+    !(tetra_grid_settings_mod): all non-core tetrahedra (edge; axis fill only for s_edge_region = 0) and the core
+    !tetrahedra whose mean vertex s exceeds s_edge_region. The region boundary inside the core is a ring of the
+    !mesh, so it consists of tetrahedron faces.
+    logical,  dimension(:), allocatable, public, protected :: tetra_in_edge_region
     integer, public, protected :: ntetr,nvert
     double precision, public, protected :: Rmin,Rmax,Zmin,Zmax
 !
@@ -479,7 +484,7 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
     !The external-mesh reader extrudes each triangle into 3 tetrahedra per slice, triangle by triangle, and
     !copies the vertices slice by slice, which gives the mapping below.
 !
-    use tetra_grid_settings_mod, only: edge_mesh_dir
+    use tetra_grid_settings_mod, only: edge_mesh_dir, s_edge_region
 !
     implicit none
 !
@@ -509,15 +514,25 @@ subroutine make_grid_aligned(grid_size,efit_vmec,n_field_periods)
 !
     if (allocated(verts_s_theta_core)) deallocate(verts_s_theta_core)
     if (allocated(tetra_in_core)) deallocate(tetra_in_core)
-    allocate(verts_s_theta_core(2, nvert), tetra_in_core(ntetr))
+    if (allocated(tetra_in_edge_region)) deallocate(tetra_in_edge_region)
+    allocate(verts_s_theta_core(2, nvert), tetra_in_core(ntetr), tetra_in_edge_region(ntetr))
     do k = 0, nphi - 1
       verts_s_theta_core(:, k*nv2 + 1 : (k+1)*nv2) = st
     enddo
     do i = 1, ntetr
       itri = mod(i - 1, 3*ntri) / 3 + 1
       tetra_in_core(i) = (region(itri) .eq. 0)
+      if (s_edge_region .le. 0.d0) then
+        tetra_in_edge_region(i) = .true.
+      elseif (tetra_in_core(i)) then
+        tetra_in_edge_region(i) = (sum(verts_s_theta_core(1, tetra_grid(i)%ind_knot)) .gt. 4.d0*s_edge_region)
+      else
+        tetra_in_edge_region(i) = (region(itri) .eq. 1)
+      endif
     enddo
     print *, 'Extended mesh: ', count(tetra_in_core), ' of ', ntetr, ' tetrahedra in the flux-aligned core'
+    print *, 'Edge region (s_edge_region =', s_edge_region, '): ', count(tetra_in_edge_region), ' of ', ntetr, &
+             ' tetrahedra'
 !
   end subroutine load_edge_mesh_core
 !
@@ -961,6 +976,7 @@ b: do ind_tetr=1,ntetr
     if (allocated(verts_theta_vmec)) deallocate(verts_theta_vmec)
     if (allocated(verts_s_theta_core)) deallocate(verts_s_theta_core)
     if (allocated(tetra_in_core)) deallocate(tetra_in_core)
+    if (allocated(tetra_in_edge_region)) deallocate(tetra_in_edge_region)
 !
     end subroutine deallocate_tetra_grid
 !

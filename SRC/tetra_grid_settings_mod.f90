@@ -53,6 +53,15 @@
     !2 ... equidistant in sqrt(s) (approximately equidistant in minor radius)
     integer, public, protected :: i_radial_spacing = 1
 !
+    !grid_kind = 2: inner flux-surface boundary of an edge region (normalized toroidal flux s).
+    !0 (default) = off, the region is the whole grid. With sfc_s_min < s_edge_region <= sfc_s_max the radial
+    !grid spacing is warped (piecewise linear in s, or in sqrt(s) for i_radial_spacing = 2) so that the regular
+    !ring nearest to s_edge_region lies exactly on it; all ring gaps stay within 0.5 - 1.5 times the unwarped gap.
+    !With boole_extend_to_wall, tetra_in_edge_region (tetra_grid_mod) marks the tetrahedra outside this surface:
+    !everything outside the core plus the core tetrahedra between s_edge_region and the outermost ring.
+    !s_edge_region = sfc_s_max = 1 puts the region boundary on the outermost core ring (separatrix).
+    double precision, public, protected :: s_edge_region = 0.d0
+!
     !Scaling of $\theta$-variable
     integer, public, protected :: theta_geom_flux
 !
@@ -110,7 +119,7 @@
     !Namelist for Tetrahedronal Grid input
     NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual, &
                             & sfc_s_min,sfc_s_max, &
-                            & i_radial_spacing, &
+                            & i_radial_spacing, s_edge_region, &
                             & boole_axisymmetric_only, boole_ext_mesh_efit, &
                             & boole_extend_to_wall, edge_mesh_dir, edge_mesh_options, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
@@ -158,6 +167,18 @@
                 if (.not. theta0_at_xpoint) then
                     print *, 'Error: theta_xpoint_clustering needs theta0_at_xpoint = .true. ', &
                              '(theta = 0 must point to the X-point)'
+                    error stop
+                endif
+            endif
+!
+            if (s_edge_region .ne. 0.d0) then
+                if (grid_kind .ne. 2) then
+                    print *, 'Error: s_edge_region is only implemented for grid_kind = 2'
+                    error stop
+                endif
+                if (s_edge_region .le. sfc_s_min .or. s_edge_region .gt. sfc_s_max) then
+                    print *, 'Error: s_edge_region must be 0 (off) or satisfy sfc_s_min < s_edge_region <= sfc_s_max'
+                    print *, '  sfc_s_min =', sfc_s_min, '  s_edge_region =', s_edge_region, '  sfc_s_max =', sfc_s_max
                     error stop
                 endif
             endif
@@ -328,6 +349,7 @@
             write(iu, '(a,es25.17,a)') ' sfc_s_min = ', sfc_s_min, ' ,'
             write(iu, '(a,es25.17,a)') ' sfc_s_max = ', sfc_s_max, ' ,'
             write(iu, '(a,i0,a)') ' i_radial_spacing = ', i_radial_spacing, ' ,'
+            write(iu, '(a,es25.17,a)') ' s_edge_region = ', s_edge_region, ' ,'
             write(iu, '(a,i0,a)') ' theta_geom_flux = ', theta_geom_flux, ' ,'
             write(iu, '(a,l1,a)') ' theta0_at_xpoint = ', theta0_at_xpoint, ' ,'
             write(iu, '(a,es25.17,a)') ' theta_xpoint_clustering = ', theta_xpoint_clustering, ' ,'
@@ -345,11 +367,13 @@
             !that builds a matching mesh if the files are missing or differ.
             integer :: r_n1, r_n3, r_i_radial_spacing, r_theta_geom_flux
             double precision :: r_sfc_s_min, r_sfc_s_max, r_theta_xpoint_clustering, r_theta_xpoint_clustering_width
+            double precision :: r_s_edge_region
             logical :: r_theta0_at_xpoint
             character(256) :: r_gfile_header, header
             integer(8) :: r_gfile_size, nbytes
             character(512) :: r_generator_options
-            namelist /EDGE_MESH_NML/ r_n1, r_n3, r_sfc_s_min, r_sfc_s_max, r_i_radial_spacing, r_theta_geom_flux, &
+            namelist /EDGE_MESH_NML/ r_n1, r_n3, r_sfc_s_min, r_sfc_s_max, r_i_radial_spacing, r_s_edge_region, &
+                                     r_theta_geom_flux, &
                                      r_theta0_at_xpoint, r_theta_xpoint_clustering, r_theta_xpoint_clustering_width, &
                                      r_gfile_header, r_gfile_size, r_generator_options
             character(1024) :: line
@@ -374,6 +398,7 @@
                     call cmp_d('sfc_s_min', r_sfc_s_min, sfc_s_min)
                     call cmp_d('sfc_s_max', r_sfc_s_max, sfc_s_max)
                     call cmp_i('i_radial_spacing', r_i_radial_spacing, i_radial_spacing)
+                    call cmp_d('s_edge_region', r_s_edge_region, s_edge_region)
                     call cmp_i('theta_geom_flux', r_theta_geom_flux, theta_geom_flux)
                     if (r_theta0_at_xpoint .neqv. theta0_at_xpoint) call mismatch('theta0_at_xpoint')
                     call cmp_d('theta_xpoint_clustering', r_theta_xpoint_clustering, theta_xpoint_clustering)
@@ -408,11 +433,13 @@
             print *, ''
             write(line, '(a)') '    GFILE=$PWD/'//trim(g_file_filename)
             if (sfc_s_max .ne. 1.d0 .or. i_radial_spacing .ne. 1 .or. theta_xpoint_clustering .gt. 0.d0 &
-                .or. theta_geom_flux .ne. 2 .or. .not. theta0_at_xpoint) then
+                .or. theta_geom_flux .ne. 2 .or. .not. theta0_at_xpoint .or. s_edge_region .ne. 0.d0) then
                 write(line, '(a)') trim(line)//' CORE_EXTRA="'
                 if (sfc_s_max .ne. 1.d0) write(line, '(a,g0,a)') trim(line)//' sfc_s_max = ', sfc_s_max, ' ,'
                 if (i_radial_spacing .ne. 1) write(line, '(a,i0,a)') trim(line)//' i_radial_spacing = ', &
                     i_radial_spacing, ' ,'
+                if (s_edge_region .ne. 0.d0) write(line, '(a,g0,a)') trim(line)//' s_edge_region = ', &
+                    s_edge_region, ' ,'
                 if (theta_geom_flux .ne. 2) write(line, '(a,i0,a)') trim(line)//' theta_geom_flux = ', &
                     theta_geom_flux, ' ,'
                 if (.not. theta0_at_xpoint) write(line, '(a)') trim(line)//' theta0_at_xpoint = .false. ,'
@@ -455,6 +482,7 @@
                 r_generator_options = ''
                 r_gfile_header = ''
                 r_theta_xpoint_clustering = 0.d0
+                r_s_edge_region = 0.d0
                 r_theta_xpoint_clustering_width = 0.1d0
                 read(iscr, nml=EDGE_MESH_NML, iostat=ios_out)
                 close(iscr)

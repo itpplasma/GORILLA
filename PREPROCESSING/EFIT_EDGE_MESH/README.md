@@ -40,6 +40,14 @@ through the external-mesh path (internally grid_kind 4 with the EFIT g-file). Se
 one mesh directory. In the run, `tetra_grid_mod` provides `verts_s_theta_core` (s, theta of the core
 vertices, -1 outside) and `tetra_in_core` (tetrahedra of the flux-aligned core).
 
+Edge region: `s_edge_region` in tetra_grid.inp (0 = off) sets an inner flux-surface boundary
+(normalized toroidal flux s). The core ring spacing is warped so that a ring lies exactly on it
+(gaps stay within 0.5 - 1.5 times the unwarped gap), and `tetra_in_edge_region` marks the
+tetrahedra outside it (edge and the core rings beyond s_edge_region). It changes the core, so
+it is part of the mesh settings; build with e.g. `CORE_EXTRA="s_edge_region = 0.9 ,"`.
+Near the separatrix s is compressed: for AUG g26884, s = 0.9 is about 1.1 cm and s = 0.5 about
+8.6 cm inside the separatrix at the outer midplane.
+
 Files in the mesh directory: `knots_aug_edge.dat`, `triangles_aug_edge.dat` (mesh),
 `edge_mesh_core.dat` (core s, theta and triangle regions), `edge_mesh.nml` (settings record),
 `mesh_report.txt`, `generator.log`, `core/` (the grid_kind 2 core run).

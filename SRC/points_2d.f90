@@ -18,7 +18,7 @@ contains
 subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scaling_func,theta_scaling_func,repeat_center_point)
 !
     use tetra_grid_settings_mod, only: s_min => sfc_s_min, s_max => sfc_s_max, &
-                                       theta_geom_flux, n_extra_rings, i_radial_spacing
+                                       theta_geom_flux, n_extra_rings, i_radial_spacing, s_edge_region
     use magdata_in_symfluxcoor_mod, only: psipol_max
     use magdata_in_symfluxcoordinates_mod, only: magdata_in_symfluxcoord_ext
 !
@@ -74,6 +74,9 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
                 r_frac(n+i) = sqrt_s**2
             enddo
     end select
+!
+! Optional edge-region boundary: move the regular ring nearest to s_edge_region onto it
+    if (s_edge_region .gt. 0.d0) call place_ring_at_s_edge(r_frac(n+1:nlabel))
 !
 ! Now add extra rings between s_min and the first regular ring (r_frac(n+1))
 ! These are spaced logarithmically to avoid very thin triangles close to the magnetic axis
@@ -164,6 +167,50 @@ subroutine create_points_2d(inp_label,n_theta,points,points_s_theta_phi,r_scalin
 !
     deallocate(theta_frac)
     deallocate(theta_flux)
+!
+contains
+!
+    subroutine place_ring_at_s_edge(rings)
+    !Warp the regular rings (s_min, s_max excluded; rings(m) = s_max) piecewise linearly in x = s
+    !(i_radial_spacing = 1) or x = sqrt(s) (i_radial_spacing = 2): ring k, the one nearest to s_edge_region,
+    !is put exactly on s_edge_region, the k rings inside and the m-k rings outside are equidistant in x.
+    !Rounding k to the nearest ring keeps all gaps within 0.5 - 1.5 times the unwarped gap.
+        double precision, dimension(:), intent(inout) :: rings
+        integer :: m, k, i
+        double precision :: x_min, x_max, x_e, dx0, x
+!
+        m = size(rings)
+        if (i_radial_spacing .eq. 2) then
+            x_min = sqrt(s_min); x_max = sqrt(s_max); x_e = sqrt(s_edge_region)
+        else
+            x_min = s_min; x_max = s_max; x_e = s_edge_region
+        endif
+        dx0 = (x_max - x_min) / dble(m)
+        k = max(1, min(m, nint((x_e - x_min) / dx0)))
+        if (k .eq. m .and. s_edge_region .lt. s_max) then
+            print *, 'Error: s_edge_region lies less than half a ring gap inside sfc_s_max, the ring there would be'
+            print *, '  too close to the outermost ring. Use s_edge_region = sfc_s_max or a value <= ', &
+                     merge((x_max - 0.5d0*dx0)**2, x_max - 0.5d0*dx0, i_radial_spacing .eq. 2)
+            error stop
+        endif
+        do i = 1, m
+            if (i .le. k) then
+                x = x_min + dble(i) * (x_e - x_min) / dble(k)
+            else
+                x = x_e + dble(i-k) * (x_max - x_e) / dble(m-k)
+            endif
+            if (i_radial_spacing .eq. 2) x = x**2
+            rings(i) = x
+        enddo
+        rings(k) = s_edge_region
+        if (k .lt. m) then
+            print '(a,es12.5,a,i0,a,i0,a,f6.3,a,f6.3)', ' s_edge_region = ', s_edge_region, ' on regular ring ', k, &
+                ' of ', m, ', gap ratio inside/outside vs unwarped: ', (x_e - x_min)/dble(k)/dx0, ' / ', &
+                (x_max - x_e)/dble(m-k)/dx0
+        else
+            print '(a,es12.5,a)', ' s_edge_region = ', s_edge_region, ' on the outermost ring'
+        endif
+    end subroutine place_ring_at_s_edge
 !
 end subroutine create_points_2d
 !
