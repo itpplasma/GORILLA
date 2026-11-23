@@ -96,6 +96,19 @@ foreach(cs 1 2)
   endforeach()
 endforeach()
 
+# grid_kind 5 with the magnetic axis in the mesh: triangle fan at the axis
+add_executable(test_analytic_circ_axis_driver.x
+  SRC/TESTS/test_analytic_circ_axis_driver.f90
+)
+target_link_libraries(test_analytic_circ_axis_driver.x GORILLA netcdff netcdf lapack)
+foreach(nfp 1 3)
+  set(axis_dir ${CMAKE_CURRENT_BINARY_DIR}/analytic_circ_axis_nfp${nfp})
+  file(MAKE_DIRECTORY ${axis_dir})
+  add_test(NAME analytic_circ_axis_fan_nfp${nfp} COMMAND test_analytic_circ_axis_driver.x ${nfp}
+    WORKING_DIRECTORY ${axis_dir})
+  set_tests_properties(analytic_circ_axis_fan_nfp${nfp} PROPERTIES PASS_REGULAR_EXPRESSION "PASS: grid_kind 5 axis")
+endforeach()
+
 # grid_kind 2 on the AUG test equilibrium in cylindrical coordinates: no folds with
 # theta_geom_flux = 2, X-point clustering, magnetic axis from the g-file
 add_executable(test_efit_grid_driver.x
