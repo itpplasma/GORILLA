@@ -26,6 +26,10 @@
     !and theta can be interpolated linearly from its vertices (theta: mind the 2 pi seam at theta = 0).
     double precision,  dimension(:,:), allocatable, public, protected :: verts_s_theta_core
     logical,  dimension(:), allocatable, public, protected :: tetra_in_core
+    ! grid_kind = 5 with the magnetic axis in the mesh (sfc_s_min = 0): flat tetrahedra of the collapsed
+    ! innermost cells. They keep their index (structured numbering) but have no neighbours and are
+    ! skipped by find_tetra; see close_axis_analytic_circ.
+    logical,  dimension(:), allocatable, public, protected :: tetra_degenerate
     integer, public, protected :: ntetr,nvert
     double precision, public, protected :: Rmin,Rmax,Zmin,Zmax
 !
@@ -277,6 +281,10 @@
               end do
               end do
               !
+              ! Magnetic axis inside the mesh: merge the coinciding axis vertices and close the
+              ! innermost ring as a triangle fan (see close_axis_analytic_circ).
+              if (rho_inner_ac .eq. 0.d0) call close_axis_analytic_circ(nr_ac, nphi_ac, nz_ac)
+!
               ! Set verts_sthetaphi: for the flux-aligned mesh, the coordinates are exact.
               !   s     = (R0 - sqrt(R0^2 - rho^2)) / s_edge_ac
               !   theta = STRAIGHT-FIELD-LINE poloidal angle theta*  (NOT geometric)
@@ -948,6 +956,271 @@ b: do ind_tetr=1,ntetr
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+    subroutine close_axis_analytic_circ(nr, nphi, nz)
+!
+! grid_kind = 5 with sfc_s_min = 0: the rho = 0 face of every innermost (rho, theta, phi) cell
+! collapses to a line, so the cell is a wedge (triangle A, a, b in the plane phi times the slice).
+! make_grid_rect still splits it into 6 tetrahedra with one axis vertex per theta, all at the same
+! point; 3 of them are flat. Here the innermost ring is rebuilt as a triangle fan:
+!   - the axis vertices of each toroidal plane are merged into one (A),
+!   - every wedge is split into 3 tetrahedra; the diagonal of the side faces theta = const is
+!     always A(phi)-a(phi'), so neighbouring wedges match, and the outer face takes the diagonal
+!     of the adjacent ring-2 cell,
+!   - the 3 new tetrahedra use 3 of the 6 index slots of the cell, the other 3 are flagged in
+!     tetra_degenerate (no neighbours, skipped by find_tetra); the structured numbering is kept,
+!   - the neighbours of ring 1 and the ring-2 faces towards it are matched again by their vertices.
+! Cylindrical coordinates only (the axis is singular in symmetry flux coordinates).
+!
+    use gorilla_settings_mod, only: coord_system
+    use tetra_grid_settings_mod, only: R0_analytic_circ, n_field_periods
+    use constants, only: pi
+!
+    implicit none
+!
+    integer, intent(in) :: nr, nphi, nz
+    integer :: i, j, k, k2, f, f1, f2, iphi, iz, ir, n_planes, n_link, n_open, n_v
+    integer :: dphi_i, dz_i, jr, jz, jphi, base, base2, ra0, rb0, ra1, rb1, ax0, ax1
+    integer :: cell_v(8), kn(4), kn2(4), new_tets(4,3)
+    integer, dimension(:), allocatable :: rep, plane_rep, pid
+    double precision, dimension(:), allocatable :: plane_phi
+    logical, dimension(:), allocatable :: on_axis
+    double precision :: tol, period, phi_bot, rz(2)
+    logical :: found, diag_a_bp
+!
+    if (coord_system .ne. 1) then
+        print *, 'Error: grid_kind = 5 with the magnetic axis in the mesh (sfc_s_min = 0) needs coord_system = 1;'
+        print *, '       in symmetry flux coordinates the axis is singular: set sfc_s_min > 0.'
+        error stop
+    endif
+    if (nphi .lt. 2) error stop 'grid_kind = 5 with the magnetic axis in the mesh needs n2 >= 2'
+!
+    tol = 1.d-12*R0_analytic_circ
+    period = 2.d0*pi/dble(n_field_periods)
+!
+    ! one representative vertex per toroidal plane for all vertices on the axis
+    allocate(rep(nvert), plane_rep(nphi+1), plane_phi(nphi+1), on_axis(nvert), pid(nvert))
+    on_axis = .false.
+    n_planes = 0
+    do i = 1, nvert
+        rep(i) = i
+        if (hypot(verts_rphiz(1,i) - R0_analytic_circ, verts_rphiz(3,i)) .gt. tol) cycle
+        on_axis(i) = .true.
+        found = .false.
+        do j = 1, n_planes
+            if (abs(verts_rphiz(2,i) - plane_phi(j)) .lt. 1.d-6*period/nphi) then
+                rep(i) = plane_rep(j)
+                found = .true.
+                exit
+            endif
+        enddo
+        if (.not. found) then
+            n_planes = n_planes + 1
+            if (n_planes .gt. nphi + 1) error stop 'close_axis_analytic_circ: more axis planes than toroidal planes'
+            plane_rep(n_planes) = i
+            plane_phi(n_planes) = verts_rphiz(2,i)
+        endif
+    enddo
+    do k = 1, ntetr
+        tetra_grid(k)%ind_knot = rep(tetra_grid(k)%ind_knot)
+    enddo
+!
+    ! periodic identity of the vertices: a vertex on the plane phi = period is the vertex at phi = 0
+    ! with the same (R, Z) (make_grid_rect keeps a separate vertex layer there)
+    do i = 1, nvert
+        pid(i) = rep(i)
+    enddo
+    do i = 1, nvert
+        if (rep(i) .ne. i) cycle
+        if (abs(verts_rphiz(2,i) - period) .gt. 1.d-6*period/nphi) cycle
+        do j = 1, nvert
+            if (rep(j) .ne. j) cycle
+            if (abs(verts_rphiz(2,j)) .gt. 1.d-6*period/nphi) cycle
+            if (abs(verts_rphiz(1,j) - verts_rphiz(1,i)) + abs(verts_rphiz(3,j) - verts_rphiz(3,i)) .gt. tol) cycle
+            pid(i) = j
+            exit
+        enddo
+    enddo
+!
+    allocate(tetra_degenerate(ntetr))
+    tetra_degenerate = .false.
+!
+    ! rebuild every wedge of ring 1
+    do iphi = 1, nphi
+        phi_bot = dble(iphi - 1)*period/dble(nphi)
+        do iz = 1, nz
+            base = 6*((iphi - 1)*nr*nz + iz - 1)
+            ! the 6 distinct vertices of the wedge
+            n_v = 0
+            do k = base + 1, base + 6
+                do i = 1, 4
+                    if (any(cell_v(1:n_v) .eq. tetra_grid(k)%ind_knot(i))) cycle
+                    n_v = n_v + 1
+                    if (n_v .gt. 6) error stop 'close_axis_analytic_circ: wedge with more than 6 vertices'
+                    cell_v(n_v) = tetra_grid(k)%ind_knot(i)
+                enddo
+            enddo
+            if (n_v .ne. 6) error stop 'close_axis_analytic_circ: wedge with less than 6 vertices'
+            ax0 = -1; ax1 = -1; ra0 = -1; rb0 = -1; ra1 = -1; rb1 = -1
+            do i = 1, 6
+                j = cell_v(i)
+                if (abs(verts_rphiz(2,j) - phi_bot) .lt. 1.d-6*period/nphi) then   ! bottom plane
+                    if (on_axis(j)) then
+                        ax0 = j
+                    elseif (ra0 .lt. 0) then
+                        ra0 = j
+                    else
+                        rb0 = j
+                    endif
+                endif
+            enddo
+            do i = 1, 6
+                j = cell_v(i)
+                if (j .eq. ax0 .or. j .eq. ra0 .or. j .eq. rb0) cycle
+                if (on_axis(j)) then
+                    ax1 = j
+                else
+                    rz = verts_rphiz([1,3], j)
+                    if (abs(rz(1) - verts_rphiz(1,ra0)) + abs(rz(2) - verts_rphiz(3,ra0)) .lt. tol) then
+                        ra1 = j
+                    else
+                        rb1 = j
+                    endif
+                endif
+            enddo
+            if (min(ax0, ax1, ra0, rb0, ra1, rb1) .lt. 1) error stop 'close_axis_analytic_circ: cannot classify wedge vertices'
+            ! diagonal of the outer quad face (a, b, a', b'): that of the adjacent ring-2 cell
+            diag_a_bp = .true.
+            if (nr .ge. 2) then
+                base2 = 6*((iphi - 1)*nr*nz + nz + iz - 1)
+                do k = base2 + 1, base2 + 6
+                    kn = tetra_grid(k)%ind_knot
+                    if (count(kn .eq. ra0 .or. kn .eq. rb0 .or. kn .eq. ra1 .or. kn .eq. rb1) .ne. 3) cycle
+                    diag_a_bp = any(kn .eq. ra0) .and. any(kn .eq. rb1)
+                    exit
+                enddo
+            endif
+            ! split: side diagonals A-a', A-b'; outer diagonal a-b' or b-a'
+            if (diag_a_bp) then
+                new_tets(:,1) = [ax0, ra0, rb0, rb1]
+                new_tets(:,2) = [ax0, ra0, ra1, rb1]
+            else
+                new_tets(:,1) = [ax0, ra0, rb0, ra1]
+                new_tets(:,2) = [ax0, rb0, ra1, rb1]
+            endif
+            new_tets(:,3) = [ax0, ax1, ra1, rb1]
+            do i = 1, 6
+                k = base + i
+                do f = 1, 4      ! drop links from ring 2 into this cell
+                    k2 = tetra_grid(k)%neighbour_tetr(f)
+                    if (k2 .gt. 0) then
+                        f2 = tetra_grid(k)%neighbour_face(f)
+                        if (tetra_grid(k2)%neighbour_tetr(f2) .eq. k) then
+                            tetra_grid(k2)%neighbour_tetr(f2) = -1
+                            tetra_grid(k2)%neighbour_face(f2) = -1
+                            tetra_grid(k2)%neighbour_perbou_phi(f2) = 0
+                            tetra_grid(k2)%neighbour_perbou_theta(f2) = 0
+                        endif
+                    endif
+                enddo
+                tetra_grid(k)%neighbour_tetr = -1
+                tetra_grid(k)%neighbour_face = -1
+                tetra_grid(k)%neighbour_perbou_phi = 0
+                tetra_grid(k)%neighbour_perbou_theta = 0
+                if (i .le. 3) then
+                    tetra_grid(k)%ind_knot = new_tets(:, i)
+                else
+                    tetra_grid(k)%ind_knot = [ax0, ax0, ra0, rb0]   ! flat placeholder (zero volume), flagged
+                    tetra_degenerate(k) = .true.
+                endif
+            enddo
+        enddo
+    enddo
+!
+    ! match the open faces of ring 1 and ring 2 (same or adjacent cells, periodic in phi and theta)
+    n_link = 0
+    do iphi = 1, nphi
+    do ir = 1, min(2, nr)
+    do iz = 1, nz
+    do i = 1, 6
+        k = 6*((iphi - 1)*nr*nz + (ir - 1)*nz + iz - 1) + i
+        if (tetra_degenerate(k)) cycle
+        if (all(tetra_grid(k)%neighbour_tetr .ne. -1)) cycle
+        kn = pid(tetra_grid(k)%ind_knot)
+        do dphi_i = -1, 1
+        do jr = 1, min(2, nr)
+        do dz_i = -1, 1
+            jphi = modulo(iphi - 1 + dphi_i, nphi) + 1
+            jz = modulo(iz - 1 + dz_i, nz) + 1
+            do j = 1, 6
+                k2 = 6*((jphi - 1)*nr*nz + (jr - 1)*nz + jz - 1) + j
+                if (k2 .eq. k .or. tetra_degenerate(k2)) cycle
+                kn2 = pid(tetra_grid(k2)%ind_knot)
+                call check_neighbour(kn, kn2, f1, f2)
+                if (f1 .eq. -1) cycle
+                if (tetra_grid(k)%neighbour_tetr(f1) .ne. -1 .or. tetra_grid(k2)%neighbour_tetr(f2) .ne. -1) cycle
+                tetra_grid(k)%neighbour_tetr(f1) = k2
+                tetra_grid(k)%neighbour_face(f1) = f2
+                tetra_grid(k2)%neighbour_tetr(f2) = k
+                tetra_grid(k2)%neighbour_face(f2) = f1
+                tetra_grid(k)%neighbour_perbou_phi(f1) = face_on_plane(k, f1, period) - face_on_plane(k, f1, 0.d0)
+                tetra_grid(k2)%neighbour_perbou_phi(f2) = face_on_plane(k2, f2, period) - face_on_plane(k2, f2, 0.d0)
+                tetra_grid(k)%neighbour_perbou_theta(f1) = 0
+                tetra_grid(k2)%neighbour_perbou_theta(f2) = 0
+                n_link = n_link + 1
+            enddo
+        enddo
+        enddo
+        enddo
+    enddo
+    enddo
+    enddo
+    enddo
+!
+    ! a valid tetrahedron of rings 1 and 2 may only have open faces on the outer boundary rho = a
+    n_open = 0
+    do iphi = 1, nphi
+    do ir = 1, min(2, nr)
+    do iz = 1, nz
+    do i = 1, 6
+        k = 6*((iphi - 1)*nr*nz + (ir - 1)*nz + iz - 1) + i
+        if (tetra_degenerate(k)) cycle
+        do f = 1, 4
+            if (tetra_grid(k)%neighbour_tetr(f) .ne. -1) cycle
+            if (ir .lt. nr) then
+                n_open = n_open + 1
+            elseif (any(on_axis(tetra_grid(k)%ind_knot(pack([1,2,3,4], [1,2,3,4] .ne. f))))) then
+                n_open = n_open + 1
+            endif
+        enddo
+    enddo
+    enddo
+    enddo
+    enddo
+    print '(a,i0,a,i0,a,i0,a)', ' grid_kind 5: magnetic axis closed by a triangle fan (', n_planes, &
+        ' axis vertices, ', count(tetra_degenerate), ' tetrahedron slots unused, ', n_link, ' faces matched)'
+    if (n_open .gt. 0) then
+        print *, 'Error: close_axis_analytic_circ: open faces next to the axis: ', n_open
+        error stop
+    endif
+!
+    contains
+!
+        integer function face_on_plane(kk, ff, phi_plane)
+            ! 1 if face ff of tetrahedron kk lies in the plane phi = phi_plane, else 0
+            integer, intent(in) :: kk, ff
+            double precision, intent(in) :: phi_plane
+            integer :: m
+            face_on_plane = 1
+            do m = 1, 4
+                if (m .eq. ff) cycle
+                if (abs(verts_rphiz(2, tetra_grid(kk)%ind_knot(m)) - phi_plane) .gt. 1.d-6*period/nphi) face_on_plane = 0
+            enddo
+        end function face_on_plane
+!
+    end subroutine close_axis_analytic_circ
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
     subroutine deallocate_tetra_grid
 !
 ! Deallocates tetra_grid arrays to allow rebuilding with different parameters
@@ -961,6 +1234,7 @@ b: do ind_tetr=1,ntetr
     if (allocated(verts_theta_vmec)) deallocate(verts_theta_vmec)
     if (allocated(verts_s_theta_core)) deallocate(verts_s_theta_core)
     if (allocated(tetra_in_core)) deallocate(tetra_in_core)
+    if (allocated(tetra_degenerate)) deallocate(tetra_degenerate)
 !
     end subroutine deallocate_tetra_grid
 !

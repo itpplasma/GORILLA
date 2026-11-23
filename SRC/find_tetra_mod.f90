@@ -283,7 +283,7 @@ PRINT*, 'grid_for_find_tetra finished'
 subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
 !
         use gorilla_settings_mod, only: boole_grid_for_find_tetra, b_factor
-        use tetra_grid_mod, only : Rmin,Rmax,Zmin,Zmax,ntetr,tetra_grid, verts_rphiz
+        use tetra_grid_mod, only : Rmin,Rmax,Zmin,Zmax,ntetr,tetra_grid, verts_rphiz, tetra_degenerate
         use tetra_grid_settings_mod, only: grid_kind, grid_size, n_field_periods, R0_analytic_circ
         use tetra_physics_mod, only: tetra_physics,cm_over_e,isinside, coord_system
         use pusher_tetra_func_mod, only: pusher_handover2neighbour
@@ -550,6 +550,11 @@ subroutine find_tetra(x,vpar,vperp,ind_tetr_out,iface,sign_t_step_in)
             ! endif
             if (ind_search_tetra.gt.ntetr) ind_search_tetra = ind_search_tetra - ntetr
             if (ind_search_tetra.le.0) ind_search_tetra = ind_search_tetra + ntetr
+
+            !Flat tetrahedra at the magnetic axis (grid_kind = 5, sfc_s_min = 0) are not part of the mesh
+            if (allocated(tetra_degenerate)) then
+                if (tetra_degenerate(ind_search_tetra)) cycle
+            endif
 
             if (isinside(ind_search_tetra,x)) then !inside tetrahedron
 !
