@@ -563,7 +563,7 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
           select case(coord_system)
             case(1) !R,Phi,Z --> Cylindrical coordinate system
               if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_rphiz(2,iv) .eq. 0.d0)) then
-                p_x2(i) = 2.d0*pi
+                p_x2(i) = 2.d0*pi/n_field_periods
               endif
             case(2) !s,theta,phi --> Symmetry flux coordinate system
               if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_sthetaphi(3,iv) .eq. 0.d0)) then !if(tetra in last phi_slice & phi .eq. 0)
@@ -577,14 +577,14 @@ if(boole_save_electric) call save_v_E(v_E_x1,v_E_x2,v_E_x3,v2_E_mod)
         case(4) !SOLEDGE3X_EIRENE grid
                 !R,Phi,Z --> Cylindrical coordinate system
                 if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_rphiz(2,iv) .eq. 0.d0)) then
-                p_x2(i) = 2.d0*pi
+                p_x2(i) = 2.d0*pi/n_field_periods
                 endif
 !
         case(5) !analytic circular tokamak
           select case(coord_system)
             case(1) !R,Phi,Z: phi is p_x2
               if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_rphiz(2,iv) .eq. 0.d0)) then
-                p_x2(i) = 2.d0*pi
+                p_x2(i) = 2.d0*pi/n_field_periods
               endif
             case(2) !s,theta,phi: phi is p_x3
               if ((ind_tetr .ge. ntetr-ntetr/grid_size(2)+1) .and. (verts_sthetaphi(3,iv) .eq. 0.d0)) then
