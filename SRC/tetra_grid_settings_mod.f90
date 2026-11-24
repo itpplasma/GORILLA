@@ -32,6 +32,7 @@
 !
     !For VMEC input, retain only harmonics with toroidal mode number n=0.
     logical,public,protected :: boole_axisymmetric_only = .false.
+    logical,public,protected :: boole_vmec_legacy_flux = .false.
 !
     !MHD equilibrium filename
     character*64,public,protected :: g_file_filename
@@ -111,7 +112,7 @@
     NAMELIST /TETRA_GRID_NML/ n1, n2, n3, grid_kind,boole_n_field_periods,n_field_periods_manual, &
                             & sfc_s_min,sfc_s_max, &
                             & i_radial_spacing, &
-                            & boole_axisymmetric_only, boole_ext_mesh_efit, &
+                            & boole_axisymmetric_only, boole_vmec_legacy_flux, boole_ext_mesh_efit, &
                             & boole_extend_to_wall, edge_mesh_dir, edge_mesh_options, &
                             & boole_write_mesh_obj,filename_mesh_rphiz,filename_mesh_sthetaphi,theta_geom_flux,theta0_at_xpoint, &
                             & theta_xpoint_clustering, theta_xpoint_clustering_width, &
