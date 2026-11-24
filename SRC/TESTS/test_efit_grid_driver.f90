@@ -11,12 +11,18 @@ program test_efit_grid_driver
     use tetra_grid_settings_mod, only: load_tetra_grid_inp, n2
     use tetra_grid_mod, only: nvert, verts_rphiz, verts_sthetaphi
     use tetra_physics_mod, only: mag_axis_R0, mag_axis_Z0
+    use utils_field_divB0_mod, only: stretch_coords
+    use input_files, only: convexfile
     implicit none
     character(len=512) :: eqdir
     integer, parameter :: n1 = 30, n3 = 60
     real(dp), parameter :: s_min = 0.1_dp
 
     call get_command_argument(1, eqdir)
+    if (eqdir == '--dense-wall') then
+        call check_dense_wall()
+        stop
+    endif
     call copy_file(trim(eqdir)//'/g_file_for_test', 'g_file_for_test')
     call copy_file(trim(eqdir)//'/convex_wall_for_test.dat', 'convex_wall_for_test.dat')
     call write_inputs(1, 2, 0.9_dp)
@@ -27,6 +33,29 @@ program test_efit_grid_driver
     call check_clustering()
 
 contains
+
+    subroutine check_dense_wall()
+        integer, parameter :: nwall = 192
+        real(dp), parameter :: pi = acos(-1.0_dp), center = 165.0_dp, radius = 50.0_dp
+        real(dp), parameter :: dtheta = 2*pi/nwall, probe_theta = 2*pi*267/359, probe_radius = 54.0_dp
+        integer :: iu, i
+        real(dp) :: theta, mid_angle, wall_radius, expected, rm, zm
+
+        convexfile = 'dense_convex_wall.dat'
+        open(newunit=iu, file=trim(convexfile), status='replace', action='write')
+        do i = 0, nwall-1
+            theta = i*dtheta
+            write(iu, *) center + radius*cos(theta), radius*sin(theta)
+        enddo
+        close(iu)
+
+        mid_angle = (floor(probe_theta/dtheta) + 0.5_dp)*dtheta
+        wall_radius = radius*cos(dtheta/2)/cos(probe_theta-mid_angle)
+        expected = wall_radius + atan(probe_radius-wall_radius)
+        call stretch_coords(center + probe_radius*cos(probe_theta), probe_radius*sin(probe_theta), rm, zm)
+        if (abs(hypot(rm-center, zm)-expected) > 1.0e-10_dp) error stop 'incorrect dense wall intersection'
+        print *, 'PASS'
+    end subroutine check_dense_wall
 
     subroutine check_clustering()
         ! last ring of the first slice: spacing next to theta = 0 (X-point) against the mean spacing

@@ -107,5 +107,10 @@ add_test(NAME efit_grid
   COMMAND test_efit_grid_driver.x ${CMAKE_CURRENT_SOURCE_DIR}/MHD_EQUILIBRIA
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/efit_grid)
 set_tests_properties(efit_grid PROPERTIES PASS_REGULAR_EXPRESSION "PASS" FAIL_REGULAR_EXPRESSION "FAIL:")
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/efit_dense_wall)
+add_test(NAME efit_dense_wall
+  COMMAND test_efit_grid_driver.x --dense-wall
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/efit_dense_wall)
+set_tests_properties(efit_dense_wall PROPERTIES PASS_REGULAR_EXPRESSION "PASS")
 
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
