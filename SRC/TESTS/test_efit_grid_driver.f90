@@ -53,7 +53,7 @@ contains
         wall_radius = radius*cos(dtheta/2)/cos(probe_theta-mid_angle)
         expected = wall_radius + atan(probe_radius-wall_radius)
         call stretch_coords(center + probe_radius*cos(probe_theta), probe_radius*sin(probe_theta), rm, zm)
-        if (abs(hypot(rm-center, zm)-expected) > 1.0e-10_dp) error stop 'incorrect dense wall intersection'
+        if (.not. (abs(hypot(rm-center, zm)-expected) <= 1.0e-10_dp)) error stop 'incorrect dense wall intersection'
         print *, 'PASS'
     end subroutine check_dense_wall
 
