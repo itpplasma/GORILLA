@@ -22,6 +22,8 @@
 !
  !For VMEC input, retain only n=0 Fourier harmonics
  boole_axisymmetric_only = .false. ,
+ !Use the historical flux convention for VMEC files with a manually adjusted phi
+ boole_vmec_legacy_flux = .false. ,
 !
  !MHD equilibrium filename
  g_file_filename = 'MHD_EQUILIBRIA/g_file_for_test' ,

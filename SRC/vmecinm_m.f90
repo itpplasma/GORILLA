@@ -33,6 +33,7 @@ module vmecin_mod
                     nsurfb,nstrb,kparb,flux)
 !
   use new_vmec_stuff_mod, only : netcdffile
+  use tetra_grid_settings_mod, only : boole_vmec_legacy_flux
   use nctools_module
 !
   implicit none
@@ -40,7 +41,7 @@ module vmecin_mod
   double precision, parameter :: pi=3.14159265358979d0
   double precision, parameter :: fac_b=1d4,fac_r=1d2
 !
-  integer :: nsurfb,nstrb,kparb,ncid,i,lasym_int
+  integer :: nsurfb,nstrb,kparb,ncid,i,lasym_int,signgs
   logical :: lasym
   double precision :: flux
   double precision, dimension(nstrb)         :: axm,axn
@@ -61,7 +62,13 @@ module vmecin_mod
   endif
 !
   call nc_get(ncid, 'phi', phi)
-  phi = phi/(2*pi)  ! added by Christopher Albert, 2019-09-16 for correct normalization
+  signgs = 1
+  if (.not. boole_vmec_legacy_flux .and. nc_has_var(ncid, 'signgs')) then
+    call nc_get(ncid, 'signgs', signgs)
+    if (abs(signgs) /= 1) error stop 'VMEC signgs must be -1 or 1'
+  endif
+  ! The vector potential uses flux oriented with the signed VMEC Jacobian.
+  phi = signgs*phi/(2*pi)
 !
   flux=phi(kparb)
   flux=flux*fac_b*fac_r**2
