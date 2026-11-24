@@ -95,6 +95,8 @@
     !Boolean for importing field perturbations from Mephit
     logical, public, protected :: boole_pert_from_mephit
 !
+    character(len=256), public, protected :: vertex_field_file = ''
+!
     !Namelist for Gorilla input
     NAMELIST /GORILLANML/ eps_Phi, coord_system, ispecies, ipusher, &
                         & boole_pusher_ode45, boole_dt_dtau, boole_newton_precalc, poly_order, i_precomp, boole_guess, &
@@ -108,7 +110,7 @@
                         & i_time_tracing_option, &
                         & boole_strong_electric_field, boole_save_electric, filename_electric_field, filename_electric_drift, &
                         & er_profile_file, er_equil_mapping_file, &
-                        & boole_pert_from_mephit
+                        & boole_pert_from_mephit, vertex_field_file
 !
     public :: load_gorilla_inp,set_eps_Phi, optional_quantities_type
 !
@@ -119,6 +121,7 @@
             integer :: iunit
 !
             open(newunit=iunit, file='gorilla.inp', status='unknown')
+            vertex_field_file = ''
             read(iunit,nml=gorillanml)
             close(iunit)
 !
