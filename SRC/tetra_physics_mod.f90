@@ -2,7 +2,7 @@
 
   module tetra_physics_mod
 
-    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use, intrinsic :: iso_fortran_env, only: dp => real64, iostat_end, error_unit
 !
     implicit none
 !---------------------------------------------------------------------------------------------------------
@@ -156,7 +156,7 @@
       use gorilla_settings_mod, only: eps_Phi,handover_processing_kind, boole_axi_noise_vector_pot, &
             & boole_axi_noise_elec_pot, boole_non_axi_noise_vector_pot, &
             & axi_noise_eps_A, axi_noise_eps_Phi, non_axi_noise_eps_A, &
-            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit, er_profile_file
+            & boole_strong_electric_field, boole_save_electric, boole_pert_from_mephit, er_profile_file, vertex_field_file
       use strong_electric_field_mod, only: get_electric_field, save_electric_field, get_v_E, save_v_E, &
           get_electric_potential
       use differentiate_mod, only: differentiate
@@ -199,6 +199,10 @@
       double precision :: b_x1_added, b_x2_added, b_x3_added
       integer          :: triangle, n_fourier_modes
       complex, dimension(:,:), allocatable :: A_x1_mat, A_x2_mat, A_x3_mat, b_x1_mat, b_x2_mat, b_x3_mat
+!
+      integer :: vertex_field_unit, vertex_field_status
+      logical :: use_vertex_field
+      character(len=1) :: vertex_field_tail
 !
       !Deallocate any pre-existing module arrays so a fresh grid can be built without external bookkeeping.
       !phi_elec is preserved when the caller asks for it (self-consistent electric field workflow),
@@ -274,6 +278,17 @@
         coord_system = coord_system_in
       endif 
 !
+      use_vertex_field = len_trim(vertex_field_file) /= 0
+      if (use_vertex_field) then
+        if (coord_system /= 1) error stop 'vertex_field_file needs cylindrical coordinates'
+        if (n_field_periods /= 1) error stop 'vertex_field_file needs a full-torus mesh'
+        if (ipert_in /= 0 .or. boole_pert_from_mephit .or. boole_axi_noise_vector_pot .or. &
+            boole_non_axi_noise_vector_pot) error stop 'vertex_field_file supplies the complete magnetic field'
+        if (eps_Phi /= 0.0_dp .or. len_trim(er_profile_file) /= 0) &
+            error stop 'vertex_field_file does not supply the flux label for a radial electric field'
+        call open_cyl_vertex_field(vertex_field_file, nvert, vertex_field_unit)
+      endif
+!
       if(coord_system.eq.2) then
         allocate(dR_ds(nvert))
         allocate(dZ_ds(nvert))
@@ -298,7 +313,7 @@
 !
       !Pre-processing for EFIT
 !
-      if( (grid_kind.eq.1).or.(grid_kind.eq.2).or.(grid_kind.eq.4).or.(grid_kind.eq.5) ) then
+      if (.not. use_vertex_field .and. any(grid_kind == [1, 2, 4, 5])) then
         !subroutine field must be called in order to realize perturbation according to ipert_in
         rrr=1.d0
         ppp=0.d0
@@ -377,8 +392,13 @@
         select case(coord_system)
           case(1) !RphiZ --> Cylindrical coordinate system
 !
-            call vector_potential_rphiz(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),ipert_in,bmod_multiplier, &
-                              & A_x1(iv),A_x2(iv),A_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv))
+            if (use_vertex_field) then
+              call read_cyl_vertex_field(vertex_field_unit, iv, verts_rphiz(:,iv), bmod_multiplier, &
+                  A_x1(iv), A_x2(iv), A_x3(iv), h_x1(iv), h_x2(iv), h_x3(iv), Bmod(iv))
+            else
+              call vector_potential_rphiz(verts_rphiz(1,iv),verts_rphiz(2,iv),verts_rphiz(3,iv),ipert_in,bmod_multiplier, &
+                                & A_x1(iv),A_x2(iv),A_x3(iv),h_x1(iv),h_x2(iv),h_x3(iv),Bmod(iv))
+            endif
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! add vector potential and magnetic field perturbations from Markus here !!!!!!!!!!!!!!!
             if (boole_pert_from_mephit) then
@@ -500,6 +520,12 @@
         endif
 !
       enddo !iv (index vertex)
+!
+      if (use_vertex_field) then
+        read(vertex_field_unit, '(a)', iostat=vertex_field_status) vertex_field_tail
+        if (vertex_field_status /= iostat_end) error stop 'vertex_field_file has trailing rows'
+        close(vertex_field_unit)
+      endif
 !
 !Reading out the calculated electric field/drift velocity for testing/debugging/visualization purposes
 if(boole_save_electric) call save_electric_field(E_x1,E_x2,E_x3)
@@ -1176,6 +1202,61 @@ enddo
 ! 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+      subroutine open_cyl_vertex_field(filename, nvert, unit)
+        character(len=*), intent(in) :: filename
+        integer, intent(in) :: nvert
+        integer, intent(out) :: unit
+        integer :: status, vertices
+        character(len=64) :: header
+
+        open(newunit=unit, file=filename, status='old', action='read', iostat=status)
+        if (status /= 0) error stop 'cannot open vertex_field_file'
+        read(unit, '(a)', iostat=status) header
+        if (status /= 0) error stop 'cannot read vertex_field_file header'
+        if (header /= 'GORILLA_CYL_VERTEX_AB_V1') error stop 'invalid vertex_field_file header'
+        read(unit, *, iostat=status) vertices
+        if (status /= 0) error stop 'cannot read vertex_field_file vertex count'
+        if (vertices /= nvert) error stop 'vertex_field_file vertex count does not match mesh'
+      end subroutine open_cyl_vertex_field
+
+      subroutine read_cyl_vertex_field(unit, vertex, x, bmod_multiplier, ar, ap, az, br, bp, bz, bmod)
+        use, intrinsic :: ieee_arithmetic, only: ieee_is_finite, ieee_value, ieee_quiet_nan
+        integer, intent(in) :: unit, vertex
+        real(dp), intent(in) :: x(3), bmod_multiplier
+        real(dp), intent(out) :: ar, ap, az, br, bp, bz, bmod
+        integer :: status
+        character(len=1024) :: line
+        character(len=1) :: extra
+        real(dp) :: values(9)
+
+        read(unit, '(a)', iostat=status) line
+        if (status /= 0) call invalid_row('cannot read row')
+        values = ieee_value(0.0_dp, ieee_quiet_nan)
+        read(line, *, iostat=status) values, extra
+        if (status /= iostat_end .or. .not. all(ieee_is_finite(values))) &
+            call invalid_row('expected nine finite values')
+        if (any(abs(values(:3)-x) > 64.0_dp*epsilon(1.0_dp)*max(1.0_dp,abs(x)))) &
+            call invalid_row('coordinate or order differs from mesh')
+
+        ar = values(4)
+        ap = x(1)*values(5)
+        az = values(6)
+        br = values(7)
+        bp = x(1)*values(8)
+        bz = values(9)
+        bmod = norm2(values(7:))
+        if (bmod <= 0.0_dp) call invalid_row('expected nonzero magnetic field')
+        bmod = bmod*bmod_multiplier
+
+      contains
+
+        subroutine invalid_row(message)
+          character(len=*), intent(in) :: message
+          write(error_unit, '(a,i0,2a)') 'vertex_field_file vertex ', vertex, ': ', message
+          error stop 1
+        end subroutine invalid_row
+      end subroutine read_cyl_vertex_field
+
       subroutine vector_potential_rphiz(r,phi,z,ipert,bmod_multiplier,A_r,A_phi,A_z,B_r,B_phi,B_z,bmod)
 !
         use field_eq_mod,                 only : rtf,psif

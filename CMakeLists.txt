@@ -108,4 +108,19 @@ add_test(NAME efit_grid
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/efit_grid)
 set_tests_properties(efit_grid PROPERTIES PASS_REGULAR_EXPRESSION "PASS" FAIL_REGULAR_EXPRESSION "FAIL:")
 
+add_executable(test_cyl_vertex_field.x SRC/TESTS/test_cyl_vertex_field.f90)
+target_link_libraries(test_cyl_vertex_field.x GORILLA netcdff netcdf lapack)
+foreach(vertex_case field orbit order zero-field extra-row)
+  set(vertex_dir ${CMAKE_CURRENT_BINARY_DIR}/cyl_vertex_${vertex_case})
+  file(MAKE_DIRECTORY ${vertex_dir})
+  add_test(NAME cyl_vertex_${vertex_case}
+    COMMAND test_cyl_vertex_field.x ${vertex_case} ${CMAKE_CURRENT_SOURCE_DIR}/INPUT/gorilla.inp
+    WORKING_DIRECTORY ${vertex_dir})
+  set_tests_properties(cyl_vertex_${vertex_case} PROPERTIES ENVIRONMENT "OMP_NUM_THREADS=1")
+endforeach()
+set_tests_properties(cyl_vertex_field cyl_vertex_orbit PROPERTIES PASS_REGULAR_EXPRESSION "PASS")
+set_tests_properties(cyl_vertex_order PROPERTIES PASS_REGULAR_EXPRESSION "coordinate or order differs from mesh")
+set_tests_properties(cyl_vertex_zero-field PROPERTIES PASS_REGULAR_EXPRESSION "expected nonzero magnetic field")
+set_tests_properties(cyl_vertex_extra-row PROPERTIES PASS_REGULAR_EXPRESSION "vertex_field_file has trailing rows")
+
 message(${CMAKE_HOST_SYSTEM_PROCESSOR})
