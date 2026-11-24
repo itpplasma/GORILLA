@@ -972,16 +972,15 @@ subroutine inthecore(R,Z)
 end subroutine inthecore
 
 subroutine stretch_coords(r,z,rm,zm)
-  use input_files, only : iunit,convexfile
+  use, intrinsic :: iso_fortran_env, only : iostat_end
+  use input_files, only : convexfile
   implicit none
   integer icall, i, j, nrz ! number of points "convex wall" in input file
-  integer ios
-  integer, parameter :: nrzmx=100 ! possible max. of nrz
+  integer iunit, ios
   integer, parameter :: nrhotht=360
   real(kind=8), parameter :: pi = 3.14159265358979d0
   real(kind=8) R0,Rw, Zw, htht, Rl, Zl, a, b, r, z, rm, zm, rho, tht, rho_c, delta
-  real(kind=8), dimension(100):: rad_w, zet_w ! points "convex wall"
-  real(kind=8), dimension(:), allocatable :: rho_w, tht_w
+  real(kind=8), dimension(:), allocatable :: rad_w, zet_w, tht_w
   real(kind=8), dimension(nrhotht) :: rho_wall, tht_wall ! polar coords of CW
   data icall /0/, delta/1./
   save
@@ -989,8 +988,6 @@ subroutine stretch_coords(r,z,rm,zm)
   if(icall .eq. 0) then
       icall = 1
       nrz = 0
-      rad_w = 0.
-      zet_w = 0.
       ! status='old': a missing wall file must not be created empty. Without
       ! wall points R0 and the wall radius are 0, and every (R,Z) is mapped
       ! onto rho ~ 1.6 cm around R = 0, so the field is evaluated at one point.
@@ -999,12 +996,12 @@ subroutine stretch_coords(r,z,rm,zm)
         print *, 'stretch_coords: cannot open convex wall file ', trim(convexfile)
         error stop 'stretch_coords: convex wall file missing'
       endif
-      do i=1,nrzmx
-        read(iunit,*,END=10)rad_w(i),zet_w(i)
+      do
+        read(iunit,*,iostat=ios) a,b
+        if(ios .eq. iostat_end) exit
+        if(ios .ne. 0) error stop 'stretch_coords: invalid convex wall point'
         nrz = nrz + 1
       enddo
-10   continue
-      close(iunit)
       if(nrz .lt. 3) then
         print *, 'stretch_coords: convex wall file ', trim(convexfile), ' has ', nrz, &
                  ' points, at least 3 are needed'
@@ -1012,12 +1009,17 @@ subroutine stretch_coords(r,z,rm,zm)
       endif
 
       nrz = nrz+1
+      allocate(rad_w(nrz), zet_w(nrz), tht_w(nrz))
+      rewind(iunit)
+      do i=1,nrz-1
+        read(iunit,*,iostat=ios) rad_w(i),zet_w(i)
+        if(ios .ne. 0) error stop 'stretch_coords: cannot reread convex wall point'
+      enddo
+      close(iunit)
       rad_w(nrz) = rad_w(1)
       zet_w(nrz) = zet_w(1)
-      allocate(rho_w(nrz), tht_w(nrz))
-      R0 = (maxval(rad_w(1:nrz)) +  minval(rad_w(1:nrz)))*0.5
+      R0 = (maxval(rad_w) + minval(rad_w))*0.5
       do i=1,nrz
-        rho_w(i) = sqrt( (rad_w(i)-R0)**2 + zet_w(i)**2 )
         tht_w(i) = atan2(zet_w(i),(rad_w(i)-R0))
         if(tht_w(i) .lt. 0.) tht_w(i) = tht_w(i) + 2.*pi
       enddo
@@ -1043,6 +1045,7 @@ subroutine stretch_coords(r,z,rm,zm)
       enddo
       tht_wall(1) = 0.
       rho_wall(1) = rho_wall(nrhotht)
+      deallocate(rad_w, zet_w, tht_w)
 !!$  do i=1,nrhotht
 !!$     write(19,*)tht_wall(i), rho_wall(i)
 !!$  enddo
