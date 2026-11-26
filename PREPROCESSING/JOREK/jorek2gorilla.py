@@ -18,6 +18,12 @@ Conventions of the output file (GORILLA conventions):
     smooth (JOREK's A_R, A_Z have large, oscillating gauge parts at the edge
     that a piecewise-linear interpolation cannot represent).
   * B_R, B_phi, B_Z are physical components.
+  * By default (--bphi-flux-function) F = R B_phi is replaced by a flux
+    function F(psi_N): least-squares cubic spline through binned medians of the
+    stored R B_phi on the fine sample mesh.  Evolved restarts can carry
+    grid-scale noise in the dynamic part of R B_phi (localised at the Bezier
+    nodes) that creates spurious local |B| minima trapping guiding centres.
+    Both B_phi and A_Z use the same F(psi_N), so B = curl A holds.
 """
 
 from __future__ import annotations
@@ -33,6 +39,7 @@ from pathlib import Path
 import h5py
 import matplotlib.tri as mtri
 import numpy as np
+from profile_gradients import fit_profile, psi_normalised
 from scipy.interpolate import RegularGridInterpolator
 from scipy.io import netcdf_file
 from scipy.spatial import cKDTree
@@ -295,6 +302,12 @@ def main() -> None:
     parser.add_argument("--fine-div", type=int, default=8, help="subdivisions of the mesh used for R B_phi (default 8)")
     parser.add_argument("--grid", type=int, nargs=2, default=(1000, 1400), metavar=("NR", "NZ"),
                         help="rectangular grid for integrating B_phi (default 1000 1400)")
+    parser.add_argument("--bphi-flux-function", action=argparse.BooleanOptionalAction, default=True,
+                        help="replace R B_phi by a smooth flux function F(psi_N) (default: on)")
+    parser.add_argument("--f-knot-spacing", type=float, default=0.02,
+                        help="spline knot spacing in psi_N for F(psi_N) (default 0.02)")
+    parser.add_argument("--f-bin-width", type=float, default=0.002,
+                        help="psi_N bin width for the medians of R B_phi (default 0.002)")
     args = parser.parse_args()
 
     if args.reader_dir is None:
@@ -352,9 +365,25 @@ def main() -> None:
     Z_fine = fine["Z"].ravel()
     vertex_fine, representative_fine = merge_vertices(R_fine, Z_fine)
     tri_fine = build_triangles(n_elements, args.fine_div, vertex_fine)
+    F_fine = R_fine * fine["B_phi"].ravel()          # JOREK (left-handed) sign
+    F_vertex = R * averaged["B_phi"]
+    if args.bphi_flux_function:
+        psin_vertex, A3_axis, A3_boundary, _ = psi_normalised(averaged["A3/psi"], mesh_label)
+        psin_fine = (fine["A3/psi"].ravel() - A3_axis) / (A3_boundary - A3_axis)
+        F_spline, F_fit_residual = fit_profile(psin_fine, F_fine, 1.0, args.f_knot_spacing, args.f_bin_width)
+        F_smooth_vertex = F_spline(np.clip(psin_vertex, 0.0, 1.0))
+        change = np.abs(F_smooth_vertex / F_vertex - 1.0)
+        for lo, hi in ((0.0, 0.5), (0.5, 0.8), (0.8, 0.85), (0.85, 0.9), (0.9, 0.95), (0.95, 1.01)):
+            m = (psin_vertex >= lo) & (psin_vertex < hi)
+            if np.any(m):
+                print(f"F(psi_N) replacement, psi_N {lo:.2f}-{hi:.2f}: |F/F_stored - 1| "
+                      f"median {np.median(change[m]):.2e}, max {change[m].max():.2e}")
+        print(f"F(psi_N) spline: max relative residual to the binned medians {F_fit_residual:.2e}")
+        F_fine = F_spline(np.clip(psin_fine, 0.0, 1.0))
+        F_vertex = F_smooth_vertex
     A_Z_toroidal = toroidal_field_potential(
         R, Z,
-        (R_fine * fine["B_phi"].ravel())[representative_fine],
+        F_fine[representative_fine],
         R_fine[representative_fine],
         Z_fine[representative_fine],
         tri_fine, F_ref, R[np.argmax(np.abs(averaged["A3/psi"]))], args.grid,
@@ -366,7 +395,7 @@ def main() -> None:
     A_phi = -averaged["A3/psi"]
     B_R = averaged["BR"]
     B_Z = averaged["BZ"]
-    B_phi = -averaged["B_phi"]
+    B_phi = -F_vertex / R
     report = curl_check(R, Z, triangles, A_R, A_phi, A_Z, B_R, B_phi, B_Z)
 
     density = averaged["rho"] * si_scale["rho"] / CM_PER_M**3
@@ -404,6 +433,8 @@ def main() -> None:
         "central_density_1e20_m3": restart["central_density"],
         "central_mass_mp": restart["central_mass"],
         "F_ref_T_m": F_ref,
+        "bphi_flux_function": int(args.bphi_flux_function),
+        "f_knot_spacing": args.f_knot_spacing if args.bphi_flux_function else 0.0,
         "n_div": args.n_div,
         "phi_convention": "right-handed (R,phi,Z); JOREK phi components were negated",
         "reader": str((Path(args.reader_dir) / "plot_jorek_model711_h5.py").resolve()),
