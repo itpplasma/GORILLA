@@ -16,7 +16,13 @@ the extremum of A_phi and the boundary value taken from the outermost mesh ring
 (an exact flux surface of the fixed-boundary JOREK run).
 
 Added variables (per vertex): psi_N [1], dn_dA_phi [cm^-3 / (G cm^2)],
-dT_i_dA_phi and dT_e_dA_phi [eV / (G cm^2)], source_taper [1].
+dT_i_dA_phi and dT_e_dA_phi [eV / (G cm^2)], source_taper [1], and the source
+profiles n_src [cm^-3], T_i_src, T_e_src [eV]: flux functions whose psi_N
+derivative is the tapered one, i.e. the spline fits integrated with the taper
+(equal to the fits below psi_N = psin_cut - taper, constant beyond psin_cut).
+They define the reference Maxwellian F0 of the exact delta-f source
+(ln F0(exit) - ln F0(entry) per crossing), which then vanishes in the edge while
+still telescoping on closed orbits.
 """
 
 from __future__ import annotations
@@ -101,6 +107,14 @@ def main() -> None:
         derivative = spline.derivative()(np.minimum(psin, fit_range)) * dpsin_dA * w
         added[f"d{name}_dA_phi"] = (derivative, f"{unit} / (G cm^2)",
                                     f"tapered d{name}/dA_phi from a smooth spline fit {name}(psi_N)")
+        grid = np.linspace(0.0, fit_range, 4001)
+        integrand = spline.derivative()(grid) * taper(grid, args.psin_cut, args.taper)
+        source_profile = float(spline(0.0)) + np.concatenate(
+            ([0.0], np.cumsum(0.5 * (integrand[1:] + integrand[:-1]) * np.diff(grid))))
+        if source_profile.min() <= 0.0:
+            sys.exit(f"{name}_src is not positive")
+        added[f"{name}_src"] = (np.interp(np.clip(psin, 0.0, fit_range), grid, source_profile), unit,
+                                f"source profile: {name}(psi_N) fit integrated with the taper (flux function)")
         print(f"{name}: max relative fit residual of the bin medians {residual:.1e}")
     print(f"A_phi axis {A_axis:.6e}, boundary {A_boundary:.6e} G cm^2 (relative spread on the boundary ring {spread:.1e})")
 

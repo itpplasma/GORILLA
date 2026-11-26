@@ -13,6 +13,8 @@ module vertex_data_mod
 !                                 (default: A_phi)
 !   dn_dA_phi, dT_i_dA_phi,       flux-function gradients of n, T_i, T_e with respect to A_phi
 !   dT_e_dA_phi (optional)        [cm^-3/(G cm^2), eV/(G cm^2)], e.g. from PREPROCESSING/JOREK/profile_gradients.py
+!   n_src, T_i_src, T_e_src       tapered flux-function profiles defining the reference Maxwellian of the
+!   (optional)                    delta-f source [cm^-3, eV] (profile_gradients.py)
 !
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use netcdf
@@ -30,8 +32,10 @@ module vertex_data_mod
     real(dp), dimension(:), allocatable, public, protected :: mesh_label_2d
     real(dp), dimension(:), allocatable, public, protected :: dn_dA_phi_2d, dT_i_dA_phi_2d, dT_e_dA_phi_2d
     logical, public, protected :: boole_profile_gradients = .false.
+    real(dp), dimension(:), allocatable, public, protected :: n_src_2d, T_i_src_2d, T_e_src_2d
+    logical, public, protected :: boole_source_profiles = .false.
 !
-    public :: load_vertex_data, vertex_data_rphiz, vertex_data_profiles
+    public :: load_vertex_data, vertex_data_rphiz, vertex_data_profiles, vertex_data_source_profiles
 !
 contains
 !
@@ -75,6 +79,12 @@ contains
             call read_vertex_variable(ncid, 'dn_dA_phi', dn_dA_phi_2d)
             call read_vertex_variable(ncid, 'dT_i_dA_phi', dT_i_dA_phi_2d)
             call read_vertex_variable(ncid, 'dT_e_dA_phi', dT_e_dA_phi_2d)
+        end if
+        boole_source_profiles = (nf90_inq_varid(ncid, 'n_src', varid) == nf90_noerr)
+        if (boole_source_profiles) then
+            call read_vertex_variable(ncid, 'n_src', n_src_2d)
+            call read_vertex_variable(ncid, 'T_i_src', T_i_src_2d)
+            call read_vertex_variable(ncid, 'T_e_src', T_e_src_2d)
         end if
 !
         call check_nc(nf90_close(ncid), 'close '//trim(filename))
@@ -154,6 +164,35 @@ contains
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
+    subroutine vertex_data_source_profiles(ind_tetr, r, z, dens, temp_i, temp_e)
+!
+        ! Source profiles n_src, T_i_src, T_e_src, interpolated linearly (barycentric) on the 2D triangle of
+        ! tetrahedron ind_tetr like vertex_data_profiles (continuous across faces).
+!
+        integer, intent(in) :: ind_tetr
+        real(dp), intent(in) :: r, z
+        real(dp), intent(out) :: dens, temp_i, temp_e
+        integer :: i_triangle, k1, k2, k3
+        real(dp) :: det, l1, l2, l3
+!
+        if (.not. boole_source_profiles) error stop &
+            'vertex_data_source_profiles: vertex data file has no n_src, T_i_src, T_e_src (run profile_gradients.py)'
+        i_triangle = mod((ind_tetr-1)/3, n_triangles_2d) + 1
+        k1 = triangles_2d(1, i_triangle)
+        k2 = triangles_2d(2, i_triangle)
+        k3 = triangles_2d(3, i_triangle)
+        det = (R_2d(k2)-R_2d(k1))*(Z_2d(k3)-Z_2d(k1)) - (R_2d(k3)-R_2d(k1))*(Z_2d(k2)-Z_2d(k1))
+        l2 = ((r-R_2d(k1))*(Z_2d(k3)-Z_2d(k1)) - (R_2d(k3)-R_2d(k1))*(z-Z_2d(k1)))/det
+        l3 = ((R_2d(k2)-R_2d(k1))*(z-Z_2d(k1)) - (r-R_2d(k1))*(Z_2d(k2)-Z_2d(k1)))/det
+        l1 = 1.0_dp - l2 - l3
+        dens = l1*n_src_2d(k1) + l2*n_src_2d(k2) + l3*n_src_2d(k3)
+        temp_i = l1*T_i_src_2d(k1) + l2*T_i_src_2d(k2) + l3*T_i_src_2d(k3)
+        temp_e = l1*T_e_src_2d(k1) + l2*T_e_src_2d(k2) + l3*T_e_src_2d(k3)
+!
+    end subroutine vertex_data_source_profiles
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!
     subroutine read_vertex_variable(ncid, name, values)
 !
         integer, intent(in) :: ncid
@@ -190,6 +229,8 @@ contains
                                         B_Z_2d, Bmod_2d, Phi_2d, n_2d, T_i_2d, T_e_2d, mesh_label_2d)
         if (allocated(dn_dA_phi_2d)) deallocate(dn_dA_phi_2d, dT_i_dA_phi_2d, dT_e_dA_phi_2d)
         boole_profile_gradients = .false.
+        if (allocated(n_src_2d)) deallocate(n_src_2d, T_i_src_2d, T_e_src_2d)
+        boole_source_profiles = .false.
         n_vertices_2d = 0
         n_triangles_2d = 0
 !
